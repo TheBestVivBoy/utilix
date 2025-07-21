@@ -1,61 +1,85 @@
-<!DOCTYPE html>
-<html lang="en" class="bg-gray-950 text-white">
+<!DOCTYPE html> 
+<html lang="en" class="bg-gray-950 text-white scroll-smooth">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Utilix - Discord Utility Bot</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            animation: {
+              fadeIn: "fadeIn 1s ease-out both",
+              slideUp: "slideUp 1s ease-out both",
+              zoomIn: "zoomIn 0.6s ease-out both",
+            },
+            keyframes: {
+              fadeIn: {
+                "0%": { opacity: 0 },
+                "100%": { opacity: 1 },
+              },
+              slideUp: {
+                "0%": { transform: "translateY(20px)", opacity: 0 },
+                "100%": { transform: "translateY(0)", opacity: 1 },
+              },
+              zoomIn: {
+                "0%": { transform: "scale(0.95)", opacity: 0 },
+                "100%": { transform: "scale(1)", opacity: 1 },
+              },
+            },
+          },
+        },
+      };
+    </script>
     <style>
-      html {
-        scroll-behavior: smooth;
-      }
       section {
         scroll-margin-top: 100px;
-      }
+      } 
     </style>
   </head>
   <body class="font-sans min-h-screen flex flex-col">
     <!-- Navigation Bar -->
-    <nav class="bg-gray-950 fixed top-0 left-0 w-full z-50 shadow-md border-b border-gray-800">
+    <nav class="bg-gray-950 fixed top-0 left-0 w-full z-50 shadow-md border-b border-gray-800 backdrop-blur bg-opacity-80">
       <div class="max-w-6xl mx-auto px-4 py-3 flex justify-between items-center">
-        <a href="#" class="text-2xl font-bold text-white hover:text-indigo-400 transition">Utilix</a>
+        <a href="#" class="text-2xl font-bold text-white hover:text-indigo-400 transition duration-300">Utilix</a>
         <div class="space-x-4 text-sm">
-          <a href="/" class="text-gray-300 hover:text-white transition">Home</a>
-          <a href="/tos.html#tos" class="text-gray-300 hover:text-white transition">Terms</a>
-          <a href="/tos.html#privacy" class="text-gray-300 hover:text-white transition">Privacy</a>
+          <!-- <a href="/" class="text-gray-300 hover:text-white transition duration-300">Home</a> 
+          <a href="/tos.html#tos" class="text-gray-300 hover:text-white transition duration-300">Terms</a>
+          <a href="/tos.html#privacy" class="text-gray-300 hover:text-white transition duration-300">Privacy</a> -->
         </div>
       </div>
     </nav>
 
     <!-- Hero Section -->
-    <section class="text-center py-32 bg-gradient-to-b from-gray-900 to-black">
-      <h1 class="text-5xl font-bold mb-4">Utilix</h1>
-      <p class="text-lg mb-8 text-gray-300">
+    <section class="text-center py-36 bg-gradient-to-b from-gray-900 to-black animate-fadeIn">
+      <h1 class="text-5xl font-bold mb-4 animate-slideUp">Utilix</h1>
+      <p class="text-lg mb-8 text-gray-300 animate-slideUp delay-100">
         A powerful utility bot for tickets, scammer reports, and moderation.
       </p>
-      <div class="flex justify-center gap-4">
-        <a href="YOUR_INVITE_LINK" class="bg-indigo-600 hover:bg-indigo-700 px-6 py-3 rounded-lg text-white font-semibold transition">
+      <div class="flex justify-center gap-4 animate-zoomIn delay-200">
+        <a href="https://discord.gg/KWpqT4eRbu" class="bg-indigo-600 hover:bg-indigo-700 px-6 py-3 rounded-lg text-white font-semibold transition duration-300 transform hover:scale-105">
           Invite Bot
         </a>
-        <a href="YOUR_SUPPORT_SERVER" class="bg-gray-700 hover:bg-gray-800 px-6 py-3 rounded-lg text-white font-semibold transition">
+        <a href="YOUR_SUPPORT_SERVER" class="bg-gray-700 hover:bg-gray-800 px-6 py-3 rounded-lg text-white font-semibold transition duration-300 transform hover:scale-105">
           Join Support Server
         </a>
       </div>
     </section>
 
     <!-- Features Section -->
-    <section class="py-16 px-6 md:px-16 bg-gray-900">
-      <h2 class="text-3xl font-semibold text-center mb-10">Features</h2>
+    <section class="py-20 px-6 md:px-16 bg-gray-900 animate-fadeIn delay-300">
+      <h2 class="text-3xl font-semibold text-center mb-12 animate-slideUp">Features</h2>
       <div class="grid md:grid-cols-3 gap-10">
-        <div class="bg-gray-800 rounded-xl p-6 shadow-md">
+        <div class="bg-gray-800 rounded-xl p-6 shadow-md transform transition hover:scale-105 hover:shadow-xl duration-300">
           <h3 class="text-xl font-bold mb-2">Ticket System</h3>
           <p>Create and manage private support tickets with ease.</p>
         </div>
-        <div class="bg-gray-800 rounded-xl p-6 shadow-md">
+        <div class="bg-gray-800 rounded-xl p-6 shadow-md transform transition hover:scale-105 hover:shadow-xl duration-300">
           <h3 class="text-xl font-bold mb-2">Scammer Reports</h3>
           <p>Community-driven scammer database to help keep servers safe.</p>
         </div>
-        <div class="bg-gray-800 rounded-xl p-6 shadow-md">
+        <div class="bg-gray-800 rounded-xl p-6 shadow-md transform transition hover:scale-105 hover:shadow-xl duration-300">
           <h3 class="text-xl font-bold mb-2">Utility Tools</h3>
           <p>Helpful moderation and automation features for server admins.</p>
         </div>
@@ -66,8 +90,8 @@
     <footer class="mt-auto text-center py-6 bg-black text-sm text-gray-400">
       <p>
         &copy; 2025 Utilix Bot • 
-        <a href="/tos.html#tos" class="underline hover:text-white">Terms</a> • 
-        <a href="/tos.html#privacy" class="underline hover:text-white">Privacy</a>
+        <a href="/utilix/tos" class="underline hover:text-white transition duration-200">Terms</a> • 
+        <a href="/utilix/privacy" class="underline hover:text-white transition duration-200">Privacy</a>
       </p>
     </footer>
   </body>
