@@ -27,20 +27,21 @@
 
       <h2 class="text-2xl font-semibold">1. Data We Collect</h2>
       <ul class="list-disc list-inside space-y-2">
-        <li>User IDs and Guild IDs: For basic functionality, logs, or command usage.</li>
-        <li>Message Content: Only when voluntarily submitted (e.g. tickets or reports).</li>
+        <li>User IDs, Guild IDs, Usernames, and Nicknames: For logging, moderation, and command usage.</li>
+        <li>Message Content: Temporarily stored for up to 14 days to provide server moderation logs of deleted and edited messages. After this period, all stored message content is automatically deleted. Message data is never shared with third parties.</li>
         <li>Scammer Reports: User-submitted data including Discord IDs and reasons.</li>
       </ul>
 
       <h2 class="text-2xl font-semibold">2. How We Use Data</h2>
       <ul class="list-disc list-inside space-y-2">
-        <li>To provide Bot functionality (e.g. managing tickets, handling reports).</li>
+        <li>To provide Bot functionality (e.g. managing tickets, handling reports, and creating moderation logs).</li>
         <li>To maintain records for scammer reports (to assist in community moderation).</li>
         <li>To monitor abuse and maintain service quality.</li>
       </ul>
 
       <h2 class="text-2xl font-semibold">3. Data Storage</h2>
-      <p>Data is stored securely and is only accessible to authorized Bot developers or maintainers. Ticket and report data may be retained until manually deleted by you or the Bot admins.</p>
+      <p>Data is stored securely and is only accessible to authorized Bot developers or maintainers. 
+      Message content is automatically deleted after 14 days. Ticket and report data may be retained until manually deleted by you or the Bot admins.</p>
 
       <h2 class="text-2xl font-semibold">4. Data Sharing</h2>
       <p>We do not sell or share your data with third parties. Data may be shared with Discord upon legal request or to enforce community safety.</p>
@@ -62,35 +63,26 @@
         Support Server: <a href="https://discord.gg/KWpqT4eRbu" class="text-indigo-400 underline">https://discord.gg/KWpqT4eRbu</a>
       </p>
     </main>
-<!-- Font Awesome CDN (place this in <head> if not already there) -->
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 
-<!-- Footer -->
-<footer class="mt-auto py-6 bg-black text-sm text-gray-400">
-  <div class="max-w-6xl mx-auto px-4 flex flex-col md:flex-row justify-between items-center">
-    
-    <!-- Social Icons -->
-    <div class="flex gap-4 mb-4 md:mb-0">
-      <a href="https://discord.gg/KWpqT4eRbu" target="_blank" class="hover:text-white transition duration-200">
-        <i class="fab fa-discord text-xl"></i>
-      </a>
-      <!-- <a href="https://youtube.com/YOUR_CHANNEL" target="_blank" class="hover:text-white transition duration-200">
-        <i class="fab fa-youtube text-xl"></i>
-      </a>
-      <a href="https://twitter.com/YOUR_HANDLE" target="_blank" class="hover:text-white transition duration-200">
-        <i class="fab fa-twitter text-xl"></i>
-      </a>-->
-    </div>
+    <!-- Footer -->
+    <footer class="mt-auto py-6 bg-black text-sm text-gray-400">
+      <div class="max-w-6xl mx-auto px-4 flex flex-col md:flex-row justify-between items-center">
+        
+        <!-- Social Icons -->
+        <div class="flex gap-4 mb-4 md:mb-0">
+          <a href="https://discord.gg/KWpqT4eRbu" target="_blank" class="hover:text-white transition duration-200">
+            <i class="fab fa-discord text-xl"></i>
+          </a>
+        </div>
 
-    <!-- Legal Links -->
-    <p class="text-center md:text-right">
-      &copy; 2025 Utilix Bot • 
-      <a href="/utilix/tos" class="underline hover:text-white transition duration-200">Terms</a> • 
-      <a href="/utilix/privacy" class="underline hover:text-white transition duration-200">Privacy</a>
-    </p>
-  </div>
-</footer>
-
+        <!-- Legal Links -->
+        <p class="text-center md:text-right">
+          &copy; 2025 Utilix Bot • 
+          <a href="/utilix/tos" class="underline hover:text-white transition duration-200">Terms</a> • 
+          <a href="/utilix/privacy" class="underline hover:text-white transition duration-200">Privacy</a>
+        </p>
+      </div>
+    </footer>
 
   </body>
 </html>
