@@ -85,34 +85,335 @@
         </div>
       </div>
     </section>
-<!-- Font Awesome CDN -->
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 
-<!-- Footer -->
-<footer class="mt-auto py-6 bg-black text-sm text-gray-400">
-  <div class="max-w-6xl mx-auto px-4 flex flex-col md:flex-row justify-between items-center">
-    
-    <!-- Social Icons -->
-    <div class="flex gap-4 mb-4 md:mb-0">
-      <a href="https://discord.gg/KWpqT4eRbu" target="_blank" class="hover:text-white transition duration-200">
-        <i class="fab fa-discord text-xl"></i>
-      </a>
-      <!-- <a href="https://youtube.com/YOUR_CHANNEL" target="_blank" class="hover:text-white transition duration-200">
-        <i class="fab fa-youtube text-xl"></i>
-      </a>
-      <a href="https://twitter.com/YOUR_HANDLE" target="_blank" class="hover:text-white transition duration-200">
-        <i class="fab fa-twitter text-xl"></i>
-      </a>-->
-    </div>
+    <!-- Font Awesome CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 
-    <!-- Legal Links -->
-    <p class="text-center md:text-right">
-      &copy; 2025 Utilix Bot • 
-      <a href="/utilix/tos" class="underline hover:text-white transition duration-200">Terms</a> • 
-      <a href="/utilix/privacy" class="underline hover:text-white transition duration-200">Privacy</a>
-    </p>
-  </div>
-</footer>
+    <!-- Footer -->
+    <footer class="mt-auto py-6 bg-black text-sm text-gray-400">
+      <div class="max-w-6xl mx-auto px-4 flex flex-col md:flex-row justify-between items-center">
+        <!-- Social Icons -->
+        <div class="flex gap-4 mb-4 md:mb-0">
+          <a href="https://discord.gg/KWpqT4eRbu" target="_blank" class="hover:text-white transition duration-200">
+            <i class="fab fa-discord text-xl"></i>
+          </a>
+        </div>
 
+        <!-- Legal Links -->
+        <p class="text-center md:text-right">
+          &copy; 2025 Utilix Bot • 
+          <a href="/utilix/tos" class="underline hover:text-white transition duration-200">Terms</a> • 
+          <a href="/utilix/privacy" class="underline hover:text-white transition duration-200">Privacy</a>
+        </p>
+      </div>
+    </footer>
+
+    <!-- 2048 Easter Egg Script -->
+    <script>
+      (() => {
+        // Secret code tracking for keyboard input
+        const secretCode = ['2', '0', '4', '8'];
+        let inputBuffer = [];
+
+        // Game state variables
+        let board = [];
+        let score = 0;
+        let gameActive = false;
+
+        // Create and style game modal container & overlay
+        function createGameModal() {
+          if (document.getElementById('custom-2048-container')) return;
+
+          // Overlay (transparent dark background)
+          const overlay = document.createElement('div');
+          overlay.id = 'custom-2048-overlay';
+          overlay.style.position = 'fixed';
+          overlay.style.top = 0;
+          overlay.style.left = 0;
+          overlay.style.width = '100vw';
+          overlay.style.height = '100vh';
+          overlay.style.backgroundColor = 'rgba(0,0,0,0.85)';
+          overlay.style.zIndex = 10000;
+          overlay.style.display = 'flex';
+          overlay.style.justifyContent = 'center';
+          overlay.style.alignItems = 'center';
+
+          // Container
+          const container = document.createElement('div');
+          container.id = 'custom-2048-container';
+          container.className = 'bg-gray-900 rounded-lg shadow-lg p-6 max-w-md w-full flex flex-col items-center relative';
+          container.style.minWidth = '320px';
+
+          // Close button
+          const closeBtn = document.createElement('button');
+          closeBtn.textContent = '✖';
+          closeBtn.className = 'text-white absolute top-2 right-3 text-2xl hover:text-indigo-400 transition';
+          closeBtn.style.background = 'transparent';
+          closeBtn.style.border = 'none';
+          closeBtn.style.cursor = 'pointer';
+          closeBtn.addEventListener('click', () => {
+            document.body.removeChild(overlay);
+            gameActive = false;
+            window.removeEventListener('keydown', handleKey);
+          });
+
+          // Title
+          const title = document.createElement('h2');
+          title.textContent = '2048 - Utilix Edition';
+          title.className = 'text-white text-2xl mb-4 font-semibold';
+
+          // Score display
+          const scoreDiv = document.createElement('div');
+          scoreDiv.id = 'custom-2048-score';
+          scoreDiv.className = 'text-indigo-400 text-lg mb-4 select-none';
+
+          // Restart button
+          const restartBtn = document.createElement('button');
+          restartBtn.textContent = 'Restart';
+          restartBtn.className = 'mb-4 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 rounded-md text-white font-semibold transition';
+          restartBtn.addEventListener('click', () => {
+            startGame();
+          });
+
+          // Game board grid
+          const grid = document.createElement('div');
+          grid.id = 'custom-2048-grid';
+          grid.className = 'grid grid-cols-4 gap-3 bg-gray-800 rounded-lg p-3';
+
+          // Initialize 16 grid cells
+          for (let i = 0; i < 16; i++) {
+            const cell = document.createElement('div');
+            cell.className = 'w-16 h-16 flex items-center justify-center rounded-md font-bold text-xl select-none transition-colors duration-300';
+            cell.style.backgroundColor = '#374151'; // Tailwind gray-700
+            cell.style.color = '#d1d5db'; // Tailwind gray-300
+            cell.textContent = '';
+            grid.appendChild(cell);
+          }
+
+          container.appendChild(closeBtn);
+          container.appendChild(title);
+          container.appendChild(scoreDiv);
+          container.appendChild(restartBtn);
+          container.appendChild(grid);
+          overlay.appendChild(container);
+          document.body.appendChild(overlay);
+
+          return { overlay, container, scoreDiv, grid };
+        }
+
+        // Utility: Get all empty cell indexes on board
+        function getEmptyCells() {
+          let empties = [];
+          for (let i = 0; i < 16; i++) {
+            if (board[i] === 0) empties.push(i);
+          }
+          return empties;
+        }
+
+        // Place a new tile (2 or 4) randomly on board
+        function placeRandomTile() {
+          const empties = getEmptyCells();
+          if (empties.length === 0) return false;
+          const pos = empties[Math.floor(Math.random() * empties.length)];
+          board[pos] = Math.random() < 0.9 ? 2 : 4;
+          return true;
+        }
+
+        // Update the UI grid cells based on board array
+        function updateGridUI(gridElem, scoreElem) {
+          for (let i = 0; i < 16; i++) {
+            const cell = gridElem.children[i];
+            const val = board[i];
+            if (val === 0) {
+              cell.textContent = '';
+              cell.style.backgroundColor = '#374151'; // gray-700
+              cell.style.color = '#d1d5db'; // gray-300
+            } else {
+              cell.textContent = val;
+              // Color logic by value (simple scale)
+              const colors = {
+                2: ['#e0e7ff', '#1e3a8a'],      // bg-indigo-100, text-indigo-900
+                4: ['#c7d2fe', '#1e40af'],      // bg-indigo-200, text-indigo-900
+                8: ['#a5b4fc', '#1e40af'],      // bg-indigo-300, text-indigo-900
+                16: ['#818cf8', '#ffffff'],     // bg-indigo-400, white text
+                32: ['#6366f1', '#ffffff'],     // bg-indigo-500
+                64: ['#4f46e5', '#ffffff'],     // bg-indigo-600
+                128: ['#4338ca', '#ffffff'],    // bg-indigo-700
+                256: ['#3730a3', '#ffffff'],    // bg-indigo-800
+                512: ['#312e81', '#ffffff'],    // bg-indigo-900
+                1024: ['#2c2a6f', '#ffffff'],   // custom dark-indigo
+                2048: ['#231f4b', '#ffff00'],   // final tile, yellow text
+              };
+              let c = colors[val] || ['#1e3a8a', '#fff']; // fallback
+              cell.style.backgroundColor = c[0];
+              cell.style.color = c[1];
+            }
+          }
+          scoreElem.textContent = `Score: ${score}`;
+        }
+
+        // Slide & merge helper function for one row/column array
+        function slideAndMerge(line) {
+          let arr = line.filter((v) => v !== 0);
+          let scoreGained = 0;
+          for (let i = 0; i < arr.length - 1; i++) {
+            if (arr[i] === arr[i + 1]) {
+              arr[i] *= 2;
+              scoreGained += arr[i];
+              arr[i + 1] = 0;
+            }
+          }
+          arr = arr.filter((v) => v !== 0);
+          while (arr.length < 4) arr.push(0);
+          return { newLine: arr, scoreGained };
+        }
+
+        // Move board in direction and merge tiles
+        // direction: 'up', 'down', 'left', 'right'
+        function move(direction) {
+          let moved = false;
+          let gained = 0;
+          let newBoard = board.slice();
+
+          // Helper to get index by row,col
+          const idx = (r, c) => r * 4 + c;
+
+          if (direction === 'left' || direction === 'right') {
+            for (let r = 0; r < 4; r++) {
+              let row = [];
+              for (let c = 0; c < 4; c++) {
+                row.push(newBoard[idx(r, c)]);
+              }
+              if (direction === 'right') row.reverse();
+
+              const { newLine, scoreGained } = slideAndMerge(row);
+              gained += scoreGained;
+
+              if (direction === 'right') newLine.reverse();
+
+              for (let c = 0; c < 4; c++) {
+                if (newBoard[idx(r, c)] !== newLine[c]) {
+                  moved = true;
+                  newBoard[idx(r, c)] = newLine[c];
+                }
+              }
+            }
+          } else if (direction === 'up' || direction === 'down') {
+            for (let c = 0; c < 4; c++) {
+              let col = [];
+              for (let r = 0; r < 4; r++) {
+                col.push(newBoard[idx(r, c)]);
+              }
+              if (direction === 'down') col.reverse();
+
+              const { newLine, scoreGained } = slideAndMerge(col);
+              gained += scoreGained;
+
+              if (direction === 'down') newLine.reverse();
+
+              for (let r = 0; r < 4; r++) {
+                if (newBoard[idx(r, c)] !== newLine[r]) {
+                  moved = true;
+                  newBoard[idx(r, c)] = newLine[r];
+                }
+              }
+            }
+          }
+
+          if (moved) {
+            board = newBoard;
+            score += gained;
+            return true;
+          }
+          return false;
+        }
+
+        // Check if any moves left
+        function canMove() {
+          for (let i = 0; i < 16; i++) {
+            if (board[i] === 0) return true;
+            const r = Math.floor(i / 4);
+            const c = i % 4;
+            const current = board[i];
+            if (c < 3 && board[i + 1] === current) return true;
+            if (r < 3 && board[i + 4] === current) return true;
+          }
+          return false;
+        }
+
+        // Check if player has won (got tile 2048)
+        function checkWin() {
+          return board.includes(2048);
+        }
+
+        // Restart game
+        function startGame() {
+          board = new Array(16).fill(0);
+          score = 0;
+          placeRandomTile();
+          placeRandomTile();
+          updateGridUI(gameElements.grid, gameElements.scoreDiv);
+          gameActive = true;
+        }
+
+        // Handle key presses for game moves
+        function handleKey(e) {
+          if (!gameActive) return;
+
+          let moved = false;
+          switch (e.key) {
+            case 'ArrowUp':
+              moved = move('up');
+              break;
+            case 'ArrowDown':
+              moved = move('down');
+              break;
+            case 'ArrowLeft':
+              moved = move('left');
+              break;
+            case 'ArrowRight':
+              moved = move('right');
+              break;
+          }
+
+          if (moved) {
+            placeRandomTile();
+            updateGridUI(gameElements.grid, gameElements.scoreDiv);
+
+            if (checkWin()) {
+              alert('🎉 Congratulations! You reached 2048!');
+              gameActive = false;
+            } else if (!canMove()) {
+              alert('😞 Game over! No moves left.');
+              gameActive = false;
+            }
+          }
+        }
+
+        // Game UI elements reference holder
+        let gameElements = null;
+
+        // Launch the game modal and initialize game
+        function launchGame() {
+          if (gameActive) return; // prevent multiple
+
+          gameElements = createGameModal();
+          startGame();
+          window.addEventListener('keydown', handleKey);
+        }
+
+        // Keyboard secret code listener
+        document.addEventListener('keydown', (e) => {
+          inputBuffer.push(e.key);
+          if (inputBuffer.length > 4) inputBuffer.shift();
+          if (inputBuffer.join('') === secretCode.join('')) {
+            launchGame();
+          }
+        });
+
+        // Console command to launch game
+        window.startCustom2048 = launchGame;
+      })();
+    </script>
   </body>
 </html>
