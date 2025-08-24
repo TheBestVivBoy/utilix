@@ -1,0 +1,2 @@
+User-agent: *
+Sitemap: https://utilix.support/sitemap.xml
