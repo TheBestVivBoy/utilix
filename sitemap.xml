@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  
+  <!-- Home -->
+  <url>
+    <loc>https://utilix.support/</loc>
+    <priority>1.0</priority>
+  </url>
+
+  <!-- FAQ -->
+  <url>
+    <loc>https://utilix.support/FAQ</loc>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Setup -->
+  <url>
+    <loc>https://utilix.support/Setup</loc>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Terms of Service -->
+  <url>
+    <loc>https://utilix.support/tos</loc>
+    <priority>0.5</priority>
+  </url>
+
+  <!-- Privacy Policy -->
+  <url>
+    <loc>https://utilix.support/privacy</loc>
+    <priority>0.5</priority>
+  </url>
+
+</urlset>
