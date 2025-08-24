@@ -3,7 +3,46 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Utilix - Discord Utility Bot</title>
+  
+    <!-- Title & Description -->
+    <title>Utilix - Discord Utility Bot for Tickets & Moderation</title>
+    <meta name="description" content="Utilix is a Discord bot for tickets, scammer reports, moderation, utilities, and minigames. Improve your server with powerful features and easy setup." />
+  
+    <!-- Canonical URL -->
+    <link rel="canonical" href="https://utilix.support/" />
+  
+    <!-- Open Graph (for Discord, Facebook, etc.) -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://utilix.support/" />
+    <meta property="og:title" content="Utilix - Discord Utility Bot" />
+    <meta property="og:description" content="Utilix is a Discord bot with tickets, moderation, scam protection, utilities, and minigames." />
+    <meta property="og:image" content="https://utilix.support/preview.png" />
+  
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Utilix - Discord Utility Bot" />
+    <meta name="twitter:description" content="Discord bot with tickets, moderation, scam protection, and more." />
+    <meta name="twitter:image" content="https://utilix.support/preview.png" />
+  
+    <!-- Structured Data (JSON-LD) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "Utilix",
+      "applicationCategory": "Utility",
+      "operatingSystem": "Discord",
+      "url": "https://utilix.support/",
+      "description": "Utilix is a Discord bot that provides ticket systems, scammer reports, moderation, utilities, and minigames.",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      }
+    }
+    </script>
+  
+    <!-- Tailwind -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
@@ -16,43 +55,23 @@
               pop: "pop 0.3s ease forwards",
             },
             keyframes: {
-              fadeIn: {
-                "0%": { opacity: 0 },
-                "100%": { opacity: 1 },
-              },
-              slideUp: {
-                "0%": { transform: "translateY(20px)", opacity: 0 },
-                "100%": { transform: "translateY(0)", opacity: 1 },
-              },
-              zoomIn: {
-                "0%": { transform: "scale(0.95)", opacity: 0 },
-                "100%": { transform: "scale(1)", opacity: 1 },
-              },
-              pop: {
-                "0%": { transform: "scale(1)" },
-                "50%": { transform: "scale(1.15)" },
-                "100%": { transform: "scale(1)" },
-              },
+              fadeIn: { "0%": { opacity: 0 }, "100%": { opacity: 1 } },
+              slideUp: { "0%": { transform: "translateY(20px)", opacity: 0 }, "100%": { transform: "translateY(0)", opacity: 1 } },
+              zoomIn: { "0%": { transform: "scale(0.95)", opacity: 0 }, "100%": { transform: "scale(1)", opacity: 1 } },
+              pop: { "0%": { transform: "scale(1)" }, "50%": { transform: "scale(1.15)" }, "100%": { transform: "scale(1)" } }
             },
           },
         },
       };
     </script>
+  
     <style>
-      section {
-        scroll-margin-top: 100px;
-      }
-      .tile {
-        transition: background-color 0.3s, color 0.3s, transform 0.2s;
-      }
-      .tile.pop {
-        animation: pop 0.3s ease forwards;
-      }
+      section { scroll-margin-top: 100px; }
+      .tile { transition: background-color 0.3s, color 0.3s, transform 0.2s; }
+      .tile.pop { animation: pop 0.3s ease forwards; }
     </style>
-    <link
-      rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
-    />
+  
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
   </head>
   <body class="font-sans min-h-screen flex flex-col">
     <!-- Navigation Bar -->
