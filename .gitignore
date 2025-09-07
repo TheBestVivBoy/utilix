@@ -12,18 +12,6 @@ pnpm-debug.log*
 .env.local
 .env.*.local
 
-# OS / editor files
-.DS_Store
-Thumbs.db
-*.swp
-*.swo
-
-# build output
-dist/
-build/
-.cache/
-.next/
-out/
 
 # package managers
 package-lock.json
