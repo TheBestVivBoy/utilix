@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Unsupported Device - Utilix</title>
+<style>
+  :root {
+    --bg: #0d0d0f;
+    --fg: #f2f2f7;
+    --accent: #00c6ff;
+    --accent2: #0072ff;
+    --muted: #a0a0a7;
+  }
+  * {
+    margin: 0; padding: 0; box-sizing: border-box;
+  }
+  body, html {
+    height: 100%;
+    font-family: 'Inter', sans-serif;
+    background: var(--bg);
+    color: var(--fg);
+    overflow: hidden;
+    position: relative;
+  }
+  .container {
+    position: relative;
+    z-index: 10;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 2rem;
+  }
+  h1 {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    user-select: none;
+  }
+  p {
+    font-size: 1.25rem;
+    color: var(--muted);
+    user-select: none;
+  }
+
+  /* Stars container */
+  .stars {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    z-index: 1;
+    pointer-events: none;
+  }
+
+  /* Single star style */
+  .star {
+    position: absolute;
+    background: white;
+    border-radius: 50%;
+    opacity: 0.8;
+    animation: twinkle 3s infinite alternate;
+  }
+
+  /* Different sizes and animation delays for natural twinkle */
+  .star.small {
+    width: 2px;
+    height: 2px;
+    animation-duration: 2.5s;
+  }
+  .star.medium {
+    width: 3px;
+    height: 3px;
+    animation-duration: 3.5s;
+  }
+  .star.large {
+    width: 4px;
+    height: 4px;
+    animation-duration: 4.5s;
+  }
+
+  /* Twinkle animation */
+  @keyframes twinkle {
+    from {opacity: 0.2;}
+    to {opacity: 0.9;}
+  }
+
+</style>
+</head>
+<body>
+
+<div class="stars" aria-hidden="true">
+  <!-- Generate some stars at fixed positions -->
+  <div class="star small" style="top: 10%; left: 15%; animation-delay: 0s;"></div>
+  <div class="star medium" style="top: 25%; left: 30%; animation-delay: 1s;"></div>
+  <div class="star large" style="top: 50%; left: 45%; animation-delay: 2s;"></div>
+  <div class="star small" style="top: 60%; left: 70%; animation-delay: 0.5s;"></div>
+  <div class="star medium" style="top: 80%; left: 80%; animation-delay: 1.5s;"></div>
+  <div class="star small" style="top: 20%; left: 85%; animation-delay: 3s;"></div>
+  <div class="star large" style="top: 35%; left: 75%; animation-delay: 1.8s;"></div>
+  <div class="star medium" style="top: 70%; left: 40%; animation-delay: 2.2s;"></div>
+  <div class="star small" style="top: 90%; left: 25%; animation-delay: 3.5s;"></div>
+</div>
+
+<div class="container">
+  <h1>Unsupported Device</h1>
+  <p>Sorry, the page you were trying to reach is not available on mobile devices.<br />Please visit us on a desktop or laptop.</p>
+</div>
+
+</body>
+</html>

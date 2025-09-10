@@ -1,0 +1,440 @@
+<!DOCTYPE html> 
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Utilix — Terms of Service</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0d0d0f;
+      --fg: #f2f2f7;
+      --accent: #00c6ff;
+      --accent2: #0072ff;
+      --muted: #a0a0a7;
+      --card: #1e1e24;
+      --panel: #141418;
+      --success: #00dba0;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      background: radial-gradient(circle at top, #1a1a1d, var(--bg));
+      color: var(--fg);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+
+    header {
+      background: transparent;
+      position: fixed; width: 100%; z-index: 1100;
+      padding: 1rem 2rem;
+      display: flex; justify-content: space-between; align-items: center;
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+      height: 72px; top: 0; left: 0;
+    }
+    .logo {
+      font-weight: 800; font-size: 1.25rem;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      letter-spacing: -0.02em;
+    }
+    nav.header-nav ul { display: flex; gap: 1.25rem; list-style: none; margin: 0; padding: 0; align-items: center; }
+    nav.header-nav a {
+      color: var(--fg); text-decoration: none; font-weight: 600; position: relative;
+      padding: 6px 10px; border-radius: 6px; transition: transform 0.15s ease;
+    }
+    nav.header-nav a::after { content: ""; position: absolute; left: 0; bottom: -6px; width: 0%; height: 2px; background: var(--accent); transition: width 0.28s ease; }
+    nav.header-nav a:hover { transform: translateY(-2px); }
+    nav.header-nav a:hover::after { width: 100%; }
+    nav.header-nav a.active {
+      background: linear-gradient(90deg, rgba(0, 198, 255, 0.08), rgba(0, 114, 255, 0.06));
+      -webkit-background-clip: padding-box; box-shadow: 0 6px 20px rgba(0, 114, 255, 0.04);
+    }
+
+    .page { max-width: 1200px; margin: 0 auto; padding: 96px 20px 56px; }
+
+    .hero { display: flex; align-items: center; justify-content: center; text-align: center; min-height: 38vh; padding: 2rem 1rem; }
+    .hero-inner { max-width: 920px; }
+    .hero h1 {
+      font-size: 3rem; line-height: 1.02; margin-bottom: 0.5rem;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .hero p { color: var(--muted); font-size: 1.05rem; margin-bottom: 1.25rem; max-width: 760px; margin-inline: auto; }
+
+    .layout { display: grid; grid-template-columns: 280px 1fr; gap: 24px; align-items: start; }
+    .toc { position: sticky; top: 96px; background: var(--panel); border: 1px solid rgba(255,255,255,0.04); border-radius: 14px; padding: 1rem; }
+    .toc h2 { margin: 0 0 8px; font-size: 0.95rem; letter-spacing: 0.02em; color: var(--muted); }
+    .toc a { display: block; text-decoration: none; color: var(--fg); padding: 8px 10px; border-radius: 8px; font-weight: 600; font-size: 0.95rem; }
+    .toc a:hover { background: rgba(255,255,255,0.04); }
+    .toc a.active { background: rgba(0, 198, 255, 0.15); }
+
+    .terms-card { background: var(--card); border-radius: 16px; border: 1px solid rgba(255,255,255,0.04); padding: 1.2rem; }
+    .section { padding: 1rem; border: 1px solid rgba(255,255,255,0.05); border-radius: 14px; background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); scroll-margin-top: 90px; }
+    .section + .section { margin-top: 14px; }
+    .section h3 { margin: 0 0 6px; font-size: 1.05rem; background: linear-gradient(90deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .section p, .section li { color: var(--muted); font-size: 0.98rem; }
+
+    .divider { height: 2px; margin: 2.2rem 0; background: linear-gradient(90deg, rgba(0, 198, 255, 0.12), rgba(0, 114, 255, 0.06)); border-radius: 4px; border: 1px solid rgba(255, 255, 255, 0.02); }
+
+    /* Back to top button */
+    #backToTop {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: white;
+      font-size: 1.4rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.4);
+      transition: opacity 0.3s ease, transform 0.2s ease;
+      opacity: 0;
+      pointer-events: none;
+      z-index: 1200;
+    }
+    #backToTop.show { opacity: 1; pointer-events: auto; }
+    #backToTop:hover { transform: translateY(-3px) scale(1.05); }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo">Utilix</div>
+    <nav class="header-nav" aria-label="Primary navigation">
+      <ul>
+        <li><a href="/index">Home</a></li>
+                <li><a href="/setup">Setup</a></li>
+        <li><a href="/faq">FAQ</a></li>
+
+      </ul>
+    </nav>
+  </header>
+
+  <main class="page">
+    <section class="hero" aria-labelledby="hero-heading">
+      <div class="hero-inner">
+        <h1 id="hero-heading">Utilix - Terms of Service</h1>
+        <div class="meta-row" role="list" aria-label="Document metadata">
+          <span class="badge" role="listitem">Effective Date: <strong>July 20, 2025</strong></span>
+        </div>
+      </div>
+    </section>
+
+    <div class="layout" aria-label="Terms layout">
+      <!-- TOC -->
+      <aside class="toc" aria-labelledby="toc-heading">
+        <h2 id="toc-heading">On this page</h2>
+        <nav aria-label="Table of contents">
+          <a href="#intro">Introduction</a>
+          <a href="#desc">1. Description</a>
+          <a href="#usage">2. Usage Rules</a>
+          <a href="#scamdb">3. Scammer Database</a>
+          <a href="#tickets">4. Tickets</a>
+          <a href="#termination">5. Termination</a>
+          <a href="#liability">6. Limitation of Liability</a>
+          <a href="#endorsement">7. No Endorsement or Guarantee</a>
+          <a href="#beta">8. Beta & Experimental Features</a>
+          <a href="#suspension">9. Suspension of Services</a>
+          <a href="#uptime">10. Uptime & Availability</a>
+          <a href="#ownership">11. Ownership & Intellectual Property</a>
+          <a href="#restrictions">12. Command Restrictions</a>
+          <a href="#responsibility">13. Responsibility of Server Owners</a>
+          <a href="#automation">14. Automated Use & Bots</a>
+          <a href="#misuse">15. Misuse of Features</a>
+          <a href="#changes">16. Changes to the Terms</a>
+        </nav>
+      </aside>
+
+
+      <section class="terms-card" aria-label="Terms content">
+        <div id="intro" class="section" tabindex="-1">
+          <h3>Introduction</h3>
+          <p>By using Utilix ("the Bot"), you agree to the following terms. If you do not agree, do not invite or use Utilix.</p>
+        </div>
+
+        <div id="desc" class="section" tabindex="-1">
+          <h3>1. Description</h3>
+          <p>Utilix is a Discord bot offering utility features including, but not limited to, a ticket system, scammer reporting database, and other useful moderation or automation tools.</p>
+        </div>
+
+        <div id="usage" class="section" tabindex="-1">
+          <h3>2. Usage Rules</h3>
+          <ul>
+            <li>You must follow Discord's Terms of Service and Community Guidelines.</li>
+            <li>You may not use Utilix to engage in or promote illegal, harmful, or abusive behavior.</li>
+            <li>You must not attempt to exploit, reverse engineer, or overload the Bot.</li>
+          </ul>
+        </div>
+
+        <div id="scamdb" class="section" tabindex="-1">
+          <h3>3. Scammer Database</h3>
+          <ul>
+            <li>The scammer database is community-driven and may contain user-submitted reports.</li>
+            <li>False or malicious reporting may result in blacklisting from the Bot.</li>
+            <li>We are not responsible for any damages or losses arising from reliance on this database.</li>
+          </ul>
+        </div>
+
+        <div id="tickets" class="section" tabindex="-1">
+          <h3>4. Tickets</h3>
+          <ul>
+            <li>Ticket logs may include message content or IDs related to support queries.</li>
+            <li>You are responsible for informing your server members if ticket logs are stored or shared with staff.</li>
+          </ul>
+        </div>
+
+        <div id="termination" class="section" tabindex="-1">
+          <h3>5. Termination</h3>
+          <p>We reserve the right to remove access to Utilix for any user or server, with or without notice, especially in cases of abuse, violation of terms, or at Discord’s request.</p>
+        </div>
+
+        <div id="liability" class="section" tabindex="-1">
+          <h3>6. Limitation of Liability</h3>
+          <ul>
+            <li>Utilix is provided "as is" and "as available" without warranties of any kind.</li>
+            <li>We are not liable for data loss, service interruptions, or inaccuracies.</li>
+            <li>We are not liable for damages or disputes arising from Bot functionality or moderation outcomes.</li>
+            <li>We are not liable for reliance on outputs, reports, or actions made using Utilix.</li>
+          </ul>
+        </div>
+
+        <div id="endorsement" class="section" tabindex="-1">
+          <h3>7. No Endorsement or Guarantee</h3>
+          <p>Utilix does not officially endorse or verify any server, user, or moderator actions taken via the Bot. Presence of a user in the scammer database does not constitute legal judgment.</p>
+        </div>
+
+        <div id="beta" class="section" tabindex="-1">
+          <h3>8. Beta & Experimental Features</h3>
+          <p>Some features may be released as beta or experimental.</p>
+          <p>These features may be unstable, change at any time, or be removed without notice.</p>
+          <p>By using them, you acknowledge they are provided without guarantees.</p>
+        </div>
+
+        <div id="suspension" class="section" tabindex="-1">
+          <h3>9. Suspension of Services</h3>
+          <p>We may suspend Utilix temporarily for maintenance, updates, or security reasons.</p>
+          <p>We are not liable for interruptions caused by such suspensions.</p>
+        </div>
+
+        <div id="uptime" class="section" tabindex="-1">
+          <h3>10. Uptime & Availability</h3>
+          <p>We do not guarantee uninterrupted service or permanent availability of Utilix.</p>
+          <p>Features may be modified, removed, or restricted at any time without prior notice.</p>
+          <p>Outages, maintenance, or unexpected downtime may occur.</p>
+        </div>
+
+        <div id="ownership" class="section" tabindex="-1">
+          <h3>11. Ownership & Intellectual Property</h3>
+          <p>All code, features, branding, and design of Utilix remain the property of the developers.</p>
+          <p>You may not claim ownership, redistribute, or resell Utilix or its features.</p>
+        </div>
+
+        <div id="restrictions" class="section" tabindex="-1">
+          <h3>12. Command Restrictions</h3>
+          <p>Certain commands or features may be restricted by role, server size, or other requirements.</p>
+          <p>Abuse of commands (e.g., spam, mass automation, or evasion of limits) may result in loss of access.</p>
+        </div>
+
+        <div id="responsibility" class="section" tabindex="-1">
+          <h3>13. Responsibility of Server Owners</h3>
+          <p>Server owners are responsible for how Utilix is used in their server.</p>
+          <p>You must ensure your server complies with Discord’s Terms of Service and Community Guidelines.</p>
+          <p>You are responsible for informing your members about the use of Utilix features (such as ticket logging or database checks).</p>
+        </div>
+
+        <div id="automation" class="section" tabindex="-1">
+          <h3>14. Automated Use & Bots</h3>
+          <p>You may not use Utilix through scripts, self-bots, or unauthorized automation.</p>
+          <p>All interaction must occur through normal Discord clients or integrations intended by Discord.</p>
+        </div>
+
+        <div id="misuse" class="section" tabindex="-1">
+          <h3>15. Misuse of Features</h3>
+          <p>Using Utilix to spam, raid, harass, or disrupt communities is strictly prohibited.</p>
+          <p>Exploiting bugs, glitches, or loopholes in Utilix is not allowed.</p>
+          <p>We may suspend or terminate usage for detected misuse without notice.</p>
+        </div>
+
+        <div id="changes" class="section" tabindex="-1">
+          <h3>16. Changes to the Terms</h3>
+          <p>We may revise these Terms at any time. Continued use of the Bot after changes are posted implies acceptance of the updated Terms.</p>
+        </div>
+      </section>
+    </div>
+  </main>
+
+
+  <button id="backToTop" aria-label="Back to top">↑</button>
+
+  <script>
+
+    const sections = Array.from(document.querySelectorAll('.terms-card .section'));
+    const links = Array.from(document.querySelectorAll('.toc a'));
+    const byId = id => links.find(a => a.getAttribute('href') === '#' + id);
+
+    const obs = new IntersectionObserver((entries) => {
+      entries.forEach((e) => {
+        if (e.isIntersecting) {
+          links.forEach(a => a.classList.remove('active'));
+          byId(e.target.id)?.classList.add('active');
+        }
+      })
+    }, { rootMargin: '-40% 0px -55% 0px', threshold: 0.01 });
+
+    sections.forEach(s => obs.observe(s));
+
+
+    const backToTop = document.getElementById('backToTop');
+    window.addEventListener('scroll', () => {
+      if (window.scrollY > 400) {
+        backToTop.classList.add('show');
+      } else {
+        backToTop.classList.remove('show');
+      }
+    });
+    backToTop.addEventListener('click', () => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  </script>
+</body>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Utilix — Footer</title>
+  <style>
+    .utilix-footer {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr; /* keeps middle perfectly centered */
+      align-items: center;
+      gap: 1rem;
+      padding: 1rem;
+      font-size: 0.9rem;
+      color: #bbb;
+      background: #000;
+      border-top: 1px solid #333;
+    }
+
+    .utilix-footer .brand {
+      justify-self: start;
+      display: inline-flex;
+      align-items: center;
+      gap: .5rem;
+      text-decoration: none;
+      color: #fff;
+      min-width: 0;
+    }
+    .utilix-footer .brand img {
+      width: 28px;
+      height: 28px;
+      display: block;
+    }
+    .utilix-footer .brand .brand-text {
+      font-weight: 700;
+      line-height: 1;
+      white-space: nowrap;
+    }
+
+    .utilix-footer .center {
+      justify-self: center;
+      text-align: center;
+    }
+    .utilix-footer strong { color: #fff; }
+    .utilix-footer .links a {
+      margin: 0 .5rem;
+      color: #4da6ff;
+      text-decoration: none;
+    }
+    .utilix-footer .links a:hover { text-decoration: underline; }
+
+    .utilix-footer .discord-link {
+      justify-self: end;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      text-decoration: none;
+      color: #5865F2; 
+      transition: transform .15s ease;
+      outline: none;
+    }
+    .utilix-footer .discord-link:focus-visible {
+      outline: 2px solid #5865F2;
+      outline-offset: 2px;
+    }
+    .utilix-footer .discord-link svg {
+      width: 28px;
+      height: 28px;
+      fill: currentColor;
+      transition: filter .2s ease, transform .2s ease;
+      display: block;
+    }
+    .utilix-footer .discord-link:hover svg {
+      filter: brightness(1.2);
+      transform: translateY(-1px);
+    }
+
+    @media (max-width: 640px) {
+      .utilix-footer {
+        display: flex;            
+        flex-direction: column;
+        text-align: center;
+        gap: .5rem;
+      }
+      .utilix-footer .brand,
+      .utilix-footer .center,
+      .utilix-footer .discord-link {
+        justify-self: center;
+      }
+      .utilix-footer .brand { order: 1; }
+      .utilix-footer .center { order: 2; }
+      .utilix-footer .discord-link { order: 3; }
+    }
+  </style>
+</head>
+<body style="margin:0; min-height:100vh; display:flex; flex-direction:column;">
+
+  <main style="flex:1"></main>
+
+  <footer class="utilix-footer" role="contentinfo">
+    <a class="brand" href="/" aria-label="Utilix home">
+      <img src="/logo.svg" alt="" onerror="this.style.display='none'">
+      <!--<span class="brand-text">Utilix</span>-->
+    </a>
+
+    <div class="center">
+      <div>&copy; 2025 <strong>Utilix</strong>. All rights reserved.</div>
+      <div class="links">
+        <a href="/terms">Terms of Service</a> |
+        <a href="/privacy">Privacy Policy</a>
+      </div>
+    </div>
+
+    <a class="discord-link"
+       href="https://discord.gg/ggqjxNDN2E"
+       target="_blank" rel="noopener"
+       aria-label="Join our Discord server">
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M20.317 4.3698a19.7913 19.7913 0 0 0-4.8851-1.5152.0741.0741 0 0 0-.0785.0371c-.211.3753-.4447.8641-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 0 0-.0785-.037 19.7363 19.7363 0 0 0-4.8852 1.515.0699.0699 0 0 0-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 0 0 .0312.0561c2.0528 1.503 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 0 0 .0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 0 0-.0417-.1057c-.6528-.2476-1.2746-.5495-1.8722-.8923a.077.077 0 0 1-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 0 1 .0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 0 1 .0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 0 1-.0066.1276c-.5976.3518-1.2204.6437-1.8732.8913a.0766.0766 0 0 0-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 0 0 .0842.0286c1.961-.6067 3.9495-1.5265 6.0023-3.0294a.077.077 0 0 0 .0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 0 0-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0957 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0957 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189Z"/>
+      </svg>
+    </a>
+  </footer>
+
+</body>
+</html>
+
+</html>

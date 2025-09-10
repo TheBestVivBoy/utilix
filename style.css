@@ -1,0 +1,80 @@
+.utilix-footer {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  font-size: 0.9rem;
+  color: #bbb;
+  background: #000;
+  border-top: 1px solid #333;
+}
+
+.utilix-footer .brand {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+  text-decoration: none;
+  color: #fff;
+}
+.utilix-footer .brand img {
+  width: 28px;
+  height: 28px;
+}
+.utilix-footer .brand .brand-text {
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.utilix-footer .center {
+  justify-self: center;
+  text-align: center;
+}
+.utilix-footer strong { color: #fff; }
+
+.utilix-footer .links a {
+  margin: 0 .5rem;
+  color: #4da6ff;
+  text-decoration: none;
+}
+.utilix-footer .links a:hover {
+  text-decoration: underline;
+}
+
+.utilix-footer .discord-link {
+  justify-self: end;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  color: #5865F2;
+  transition: transform .15s ease;
+}
+.utilix-footer .discord-link svg {
+  width: 28px;
+  height: 28px;
+  fill: currentColor;
+  transition: filter .2s ease, transform .2s ease;
+}
+.utilix-footer .discord-link:hover svg {
+  filter: brightness(1.2);
+  transform: translateY(-1px);
+}
+
+@media (max-width: 640px) {
+  .utilix-footer {
+    display: flex;
+    flex-direction: column;
+    text-align: center;
+    gap: .5rem;
+  }
+  .utilix-footer .brand,
+  .utilix-footer .center,
+  .utilix-footer .discord-link {
+    justify-self: center;
+  }
+}

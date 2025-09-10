@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>404 — Page Not Found</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0d0d0f;
+      --fg: #f2f2f7;
+      --accent: #00c6ff;
+      --accent2: #0072ff;
+      --muted: #a0a0a7;
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0; padding: 0;
+    }
+    html, body {
+      height: 100%;
+      font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: radial-gradient(circle at top, #1a1a1d, var(--bg));
+      color: var(--fg);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      overflow: hidden;
+    }
+    body {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      position: relative;
+    }
+
+    header {
+      background: transparent;
+      position: fixed;
+      width: 100%;
+      z-index: 1100;
+      padding: 1rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid rgba(255,255,255,0.02);
+    }
+    .logo {
+      font-weight: 800;
+      font-size: 1.25rem;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    nav.header-nav ul {
+      display: flex;
+      gap: 1.25rem;
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      align-items: center;
+    }
+    nav.header-nav a {
+      color: var(--fg);
+      text-decoration: none;
+      font-weight: 600;
+      position: relative;
+      padding: 6px 6px;
+      border-radius: 6px;
+      transition: transform 0.15s ease;
+      user-select: none;
+    }
+    nav.header-nav a::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      bottom: -6px;
+      width: 0%;
+      height: 2px;
+      background: var(--accent);
+      transition: width 0.28s ease;
+    }
+    nav.header-nav a:hover {
+      transform: translateY(-2px);
+    }
+    nav.header-nav a:hover::after {
+      width: 100%;
+    }
+    nav.header-nav a.active {
+      background: linear-gradient(90deg, rgba(0,198,255,0.08), rgba(0,114,255,0.06));
+      box-shadow: 0 6px 20px rgba(0,114,255,0.04);
+    }
+
+    main {
+      flex-grow: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      padding: 0 1rem;
+      margin-top: 72px; 
+      position: relative;
+      z-index: 10;
+      user-select: none;
+    }
+    h1 {
+      font-size: 7rem;
+      font-weight: 800;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 0.5rem;
+      text-shadow: 0 0 15px rgba(0,198,255,0.9);
+      letter-spacing: 0.05em;
+    }
+    h2 {
+      font-weight: 600;
+      font-size: 1.75rem;
+      margin-bottom: 1.5rem;
+      color: var(--muted);
+      text-shadow: 0 0 6px rgba(0,198,255,0.3);
+    }
+    p {
+      color: var(--muted);
+      margin-bottom: 2rem;
+      max-width: 400px;
+      line-height: 1.4;
+      font-size: 1.1rem;
+      text-shadow: 0 0 5px rgba(0,198,255,0.15);
+    }
+    a.button-home {
+      display: inline-block;
+      padding: 0.75rem 1.75rem;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      color: white;
+      border-radius: 50px;
+      font-weight: 700;
+      text-decoration: none;
+      box-shadow: 0 8px 30px rgba(0,198,255,0.25);
+      transition: transform 0.18s ease, box-shadow 0.18s ease;
+      user-select: none;
+    }
+    a.button-home:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 18px 60px rgba(0,198,255,0.45);
+    }
+
+    #starfield {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      z-index: 1;
+      pointer-events: none;
+      background: transparent;
+      filter: drop-shadow(0 0 2px rgba(0,198,255,0.3));
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo">Utilix</div>
+    <nav class="header-nav" aria-label="Primary navigation">
+      <ul>
+        <li><a href="/index.html">Home</a></li>
+                <li><a href="/setup.html">Setup</a></li>
+        <li><a href="/faq.html">FAQ</a></li>
+
+      </ul>
+    </nav>
+  </header>
+
+  <main role="main" aria-labelledby="pageTitle">
+    <h1 id="pageTitle">404</h1>
+    <h2>Page Not Found</h2>
+    <p>Sorry, the page you’re looking for doesn’t exist or has been moved.</p>
+    <a href="/index.html" class="button-home" aria-label="Go back to homepage">Go to Home</a>
+  </main>
+
+  <canvas id="starfield"></canvas>
+
+  <script>
+    const canvas = document.getElementById('starfield');
+    const ctx = canvas.getContext('2d');
+    let width, height, cx, cy;
+
+    const maxDepth = 1200;
+
+
+    const starCounts = { small: 300, medium: 200, large: 70 };
+    const stars = [];
+
+
+    const dustCount = 100;
+    let dusts = [];
+
+   
+    const shootingStarCount = 8;
+    let shootingStars = [];
+
+    let baseHue = 190;
+
+    function randRange(min, max) {
+      return Math.random() * (max - min) + min;
+    }
+
+    class Star {
+      constructor(sizeCategory) {
+        this.sizeCategory = sizeCategory;
+        this.init();
+      }
+      init() {
+        this.x = (Math.random() * 2 - 1) * width;
+        this.y = (Math.random() * 2 - 1) * height;
+        this.z = Math.random() * maxDepth;
+
+        this.baseSize = this.sizeCategory === 'small' ? randRange(0.15, 0.5) :
+          this.sizeCategory === 'medium' ? randRange(0.5, 1.1) : randRange(1.1, 2.0);
+        this.speed = randRange(0.4, 1.8) * (this.sizeCategory === 'large' ? 1.4 : 1);
+
+        this.twinkleSpeed = randRange(0.004, 0.009);
+        this.twinklePhase = Math.random() * Math.PI * 2;
+      }
+      update() {
+        this.z -= this.speed;
+        if (this.z <= 1) {
+          this.init();
+          this.z = maxDepth;
+        }
+        this.twinklePhase += this.twinkleSpeed;
+      }
+      draw() {
+        const sx = cx + (this.x / this.z) * cx;
+        const sy = cy + (this.y / this.z) * cy;
+        const sizeFactor = 1 - this.z / maxDepth;
+        const radius = this.baseSize * sizeFactor * 2;
+
+        const twinkle = 0.3 * Math.sin(this.twinklePhase) + 0.7;
+        const hue = (baseHue + 60 + this.twinklePhase * 50) % 360;
+
+        const gradient = ctx.createRadialGradient(sx, sy, 0, sx, sy, radius * 4);
+        gradient.addColorStop(0, `hsla(${hue}, 100%, 80%, ${twinkle})`);
+        gradient.addColorStop(0.5, `hsla(${hue}, 100%, 60%, ${twinkle * 0.3})`);
+        gradient.addColorStop(1, `hsla(${hue}, 100%, 40%, 0)`);
+
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(sx, sy, radius, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = `hsla(${hue}, 100%, 90%, ${twinkle})`;
+        ctx.beginPath();
+        ctx.arc(sx, sy, radius / 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    class CosmicDust {
+      constructor() {
+        this.reset();
+      }
+      reset() {
+        this.x = Math.random() * width;
+        this.y = Math.random() * height;
+        this.radius = randRange(0.2, 0.9);
+        this.speedX = randRange(-0.01, 0.01);
+        this.speedY = randRange(-0.005, 0.005);
+        this.hue = baseHue + randRange(20, 80);
+        this.alpha = randRange(0.05, 0.15);
+        this.twinkleSpeed = randRange(0.002, 0.004);
+        this.twinklePhase = Math.random() * Math.PI * 2;
+      }
+      update() {
+        this.x += this.speedX;
+        this.y += this.speedY;
+        this.twinklePhase += this.twinkleSpeed;
+
+        if (this.x > width) this.x = 0;
+        else if (this.x < 0) this.x = width;
+        if (this.y > height) this.y = 0;
+        else if (this.y < 0) this.y = height;
+      }
+      draw() {
+        const alpha = this.alpha * (0.5 + 0.5 * Math.sin(this.twinklePhase));
+        const gradient = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.radius * 5);
+        gradient.addColorStop(0, `hsla(${this.hue}, 100%, 85%, ${alpha})`);
+        gradient.addColorStop(1, `hsla(${this.hue}, 100%, 30%, 0)`);
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    class ShootingStar {
+      constructor() {
+        this.reset();
+      }
+      reset() {
+        this.x = Math.random() * width;
+        this.y = Math.random() * height * 0.5;
+        this.len = randRange(80, 130);
+        this.speed = randRange(20, 45);
+        this.angle = Math.PI / 4 + (Math.random() - 0.5) * 0.3;
+        this.alpha = 0;
+        this.alphaMax = randRange(0.6, 1);
+        this.alphaIncrement = 0.02;
+        this.trailLength = this.len * 0.7;
+        this.active = false;
+        this.waitTime = randRange(1000, 7000);
+        this.waitCounter = 0;
+      }
+      update(deltaTime) {
+        if (!this.active) {
+          this.waitCounter += deltaTime;
+          if (this.waitCounter > this.waitTime) {
+            this.active = true;
+            this.waitCounter = 0;
+          }
+          return;
+        }
+        this.x += this.speed * Math.cos(this.angle) * (deltaTime / 16);
+        this.y += this.speed * Math.sin(this.angle) * (deltaTime / 16);
+
+        if (this.alpha < this.alphaMax) this.alpha += this.alphaIncrement;
+        if (this.alpha > this.alphaMax) this.alpha = this.alphaMax;
+
+        this.len *= 0.995; // slowly shorten the star length for trailing effect
+        if (this.len < 10 || this.x > width || this.y > height) {
+          this.reset();
+        }
+      }
+      draw() {
+        if (!this.active) return;
+
+        ctx.save();
+        ctx.lineCap = 'round';
+
+        
+        const gradient = ctx.createLinearGradient(this.x, this.y, this.x - this.trailLength * Math.cos(this.angle), this.y - this.trailLength * Math.sin(this.angle));
+        gradient.addColorStop(0, `rgba(255,255,255,${this.alpha})`);
+        gradient.addColorStop(1, 'rgba(255,255,255,0)');
+
+        ctx.strokeStyle = gradient;
+        ctx.lineWidth = 2.5;
+        ctx.shadowColor = 'white';
+        ctx.shadowBlur = 8;
+
+        ctx.beginPath();
+        ctx.moveTo(this.x, this.y);
+        ctx.lineTo(this.x - this.trailLength * Math.cos(this.angle), this.y - this.trailLength * Math.sin(this.angle));
+        ctx.stroke();
+
+        
+        ctx.beginPath();
+        ctx.fillStyle = `rgba(255,255,255,${this.alpha})`;
+        ctx.shadowBlur = 14;
+        ctx.shadowColor = 'white';
+        ctx.arc(this.x, this.y, 2.2, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.restore();
+      }
+    }
+
+    function init() {
+      width = window.innerWidth;
+      height = window.innerHeight;
+      cx = width / 2;
+      cy = height / 2;
+
+      canvas.width = width;
+      canvas.height = height;
+
+      stars.length = 0;
+      dusts.length = 0;
+      shootingStars.length = 0;
+
+      for (let i = 0; i < starCounts.small; i++) stars.push(new Star('small'));
+      for (let i = 0; i < starCounts.medium; i++) stars.push(new Star('medium'));
+      for (let i = 0; i < starCounts.large; i++) stars.push(new Star('large'));
+
+      for (let i = 0; i < dustCount; i++) dusts.push(new CosmicDust());
+
+      for (let i = 0; i < shootingStarCount; i++) shootingStars.push(new ShootingStar());
+    }
+
+    let lastTime = 0;
+    function animate(time = 0) {
+      const deltaTime = time - lastTime;
+      lastTime = time;
+      baseHue += 0.03;
+      if (baseHue > 360) baseHue -= 360;
+
+      ctx.clearRect(0, 0, width, height);
+
+      dusts.forEach(d => {
+        d.hue = (baseHue + 40) % 360;
+        d.update();
+        d.draw();
+      });
+
+      stars.forEach(star => {
+        star.update();
+        star.draw();
+      });
+
+
+      shootingStars.forEach(s => {
+        s.update(deltaTime);
+        s.draw();
+      });
+
+      requestAnimationFrame(animate);
+    }
+
+    window.addEventListener('resize', () => {
+      init();
+    });
+
+    init();
+    animate();
+  </script>
+   
+</body>
+  <!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Utilix — Footer</title>
+  <style>
+    .utilix-footer {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr; /* keeps middle perfectly centered */
+      align-items: center;
+      gap: 1rem;
+      padding: 1rem;
+      font-size: 0.9rem;
+      color: #bbb;
+      background: #000;
+      border-top: 1px solid #333;
+    }
+
+    .utilix-footer .brand {
+      justify-self: start;
+      display: inline-flex;
+      align-items: center;
+      gap: .5rem;
+      text-decoration: none;
+      color: #fff;
+      min-width: 0;
+    }
+    .utilix-footer .brand img {
+      width: 28px;
+      height: 28px;
+      display: block;
+    }
+    .utilix-footer .brand .brand-text {
+      font-weight: 700;
+      line-height: 1;
+      white-space: nowrap;
+    }
+
+    .utilix-footer .center {
+      justify-self: center;
+      text-align: center;
+    }
+    .utilix-footer strong { color: #fff; }
+    .utilix-footer .links a {
+      margin: 0 .5rem;
+      color: #4da6ff;
+      text-decoration: none;
+    }
+    .utilix-footer .links a:hover { text-decoration: underline; }
+
+    .utilix-footer .discord-link {
+      justify-self: end;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      text-decoration: none;
+      color: #5865F2; 
+      transition: transform .15s ease;
+      outline: none;
+    }
+    .utilix-footer .discord-link:focus-visible {
+      outline: 2px solid #5865F2;
+      outline-offset: 2px;
+    }
+    .utilix-footer .discord-link svg {
+      width: 28px;
+      height: 28px;
+      fill: currentColor;
+      transition: filter .2s ease, transform .2s ease;
+      display: block;
+    }
+    .utilix-footer .discord-link:hover svg {
+      filter: brightness(1.2);
+      transform: translateY(-1px);
+    }
+
+    @media (max-width: 640px) {
+      .utilix-footer {
+        display: flex;            
+        flex-direction: column;
+        text-align: center;
+        gap: .5rem;
+      }
+      .utilix-footer .brand,
+      .utilix-footer .center,
+      .utilix-footer .discord-link {
+        justify-self: center;
+      }
+      .utilix-footer .brand { order: 1; }
+      .utilix-footer .center { order: 2; }
+      .utilix-footer .discord-link { order: 3; }
+    }
+  </style>
+</head>
+<body style="margin:0; min-height:100vh; display:flex; flex-direction:column;">
+
+  <main style="flex:1"></main>
+
+  <footer class="utilix-footer" role="contentinfo">
+    <a class="brand" href="/" aria-label="Utilix home">
+      <img src="/logo.svg" alt="" onerror="this.style.display='none'">
+      <!--<span class="brand-text">Utilix</span>-->
+    </a>
+
+    <div class="center">
+      <div>&copy; 2025 <strong>Utilix</strong>. All rights reserved.</div>
+      <div class="links">
+        <a href="/terms">Terms of Service</a> |
+        <a href="/privacy">Privacy Policy</a>
+      </div>
+    </div>
+
+    <a class="discord-link"
+       href="https://discord.gg/ggqjxNDN2E"
+       target="_blank" rel="noopener"
+       aria-label="Join our Discord server">
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M20.317 4.3698a19.7913 19.7913 0 0 0-4.8851-1.5152.0741.0741 0 0 0-.0785.0371c-.211.3753-.4447.8641-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 0 0-.0785-.037 19.7363 19.7363 0 0 0-4.8852 1.515.0699.0699 0 0 0-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 0 0 .0312.0561c2.0528 1.503 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 0 0 .0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 0 0-.0417-.1057c-.6528-.2476-1.2746-.5495-1.8722-.8923a.077.077 0 0 1-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 0 1 .0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 0 1 .0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 0 1-.0066.1276c-.5976.3518-1.2204.6437-1.8732.8913a.0766.0766 0 0 0-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 0 0 .0842.0286c1.961-.6067 3.9495-1.5265 6.0023-3.0294a.077.077 0 0 0 .0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 0 0-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0957 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0957 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189Z"/>
+      </svg>
+    </a>
+  </footer>
+
+</body>
+</html>
+
+</html>
