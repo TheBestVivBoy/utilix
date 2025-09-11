@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Credits — Utilix</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0d0d0f;
+      --fg: #f2f2f7;
+      --accent: #00c6ff;
+      --accent2: #0072ff;
+      --muted: #a0a0a7;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      height: 100%;
+      font-family: 'Inter', system-ui, sans-serif;
+      background: radial-gradient(circle at top, #1a1a1d, var(--bg));
+      color: var(--fg);
+      overflow-x: hidden;
+    }
+
+    header {
+      background: transparent;
+      position: fixed;
+      width: 100%;
+      z-index: 1100;
+      padding: 1rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid rgba(255,255,255,0.02);
+    }
+    .logo {
+      font-weight: 800;
+      font-size: 1.25rem;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    nav.header-nav ul {
+      display: flex;
+      gap: 1.25rem;
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      align-items: center;
+    }
+    nav.header-nav a {
+      color: var(--fg);
+      text-decoration: none;
+      font-weight: 600;
+      position: relative;
+      padding: 6px 6px;
+      border-radius: 6px;
+      transition: transform 0.15s ease;
+      user-select: none;
+    }
+    nav.header-nav a::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      bottom: -6px;
+      width: 0%;
+      height: 2px;
+      background: var(--accent);
+      transition: width 0.28s ease;
+    }
+    nav.header-nav a:hover { transform: translateY(-2px); }
+    nav.header-nav a:hover::after { width: 100%; }
+    nav.header-nav a.active {
+      background: linear-gradient(90deg, rgba(0,198,255,0.08), rgba(0,114,255,0.06));
+      box-shadow: 0 6px 20px rgba(0,114,255,0.04);
+    }
+
+    main {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 6rem 1rem 2rem; 
+      text-align: center;
+      min-height: 100vh;
+      position: relative;
+      z-index: 10; 
+    }
+    h1 {
+      font-size: 2.5rem;
+      font-weight: 800;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 0.5rem;
+    }
+    h2 {
+      font-weight: 600;
+      font-size: 1.25rem;
+      margin-bottom: 2rem;
+      color: var(--muted);
+    }
+    .credits-box {
+      background: rgba(20,20,25,0.7);
+      padding: 2rem;
+      border-radius: 1rem;
+      max-width: 500px;
+      width: 100%;
+      box-shadow: 0 8px 25px rgba(0,198,255,0.2);
+      text-align: left;
+    }
+    .credit-entry {
+      margin-bottom: 1.5rem;
+    }
+    .credit-entry:last-child {
+      margin-bottom: 0;
+    }
+    .credit-entry h3 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin-bottom: 0.25rem;
+      color: var(--accent);
+    }
+    .credit-entry p {
+      margin: 0.2rem 0;
+      font-size: 0.95rem;
+      color: var(--fg);
+    }
+
+    #starfield {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      z-index: 1;              
+      pointer-events: none;    
+      background: transparent;
+      filter: drop-shadow(0 0 2px rgba(0,198,255,0.3));
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      #starfield { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="logo">Utilix</div>
+    <nav class="header-nav" aria-label="Primary navigation">
+      <ul>
+        <li><a href="/index">Home</a></li>
+        <li><a href="/setup">Setup</a></li>
+        <li><a href="/faq">FAQ</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main>
+    <h1>Credits</h1>
+    <h2>Special thanks to our contributors / developers</h2>
+
+    <div class="credits-box">
+      <div class="credit-entry">
+        <h3>Owner</h3>
+        <p><strong>Username:</strong> thebestvivboy</p>
+        <p><strong>Discord ID:</strong> 896616448628228096</p>
+        <p><strong>Role:</strong> Bot Developer</p>
+      </div>
+
+      <div class="credit-entry">
+        <h3>Co-Owner</h3>
+        <p><strong>Username:</strong> infinity_for_life_</p>
+        <p><strong>Discord ID:</strong> 1289785877010321418</p>
+        <p><strong>Role:</strong> Website Design</p>
+      </div>
+    </div>
+  </main>
+
+  <canvas id="starfield" aria-hidden="true"></canvas>
+
+  <script>
+    (function () {
+      const canvas = document.getElementById('starfield');
+      const ctx = canvas.getContext('2d');
+      let stars = [];
+      let width = 0, height = 0, cx = 0, cy = 0;
+      const STAR_COUNT = 260;
+      const SPEED = 2.0;
+
+      function resize() {
+        width = canvas.width = window.innerWidth;
+        height = canvas.height = window.innerHeight;
+        cx = width / 2;
+        cy = height / 2;
+        initStars();
+      }
+
+      function initStars() {
+        stars = [];
+        for (let i = 0; i < STAR_COUNT; i++) {
+          stars.push({
+            x: (Math.random() * 2 - 1) * width,
+            y: (Math.random() * 2 - 1) * height,
+            z: Math.random() * width,
+            o: Math.random() * 0.5 + 0.5 
+          });
+        }
+      }
+
+      function tick() {
+        ctx.clearRect(0, 0, width, height);
+
+        for (let i = 0; i < stars.length; i++) {
+          const s = stars[i];
+          s.z -= SPEED;
+          if (s.z <= 1) {
+            s.x = (Math.random() * 2 - 1) * width;
+            s.y = (Math.random() * 2 - 1) * height;
+            s.z = width;
+            s.o = Math.random() * 0.5 + 0.5;
+          }
+
+          const k = 128 / s.z; 
+          const x = s.x * k + cx;
+          const y = s.y * k + cy;
+
+          if (x < 0 || x >= width || y < 0 || y >= height) continue;
+
+          const size = Math.max(0.5, 1 * k);
+          ctx.beginPath();
+          ctx.arc(x, y, size, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(255,255,255,${s.o})`;
+          ctx.fill();
+        }
+        requestAnimationFrame(tick);
+      }
+
+      window.addEventListener('resize', resize);
+      resize();
+      tick();
+    })();
+  </script>
+</body>
+
+</html>
