@@ -1,10 +1,9 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Utilix — Upgrade Your Server</title>
+  <title>Utilix — Home</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet" />
   <style>
     :root {
@@ -16,28 +15,22 @@
       --card: #1e1e24;
       --panel: #141418;
     }
-    * {
-      box-sizing: border-box;
-    }
-    html {
-      scroll-behavior: smooth;
-    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
     body {
-      margin: 0;
       font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
       background: radial-gradient(circle at top, #1a1a1d, var(--bg));
       color: var(--fg);
-      -webkit-font-smoothing: antialiased;
-      -moz-osx-font-smoothing: grayscale;
       min-height: 100vh;
       line-height: 1.45;
+      display: flex;
+      flex-direction: column;
     }
 
-    
+
     header {
-      background: transparent;
       position: fixed;
-      width: 100%;
+      top: 0; left: 0; width: 100%;
       z-index: 1100;
       padding: 1rem 2rem;
       display: flex;
@@ -46,8 +39,6 @@
       backdrop-filter: blur(10px);
       border-bottom: 1px solid rgba(255, 255, 255, 0.02);
       height: 72px;
-      top: 0;
-      left: 0;
     }
     .logo {
       font-weight: 800;
@@ -61,9 +52,8 @@
       display: flex;
       gap: 1.25rem;
       list-style: none;
-      margin: 0;
-      padding: 0;
       align-items: center;
+      flex-wrap: wrap;
     }
     nav.header-nav a {
       color: var(--fg);
@@ -92,12 +82,12 @@
     }
     nav.header-nav a.active {
       background: linear-gradient(90deg, rgba(0, 198, 255, 0.08), rgba(0, 114, 255, 0.06));
-      -webkit-background-clip: padding-box;
       box-shadow: 0 6px 20px rgba(0, 114, 255, 0.04);
     }
 
-   
+    /* Page */
     .page {
+      flex: 1;
       max-width: 1200px;
       margin: 0 auto;
       padding: 96px 20px 56px;
@@ -112,12 +102,10 @@
       min-height: 72vh;
       padding: 2rem 1rem;
     }
-    .hero-inner {
-      max-width: 920px;
-    }
+    .hero-inner { max-width: 920px; }
     .hero h1 {
       font-size: 3.5rem;
-      line-height: 1.02;
+      line-height: 1.1;
       margin-bottom: 0.75rem;
       background: linear-gradient(90deg, var(--accent), var(--accent2));
       -webkit-background-clip: text;
@@ -145,35 +133,6 @@
     .cta:hover {
       transform: translateY(-4px);
       box-shadow: 0 18px 50px rgba(0, 198, 255, 0.12);
-    }
-
-    
-    .outline-btn {
-      padding: 0.8rem 1.8rem;
-      border-radius: 50px;
-      font-weight: 700;
-      background: transparent;
-      color: white;
-      border: 2px solid transparent;
-      position: relative;
-      overflow: hidden;
-      text-decoration: none;
-      transition: color 0.3s ease;
-    }
-    .outline-btn::before {
-      content: "";
-      position: absolute;
-      inset: 0;
-      border-radius: 50px;
-      border: 2px solid var(--accent);
-      transform: scale(0);
-      transition: transform 0.3s ease;
-    }
-    .outline-btn:hover::before {
-      transform: scale(1);
-    }
-    .outline-btn:hover {
-      color: var(--accent);
     }
 
 
@@ -207,12 +166,7 @@
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
     }
-    .feature p {
-      color: var(--muted);
-      font-size: 0.96rem;
-      margin: 0;
-    }
-
+    .feature p { color: var(--muted); font-size: 0.96rem; }
 
     .divider {
       height: 2px;
@@ -222,27 +176,98 @@
       border: 1px solid rgba(255, 255, 255, 0.02);
     }
 
-    footer {
-      margin-top: 2.5rem;
-      padding: 2.2rem 1rem;
-      text-align: center;
-      color: var(--muted);
-      background: transparent;
-      border-top: 1px solid rgba(255, 255, 255, 0.01);
+
+    .utilix-footer {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      gap: 1rem;
+      padding: 1rem;
+      font-size: 0.9rem;
+      color: #bbb;
+      background: #000;
+      border-top: 1px solid #333;
     }
-    footer a {
-      color: var(--accent);
+    .utilix-footer .brand {
+      justify-self: start;
+      display: inline-flex;
+      align-items: center;
+      gap: .5rem;
+      text-decoration: none;
+      color: #fff;
+    }
+    .utilix-footer .brand img { width: 28px; height: 28px; display: block; }
+    .utilix-footer .center { justify-self: center; text-align: center; }
+    .utilix-footer strong { color: #fff; }
+    .utilix-footer .links a {
+      margin: 0 .5rem;
+      color: #4da6ff;
       text-decoration: none;
     }
+    .utilix-footer .links a:hover { text-decoration: underline; }
+    .utilix-footer .discord-link {
+      justify-self: end;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 44px; height: 44px;
+      border-radius: 10px;
+      text-decoration: none;
+      color: #5865F2; 
+      transition: transform .15s ease;
+    }
+    .utilix-footer .discord-link svg {
+      width: 28px; height: 28px;
+      fill: currentColor;
+      transition: filter .2s ease, transform .2s ease;
+      display: block;
+    }
+    .utilix-footer .discord-link:hover svg {
+      filter: brightness(1.2);
+      transform: translateY(-1px);
+    }
 
-   
+    /* Responsive */
+    @media (max-width: 768px) {
+      nav.header-nav ul {
+        gap: 0.75rem;
+        justify-content: flex-end;
+      }
+      .hero h1 { font-size: 2.5rem; }
+      .hero p { font-size: 1rem; }
+    }
     @media (max-width: 640px) {
+      .hero {
+        padding: 1.5rem 1rem;
+      }
       .hero h1 {
-        font-size: 2.1rem;
+        font-size: 2rem;
+        line-height: 1.2;
       }
       .hero p {
-        font-size: 1rem;
+        font-size: 0.95rem;
+        margin-bottom: 1rem;
       }
+      .cta {
+        width: 100%;
+        text-align: center;
+      }
+      .features {
+        grid-template-columns: 1fr;
+      }
+      section.extra {
+        grid-template-columns: 1fr !important;
+        text-align: center;
+      }
+      .utilix-footer {
+        display: flex; 
+        flex-direction: column; 
+        text-align: center; 
+        gap: .75rem;
+      }
+      .utilix-footer .brand,
+      .utilix-footer .center,
+      .utilix-footer .discord-link { justify-self: center; }
     }
   </style>
 </head>
@@ -252,9 +277,8 @@
     <nav class="header-nav" aria-label="Primary navigation">
       <ul>
         <li><a href="/index" class="active">Home</a></li>
-              <li><a href="/setup">Setup</a></li>
-      <li><a href="/faq">FAQ</a></li>
-
+        <li><a href="/setup">Setup</a></li>
+        <li><a href="/faq">FAQ</a></li>
       </ul>
     </nav>
   </header>
@@ -268,234 +292,53 @@
             Upgrade your server, elevate your community.
           </span>
         </h1>
-        <p>
-          Utilix is the all-in-one bot for moderation, tickets, utilities, and
-          customization. It's designed to make your server thrive.
-        </p>
-        
-
+        <p>Utilix is the all-in-one bot for moderation, tickets, utilities, and customization. It's designed to make your server thrive.</p>
         <div style="display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap; margin-top: 1.25rem;">
           <a class="cta" href="/addbot">Invite Bot</a>
           <a class="cta" href="https://discord.gg/ggqjxNDN2E">Join Support Server</a>
-          <!-- <a class="outline-btn" href="#extra">Extra Action</a> -->
         </div>
 
         <div class="features" style="margin-top: 1.6rem">
-          <div class="feature">
-            <span>🎫</span>
-            <h3>Ticket Commands</h3>
-            <p>
-              Create and manage support tickets with panels, permissions, and
-              quick actions.
-            </p>
-          </div>
-          <div class="feature">
-            <span>🛡️</span>
-            <h3>Moderation Tools</h3>
-            <p>
-              Kick, ban, mute, and manage users with transparent logs and
-              history tracking.
-            </p>
-          </div>
-          <div class="feature">
-            <span>🕵️</span>
-            <h3>Scam Database</h3>
-            <p>
-              Community-powered reports and checks to protect your server from
-              scams and malicious links.
-            </p>
-          </div>
-          <div class="feature">
-            <span>🛠️</span>
-            <h3>Utilities & Tools</h3>
-            <p>
-              Handy automation and server management tools designed for admins.
-            </p>
-          </div>
-          <div class="feature">
-            <span>🎮</span>
-            <h3>Minigames</h3>
-            <p>
-              Fun interactive games to keep your community engaged and entertained.
-            </p>
-          </div>
+          <div class="feature"><span>🎫</span><h3>Ticket Commands</h3><p>Create and manage support tickets with panels, permissions, and quick actions.</p></div>
+          <div class="feature"><span>🛡️</span><h3>Moderation Tools</h3><p>Kick, ban, mute, and manage users with transparent logs and history tracking.</p></div>
+          <div class="feature"><span>🕵️</span><h3>Scam Database</h3><p>Community-powered reports and checks to protect your server from scams and malicious links.</p></div>
+          <div class="feature"><span>🛠️</span><h3>Utilities & Tools</h3><p>Handy automation and server management tools designed for admins.</p></div>
+          <div class="feature"><span>🎮</span><h3>Minigames</h3><p>Fun interactive games to keep your community engaged and entertained.</p></div>
         </div>
       </div>
     </section>
 
     <div class="divider" aria-hidden="true"></div>
 
-
-    <section
-      style="
-        max-width: 1100px;
-        margin: 0 auto;
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-        gap: 18px;
-      "
-    >
+    <section class="extra" style="max-width: 1100px; margin: 0 auto; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px;">
       <div class="feature" style="text-align: center">
-        <h3 style="background: transparent; -webkit-text-fill-color: initial; color: var(--accent);">
-          Fast Setup
-        </h3>
-        <p style="color: var(--muted)">
-          Connect once and configure with a few commands, no complicated UI
-          required.
-        </p>
+        <h3 style="color: var(--accent); background: transparent; -webkit-text-fill-color: initial;">Fast Setup</h3>
+        <p style="color: var(--muted)">Connect once and configure with a few commands, no complicated UI required.</p>
       </div>
       <div class="feature" style="text-align: center">
-        <h3 style="background: transparent; -webkit-text-fill-color: initial; color: var(--accent);">
-          Secure
-        </h3>
-        <p style="color: var(--muted)">
-          Permission-aware features and clear logs to keep moderation safe and
-          fair.
-        </p>
+        <h3 style="color: var(--accent); background: transparent; -webkit-text-fill-color: initial;">Secure</h3>
+        <p style="color: var(--muted)">Permission-aware features and clear logs to keep moderation safe and fair.</p>
       </div>
       <div class="feature" style="text-align: center">
-        <h3 style="background: transparent; -webkit-text-fill-color: initial; color: var(--accent);">
-          Always Improving
-        </h3>
-        <p style="color: var(--muted)">
-          Active development and prompt support - new features land regularly.
-        </p>
+        <h3 style="color: var(--accent); background: transparent; -webkit-text-fill-color: initial;">Always Improving</h3>
+        <p style="color: var(--muted)">Active development and prompt support - new features land regularly.</p>
       </div>
     </section>
-    
-
-
   </main>
-
-
-
-</body>
-  <html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Utilix — Footer</title>
-  <style>
-    .utilix-footer {
-      display: grid;
-      grid-template-columns: 1fr auto 1fr; /* keeps middle perfectly centered */
-      align-items: center;
-      gap: 1rem;
-      padding: 1rem;
-      font-size: 0.9rem;
-      color: #bbb;
-      background: #000;
-      border-top: 1px solid #333;
-    }
-
-    .utilix-footer .brand {
-      justify-self: start;
-      display: inline-flex;
-      align-items: center;
-      gap: .5rem;
-      text-decoration: none;
-      color: #fff;
-      min-width: 0;
-    }
-    .utilix-footer .brand img {
-      width: 28px;
-      height: 28px;
-      display: block;
-    }
-    .utilix-footer .brand .brand-text {
-      font-weight: 700;
-      line-height: 1;
-      white-space: nowrap;
-    }
-
-    .utilix-footer .center {
-      justify-self: center;
-      text-align: center;
-    }
-    .utilix-footer strong { color: #fff; }
-    .utilix-footer .links a {
-      margin: 0 .5rem;
-      color: #4da6ff;
-      text-decoration: none;
-    }
-    .utilix-footer .links a:hover { text-decoration: underline; }
-
-    .utilix-footer .discord-link {
-      justify-self: end;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 44px;
-      height: 44px;
-      border-radius: 10px;
-      text-decoration: none;
-      color: #5865F2; 
-      transition: transform .15s ease;
-      outline: none;
-    }
-    .utilix-footer .discord-link:focus-visible {
-      outline: 2px solid #5865F2;
-      outline-offset: 2px;
-    }
-    .utilix-footer .discord-link svg {
-      width: 28px;
-      height: 28px;
-      fill: currentColor;
-      transition: filter .2s ease, transform .2s ease;
-      display: block;
-    }
-    .utilix-footer .discord-link:hover svg {
-      filter: brightness(1.2);
-      transform: translateY(-1px);
-    }
-
-    @media (max-width: 640px) {
-      .utilix-footer {
-        display: flex;            
-        flex-direction: column;
-        text-align: center;
-        gap: .5rem;
-      }
-      .utilix-footer .brand,
-      .utilix-footer .center,
-      .utilix-footer .discord-link {
-        justify-self: center;
-      }
-      .utilix-footer .brand { order: 1; }
-      .utilix-footer .center { order: 2; }
-      .utilix-footer .discord-link { order: 3; }
-    }
-  </style>
-</head>
-<body style="margin:0; min-height:100vh; display:flex; flex-direction:column;">
-
-  <main style="flex:1"></main>
 
   <footer class="utilix-footer" role="contentinfo">
     <a class="brand" href="/" aria-label="Utilix home">
       <img src="/logo.svg" alt="" onerror="this.style.display='none'">
-      <!-- <span class="brand-text">Utilix</span> -->
     </a>
-
     <div class="center">
       <div>&copy; 2025 <strong>Utilix</strong>. All rights reserved.</div>
       <div class="links">
-        <a href="/terms">Terms of Service</a> |
-        <a href="/privacy">Privacy Policy</a>
+        <a href="/terms">Terms of Service</a> | <a href="/privacy">Privacy Policy</a>
       </div>
     </div>
-
-    <a class="discord-link"
-       href="https://discord.gg/ggqjxNDN2E"
-       target="_blank" rel="noopener"
-       aria-label="Join our Discord server">
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <path d="M20.317 4.3698a19.7913 19.7913 0 0 0-4.8851-1.5152.0741.0741 0 0 0-.0785.0371c-.211.3753-.4447.8641-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 0 0-.0785-.037 19.7363 19.7363 0 0 0-4.8852 1.515.0699.0699 0 0 0-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 0 0 .0312.0561c2.0528 1.503 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 0 0 .0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 0 0-.0417-.1057c-.6528-.2476-1.2746-.5495-1.8722-.8923a.077.077 0 0 1-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 0 1 .0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 0 1 .0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 0 1-.0066.1276c-.5976.3518-1.2204.6437-1.8732.8913a.0766.0766 0 0 0-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 0 0 .0842.0286c1.961-.6067 3.9495-1.5265 6.0023-3.0294a.077.077 0 0 0 .0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 0 0-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0957 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0957 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189Z"/>
-      </svg>
+    <a class="discord-link" href="https://discord.gg/ggqjxNDN2E" target="_blank" rel="noopener" aria-label="Join our Discord server">
+      <svg viewBox="0 0 24 24"><path d="M20.317 4.37a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.078.037c-.211.375-.445.864-.608 1.25-1.845-.277-3.68-.277-5.487 0-.164-.394-.406-.874-.618-1.25a.077.077 0 0 0-.078-.037 19.736 19.736 0 0 0-4.885 1.515.07.07 0 0 0-.032.028C.533 9.046-.319 13.58.099 18.058a.082.082 0 0 0 .031.056c2.053 1.503 4.041 2.423 5.993 3.03a.078.078 0 0 0 .084-.028c.462-.63.873-1.295 1.226-1.994a.076.076 0 0 0-.042-.106c-.653-.248-1.275-.55-1.872-.892a.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .078-.011c3.928 1.794 8.18 1.794 12.062 0a.074.074 0 0 1 .078.01c.12.099.246.198.373.292a.077.077 0 0 1-.007.128c-.598.352-1.22.644-1.873.892a.077.077 0 0 0-.041.107c.361.698.772 1.363 1.225 1.993a.076.076 0 0 0 .085.029c1.961-.607 3.95-1.527 6.002-3.03a.077.077 0 0 0 .031-.055c.5-5.177-.838-9.674-3.548-13.66a.061.061 0 0 0-.031-.029zM8.02 15.33c-1.183 0-2.157-1.086-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.211 0 2.176 1.096 2.157 2.419 0 1.333-.956 2.419-2.157 2.419zm7.975 0c-1.183 0-2.157-1.086-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.419 0 1.333-.947 2.419-2.157 2.419Z"/></svg>
     </a>
   </footer>
-
 </body>
-</html>
-
 </html>
