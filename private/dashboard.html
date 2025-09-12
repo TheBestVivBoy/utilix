@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Admin Dashboard — Utilix</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0d0d0f;
+      --fg: #f2f2f7;
+      --accent: #00c6ff;
+      --accent2: #0072ff;
+      --muted: #a0a0a7;
+      --card-bg: rgba(20,20,25,0.7);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      height: 100%;
+      font-family: 'Inter', system-ui, sans-serif;
+      background: radial-gradient(circle at top, #1a1a1d, var(--bg));
+      color: var(--fg);
+      overflow-x: hidden;
+    }
+    header {
+      background: transparent;
+      position: fixed;
+      width: 100%;
+      z-index: 1100;
+      padding: 1rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid rgba(255,255,255,0.02);
+    }
+    .logo {
+      font-weight: 800;
+      font-size: 1.25rem;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    main {
+      padding: 6rem 2rem 2rem;
+      min-height: 100vh;
+    }
+    h1 {
+      font-size: 2rem;
+      font-weight: 800;
+      margin-bottom: 2rem;
+      text-align: center;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .grid {
+      display: grid;
+      gap: 1.5rem;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    }
+    .card {
+      background: var(--card-bg);
+      padding: 1.5rem;
+      border-radius: 1rem;
+      box-shadow: 0 8px 25px rgba(0,198,255,0.2);
+    }
+    .card h2 {
+      font-size: 1.25rem;
+      margin-bottom: 1rem;
+      font-weight: 700;
+    }
+    button {
+      padding: 0.7rem 1.5rem;
+      font-size: 1rem;
+      font-weight: 700;
+      color: white;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      border: none;
+      border-radius: 50px;
+      cursor: pointer;
+      transition: transform 0.18s ease, box-shadow 0.18s ease;
+    }
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(0,198,255,0.4);
+    }
+    .logout {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 2rem;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="logo">Utilix</div>
+    <button id="logoutBtn">Logout</button>
+  </header>
+
+  <main>
+    <h1>Welcome to the Admin Dashboard</h1>
+
+    <div class="grid">
+      <div class="card">
+        <h2>LOCKED</h2>
+        <p>Status: <strong>WIP</strong></p>
+      </div>
+
+    <div class="grid">
+      <div class="card">
+        <h2>LOCKED</h2>
+        <p>Status: <strong>WIP</strong></p>
+      </div>
+
+      <!--<div class="card">
+        <h2>Quick Actions</h2>
+        <button>+ Add User</button>
+        <button style="margin-left:10px;">⚠ Issue Warning</button>
+      </div>
+    </div>-->
+  </main>
+
+  <script>
+    document.getElementById("logoutBtn").addEventListener("click", async () => {
+      await fetch("/admin/logout", { method: "POST" });
+      window.location.href = "/login.html";
+    });
+  </script>
+</body>
+</html>
