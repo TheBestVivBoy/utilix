@@ -57,7 +57,12 @@
       -webkit-text-fill-color: transparent;
       margin-bottom: 0.5rem;
     }
-    h2 { font-weight: 600; font-size: 1.25rem; margin-bottom: 2rem; color: var(--muted); }
+    h2 { 
+      font-weight: 600; 
+      font-size: 1.25rem; 
+      margin-bottom: 2rem; 
+      color: var(--muted); 
+    }
     form {
       background: rgba(20,20,25,0.7);
       padding: 2rem;
@@ -141,7 +146,7 @@
           message.textContent = "✅ Login successful! Redirecting...";
           message.style.color = "limegreen";
           setTimeout(() => {
-            window.location.href = data.redirect;
+            window.location.href = "/admin/dashboard";
           }, 1000);
         } else {
           message.textContent = "❌ Invalid credentials.";
