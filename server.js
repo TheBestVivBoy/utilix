@@ -1,57 +1,61 @@
-import express from "express";
-import session from "express-session";
-import path from "path";
-import bodyParser from "body-parser";
+const express = require("express");
+const session = require("express-session");
+const bodyParser = require("body-parser");
+const path = require("path");
 
 const app = express();
-const PORT = 3000;
 
 // Middleware
 app.use(bodyParser.json());
+app.use(express.static(path.join(__dirname, "public"))); // only serve /public
+
+// Session setup
 app.use(session({
-  secret: "super-secret-key", // change this to something strong
+  secret: "hufjkfjghwer9uwe9yruwer9ye8r7we89rweuyr9", // change this to something random/long
   resave: false,
   saveUninitialized: false,
   cookie: { maxAge: 15 * 60 * 1000 } // 15 min session timeout
 }));
 
-// Static files (so login.html and dashboard.html can be served)
-app.use(express.static("public"));
+// Dummy users (replace with DB later if needed)
+const USERS = {
+  admin: "password123",
+  webadmin: "password",
+  devadmin: "password2"
+};
 
-// Fake credentials (replace with DB + bcrypt in production)
-const ADMIN_USER = "admin";
-const ADMIN_PASS = "password";
+// Auth middleware
+function requireAuth(req, res, next) {
+  if (req.session && req.session.user) {
+    return next();
+  }
+  res.redirect("/login.html");
+}
 
-// Login API
+// API login endpoint
 app.post("/admin/login", (req, res) => {
   const { username, password } = req.body;
 
-  if (username === ADMIN_USER && password === ADMIN_PASS) {
-    req.session.user = { role: "admin" };
-    return res.json({ success: true, redirect: "/admin/dashboard" });
+  if (USERS[username] && USERS[username] === password) {
+    req.session.user = username;
+    return res.json({ success: true });
   }
 
-  res.status(401).json({ success: false });
+  res.json({ success: false, message: "Invalid credentials" });
 });
 
-// Middleware to protect dashboard
-function requireAuth(req, res, next) {
-  if (!req.session?.user) {
-    return res.redirect("/admin/login.html"); // go back to login
-  }
-  next();
-}
-
-// Dashboard page (protected)
-app.get("/admin/dashboard", requireAuth, (req, res) => {
-  res.sendFile(path.resolve("public/dashboard.html"));
-});
-
-// Logout route
-app.get("/admin/logout", (req, res) => {
+// Logout endpoint
+app.post("/admin/logout", (req, res) => {
   req.session.destroy(() => {
-    res.redirect("/admin/login.html");
+    res.json({ success: true });
   });
 });
 
-app.listen(PORT, () => console.log(`✅ Server running at http://localhost:${PORT}`));
+// Protected route for dashboard
+app.get("/admin/dashboard", requireAuth, (req, res) => {
+  res.sendFile(path.join(__dirname, "private", "dashboard.html"));
+});
+
+// Start server
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`✅ Server running on http://localhost:${PORT}`));
