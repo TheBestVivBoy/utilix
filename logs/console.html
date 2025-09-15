@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Utilix Console</title>
+  <style>
+    body {
+      background: #111;
+      color: #0f0;
+      font-family: monospace;
+      padding: 2rem;
+    }
+    h1 {
+      color: #0f0;
+      margin-bottom: 1rem;
+    }
+    textarea {
+      width: 100%;
+      height: 150px;
+      background: #000;
+      color: #0f0;
+      border: 1px solid #0f0;
+      border-radius: 5px;
+      padding: 0.5rem;
+      font-family: monospace;
+      font-size: 14px;
+    }
+    button {
+      margin-top: 1rem;
+      padding: 0.5rem 1rem;
+      background: #0f0;
+      color: #000;
+      font-weight: bold;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #0c0;
+    }
+    #status {
+      margin-top: 1rem;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Utilix Console</h1>
+  <p>Type your JSON changelog entry below and press <b>Submit</b>:</p>
+
+  <textarea id="cmd" placeholder='{"date":"Sept 15, 2025","changes":2,"botChanges":["Fix bug"],"webChanges":["UI update"]}'></textarea>
+  <br>
+  <button onclick="sendCmd()">Submit</button>
+
+  <div id="status"></div>
+
+  <script>
+    async function sendCmd() {
+      const cmd = document.getElementById("cmd").value;
+      const status = document.getElementById("status");
+
+      try {
+        // Send JSON to backend
+        const res = await fetch("/api/add-changelog", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: cmd
+        });
+
+        const text = await res.text();
+        status.textContent = "✅ " + text;
+        status.style.color = "#0f0";
+      } catch (err) {
+        status.textContent = "❌ Error: " + err;
+        status.style.color = "red";
+      }
+    }
+  </script>
+</body>
+</html>
