@@ -34,7 +34,6 @@
       position: relative;
     }
 
-    /* Header / Navbar */
     header {
       background: transparent;
       position: fixed;
@@ -93,11 +92,10 @@
       box-shadow: 0 6px 20px rgba(0,114,255,0.04);
     }
 
-    /* Main Content */
     main {
       flex-grow: 1;
       padding: 3rem 2rem 4rem;
-      margin-top: 72px; /* space for header */
+      margin-top: 72px;
       position: relative;
       z-index: 10;
       width: 100vw;
@@ -125,7 +123,6 @@
       font-family: 'Segoe UI Mono', Consolas, 'Courier New', monospace;
       user-select: text;
     }
-
     .version-card h1 {
       font-size: 3.5rem;
       font-weight: 800;
@@ -136,45 +133,30 @@
       text-shadow: 0 0 10px rgba(0, 198, 255, 0.9);
       letter-spacing: 0.12em;
     }
-
     .version-card h2 {
       font-weight: 600;
       font-size: 1.25rem;
       margin-bottom: 0.85rem;
       color: var(--muted);
     }
-
     .version-card time {
       font-weight: 600;
       color: var(--accent);
     }
-
     .log-list {
       max-height: 40vh;
       overflow-y: auto;
       padding-right: 0.5rem;
     }
-
-    .log-list::-webkit-scrollbar {
-      width: 8px;
-    }
-
-    .log-list::-webkit-scrollbar-thumb {
-      background: var(--accent);
-      border-radius: 4px;
-    }
-
-    .log-list::-webkit-scrollbar-track {
-      background: rgba(255, 255, 255, 0.02);
-    }
-
+    .log-list::-webkit-scrollbar { width: 8px; }
+    .log-list::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 4px; }
+    .log-list::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.02); }
     .log-list li {
       margin-bottom: 0.8rem;
       color: var(--fg);
       white-space: pre-line;
     }
 
-    /* Canvas styling */
     #starfield {
       position: fixed;
       top: 0; left: 0;
@@ -197,153 +179,53 @@
     </nav>
   </header>
 
-  <main role="main" aria-labelledby="versionTitle">
-    <!-- Version cards will be injected here by JS -->
-  </main>
-
+  <main role="main" aria-labelledby="versionTitle"></main>
   <canvas id="starfield"></canvas>
 
   <script>
-
     const versions = [
-                             {
-        version: 'v2.1.6',
-        releaseName: 'Asset additions',
-       // buildDate: 'N/a',
-        logs: [
-            'create mode 100644 assets/0.png',
-            'create mode 100644 assets/1.png',
-            'create mode 100644 assets/2.png',
-            'create mode 100644 assets/3.png',
-            'create mode 100644 assets/4.png',
-            'create mode 100644 assets/5.png',
-            'create mode 100644 assets/6.png',
-            'create mode 100644 assets/7.png',
-            'create mode 100644 assets/8.png',
-            'create mode 100644 assets/9.png',
-            'create mode 100644 assets/bombtransparent.png',
-            'create mode 100644 assets/check.png',
-            'create mode 100644 assets/emojitemplate.png',
-            'create mode 100644 assets/filledbomb.png',
-            'create mode 100644 assets/flagfilled.png',
-            'create mode 100644 assets/transparentflag.png',
-            'create mode 100644 blogs',
-        ],
-      }, 
-                       {
-        version: 'v2.1.5',
-        releaseName: 'Index + asset update',
-       // buildDate: 'N/a',
-        logs: [
-          'Updated Home/Index.html',
-          'Added template in asset's ',
-          'Updated 404 ',
-        ],
-      }, 
-                  {
-        version: 'v2.1.4',
-        releaseName: 'Mobile patch release',
-       // buildDate: 'N/a',
-        logs: [
-          'Fixed Homepage not displaying correctly for mobile users',
-          'Added Assets ',
-          'Added .well-known ',
-        ],
-      }, 
-            {
-        version: 'v2.1.1',
-        releaseName: 'Small tweeks',
-       // buildDate: 'N/a',
-        logs: [
-          'Added Credits page',
-          'Updated appeals',
-        ],
-      },   
-      {
-        version: 'v2.1',
-        releaseName: 'Patch release',
-       // buildDate: 'N/a',
-        logs: [
-          'Updated Terms & Policy source',
-          'Updated 404 Page',
-          'Added Underconstruction page',
-          'Updated Setup',
-          'Updated faq',
-        ],
-      },   
-   {
-        version: 'v2.0',
-        releaseName: 'Website Upgrade!',
-       // buildDate: 'N/a',
-        logs: [
-          'Updated Index/Home',
-          'Updated Terms & Policy',
-          'Updated 404 Page',
-          'Added Underconstruction page',
-          'Added Add bot page',
-          'Added Secret Minigame',
-          'Updated Setup',
-          'Updated Under construction page',
-          'Removed Old Secret Game',
-        ],
-      },
-{
-        version: 'v1.3',
-        releaseName: 'Minor Improvements',
-        // buildDate: '2025-07-20T10:00:00Z',
-        logs: [
-          'Updated Setup',
-          'Updated Home',
-          'Updated 404 page UI',
-          'Updated TOS UI',
-          'Updated Privacy UI',
-        ],
-      },
-            {
-        version: 'v1.2',
-        releaseName: 'Minor Improvements',
-        // buildDate: '2025-07-20T10:00:00Z',
-        logs: [
-          'Added Setup',
-          'Updated Home',
-          'Updated 404 page',
-          'Updated TOS',
-          'Updated Privacy',
-        ],
-      },
-      {
-        version: 'v1.1',
-        releaseName: 'Web additions',
-        // buildDate: '2025-07-20T10:00:00Z',
-        logs: [
-          'Updated Home',
-          'Added 404 page',
-          'Added TOS',
-          'Added Privacy',
-        ],
-      },
-      {
-        version: 'v1.0.1',
-        releaseName: 'Birth of site!',
-        buildDate: 'N/A',
-        logs: [
-          'Added Home',
-          // '',
-          // '', 
-        ],
-      },
       
+
+      { version: 'v2.1.6', releaseName: 'Asset additions', buildDate: null, logs: [
+        'create mode 100644 assets/0.png','create mode 100644 assets/1.png','create mode 100644 assets/2.png',
+        'create mode 100644 assets/3.png','create mode 100644 assets/4.png','create mode 100644 assets/5.png',
+        'create mode 100644 assets/6.png','create mode 100644 assets/7.png','create mode 100644 assets/8.png',
+        'create mode 100644 blogs','fixed updates page not displaying properly','move updates page to logs section','made improvements to updates page'
+      ]},
+      { version: 'v2.1.5', releaseName: 'Index + asset update', buildDate: null, logs: [
+        'Updated Home/Index.html','Added template in assets','Updated 404'
+      ]},
+      { version: 'v2.1.4', releaseName: 'Mobile patch release', buildDate: null, logs: [
+        'Fixed Homepage not displaying correctly for mobile users','Added Assets','Added .well-known'
+      ]},
+      { version: 'v2.1.1', releaseName: 'Small tweaks', buildDate: null, logs: [
+        'Added Credits page','Updated appeals'
+      ]},
+      { version: 'v2.1', releaseName: 'Patch release', buildDate: null, logs: [
+        'Updated Terms & Policy source','Updated 404 Page','Added Underconstruction page','Updated Setup','Updated faq'
+      ]},
+      { version: 'v2.0', releaseName: 'Website Upgrade!', buildDate: null, logs: [
+        'Updated Index/Home','Updated Terms & Policy','Updated 404 Page','Added Underconstruction page',
+        'Added Add bot page','Added Secret Minigame','Updated Setup','Updated Under construction page','Removed Old Secret Game'
+      ]},
+      { version: 'v1.3', releaseName: 'Minor Improvements', buildDate: '2025-07-20T10:00:00Z', logs: [
+        'Updated Setup','Updated Home','Updated 404 page UI','Updated TOS UI','Updated Privacy UI'
+      ]},
+      { version: 'v1.2', releaseName: 'Minor Improvements', buildDate: '2025-07-15T10:00:00Z', logs: [
+        'Added Setup','Updated Home','Updated 404 page','Updated TOS','Updated Privacy'
+      ]},
+      { version: 'v1.1', releaseName: 'Web additions', buildDate: '2025-07-10T10:00:00Z', logs: [
+        'Updated Home','Added 404 page','Added TOS','Added Privacy'
+      ]},
+      { version: 'v1.0.1', releaseName: 'Birth of site!', buildDate: '2025-07-01T10:00:00Z', logs: [
+        'Added Home'
+      ]}
     ];
 
-    // ====== DOM Elements ======
     const main = document.querySelector('main');
 
     function formatDate(dateString) {
-      const options = {
-        year: 'numeric', month: 'long', day: 'numeric',
-        hour: '2-digit', minute: '2-digit',
-        timeZone: 'UTC', timeZoneName: 'short'
-      };
+      const options = { year: 'numeric', month: 'long', day: 'numeric' };
       return new Date(dateString).toLocaleDateString(undefined, options);
     }
 
@@ -351,10 +233,17 @@
       const container = document.createElement('section');
       container.className = 'version-card';
       container.setAttribute('aria-label', `Version ${versionData.version} information`);
+
+      let dateDisplay = "N/A";
+      if (versionData.buildDate) {
+        const dateObj = new Date(versionData.buildDate);
+        if (!isNaN(dateObj)) dateDisplay = formatDate(versionData.buildDate);
+      }
+
       container.innerHTML = `
         <h1 id="versionTitle">${versionData.version}</h1>
         <h2>${versionData.releaseName}</h2>
-        <p>Build date: <time datetime="${versionData.buildDate}">${formatDate(versionData.buildDate)}</time></p>
+        <p>Build date: <time>${dateDisplay}</time></p>
         <ul class="log-list" aria-label="Changelog for ${versionData.version}">
           ${versionData.logs.map(log => `<li>${log}</li>`).join('')}
         </ul>
@@ -362,18 +251,12 @@
       return container;
     }
 
-    // Render all versions newest first (array is newest to oldest already)
-    versions.forEach(versionData => {
-      main.appendChild(createVersionCard(versionData));
-    });
+    versions.forEach(versionData => main.appendChild(createVersionCard(versionData)));
 
-
-    // ==== STARFIELD & SHOOTING STARS ANIMATION ====
-
+    // ==== STARFIELD ANIMATION ====
     const canvas = document.getElementById('starfield');
     const ctx = canvas.getContext('2d');
     let width, height, cx, cy;
-
     const maxDepth = 1200;
     const starCounts = { small: 300, medium: 200, large: 70 };
     const stars = [];
@@ -381,225 +264,113 @@
     let dusts = [];
     const shootingStarCount = 8;
     let shootingStars = [];
-
     let baseHue = 190;
 
-    function randRange(min, max) {
-      return Math.random() * (max - min) + min;
-    }
+    function randRange(min, max) { return Math.random() * (max - min) + min; }
 
     class Star {
-      constructor(sizeCategory) {
-        this.sizeCategory = sizeCategory;
-        this.init();
-      }
+      constructor(sizeCategory) { this.sizeCategory = sizeCategory; this.init(); }
       init() {
         this.x = (Math.random() * 2 - 1) * width;
         this.y = (Math.random() * 2 - 1) * height;
         this.z = Math.random() * maxDepth;
-
         this.baseSize = this.sizeCategory === 'small' ? randRange(0.15, 0.5) :
-          this.sizeCategory === 'medium' ? randRange(0.5, 1.1) : randRange(1.1, 2.0);
+                        this.sizeCategory === 'medium' ? randRange(0.5, 1.1) : randRange(1.1, 2.0);
         this.speed = randRange(0.4, 1.8) * (this.sizeCategory === 'large' ? 1.4 : 1);
-
         this.twinkleSpeed = randRange(0.004, 0.009);
         this.twinklePhase = Math.random() * Math.PI * 2;
       }
-      update() {
-        this.z -= this.speed;
-        if (this.z <= 1) {
-          this.init();
-          this.z = maxDepth;
-        }
-        this.twinklePhase += this.twinkleSpeed;
-      }
+      update() { this.z -= this.speed; if (this.z <= 1) { this.init(); this.z = maxDepth; } this.twinklePhase += this.twinkleSpeed; }
       draw() {
-        const sx = cx + (this.x / this.z) * cx;
-        const sy = cy + (this.y / this.z) * cy;
+        const sx = cx + (this.x / this.z) * cx, sy = cy + (this.y / this.z) * cy;
         const sizeFactor = 1 - this.z / maxDepth;
         const radius = this.baseSize * sizeFactor * 2;
-
         const twinkle = 0.3 * Math.sin(this.twinklePhase) + 0.7;
         const hue = (baseHue + 60 + this.twinklePhase * 50) % 360;
-
         const gradient = ctx.createRadialGradient(sx, sy, 0, sx, sy, radius * 4);
         gradient.addColorStop(0, `hsla(${hue}, 100%, 80%, ${twinkle})`);
         gradient.addColorStop(0.5, `hsla(${hue}, 100%, 60%, ${twinkle * 0.3})`);
         gradient.addColorStop(1, `hsla(${hue}, 100%, 40%, 0)`);
-
-        ctx.fillStyle = gradient;
-        ctx.beginPath();
-        ctx.arc(sx, sy, radius, 0, Math.PI * 2);
-        ctx.fill();
-
+        ctx.fillStyle = gradient; ctx.beginPath(); ctx.arc(sx, sy, radius, 0, Math.PI * 2); ctx.fill();
         ctx.fillStyle = `hsla(${hue}, 100%, 90%, ${twinkle})`;
-        ctx.beginPath();
-        ctx.arc(sx, sy, radius / 2, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.beginPath(); ctx.arc(sx, sy, radius / 2, 0, Math.PI * 2); ctx.fill();
       }
     }
 
     class CosmicDust {
-      constructor() {
-        this.reset();
-      }
+      constructor() { this.reset(); }
       reset() {
-        this.x = Math.random() * width;
-        this.y = Math.random() * height;
-        this.radius = randRange(0.2, 0.9);
-        this.speedX = randRange(-0.01, 0.01);
-        this.speedY = randRange(-0.005, 0.005);
-        this.hue = baseHue + randRange(20, 80);
-        this.alpha = randRange(0.05, 0.15);
-        this.twinkleSpeed = randRange(0.002, 0.004);
+        this.x = Math.random() * width; this.y = Math.random() * height;
+        this.radius = randRange(0.2, 0.9); this.speedX = randRange(-0.01, 0.01);
+        this.speedY = randRange(-0.005, 0.005); this.hue = baseHue + randRange(20, 80);
+        this.alpha = randRange(0.05, 0.15); this.twinkleSpeed = randRange(0.002, 0.004);
         this.twinklePhase = Math.random() * Math.PI * 2;
       }
-      update() {
-        this.x += this.speedX;
-        this.y += this.speedY;
-        this.twinklePhase += this.twinkleSpeed;
-
-        if (this.x > width) this.x = 0;
-        else if (this.x < 0) this.x = width;
-        if (this.y > height) this.y = 0;
-        else if (this.y < 0) this.y = height;
-      }
+      update() { this.x += this.speedX; this.y += this.speedY; this.twinklePhase += this.twinkleSpeed;
+        if (this.x > width) this.x = 0; else if (this.x < 0) this.x = width;
+        if (this.y > height) this.y = 0; else if (this.y < 0) this.y = height; }
       draw() {
         const alpha = this.alpha * (0.5 + 0.5 * Math.sin(this.twinklePhase));
         const gradient = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.radius * 5);
         gradient.addColorStop(0, `hsla(${this.hue}, 100%, 85%, ${alpha})`);
         gradient.addColorStop(1, `hsla(${this.hue}, 100%, 30%, 0)`);
-        ctx.fillStyle = gradient;
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.fillStyle = gradient; ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); ctx.fill();
       }
     }
 
     class ShootingStar {
-      constructor() {
-        this.reset();
-      }
+      constructor() { this.reset(); }
       reset() {
-        this.x = Math.random() * width;
-        this.y = Math.random() * height * 0.5;
-        this.len = randRange(80, 130);
-        this.speed = randRange(20, 45);
+        this.x = Math.random() * width; this.y = Math.random() * height * 0.5;
+        this.len = randRange(80, 130); this.speed = randRange(20, 45);
         this.angle = Math.PI / 4 + (Math.random() - 0.5) * 0.3;
-        this.alpha = 0;
-        this.alphaMax = randRange(0.6, 1);
-        this.alphaIncrement = 0.02;
-        this.trailLength = this.len * 0.7;
-        this.active = false;
-        this.waitTime = randRange(1000, 7000);
-        this.waitCounter = 0;
+        this.alpha = 0; this.alphaMax = randRange(0.6, 1); this.alphaIncrement = 0.02;
+        this.trailLength = this.len * 0.7; this.active = false;
+        this.waitTime = randRange(1000, 7000); this.waitCounter = 0;
       }
       update(deltaTime) {
-        if (!this.active) {
-          this.waitCounter += deltaTime;
-          if (this.waitCounter > this.waitTime) {
-            this.active = true;
-            this.waitCounter = 0;
-          }
-          return;
-        }
+        if (!this.active) { this.waitCounter += deltaTime; if (this.waitCounter > this.waitTime) { this.active = true; this.waitCounter = 0; } return; }
         this.x += this.speed * Math.cos(this.angle) * (deltaTime / 16);
         this.y += this.speed * Math.sin(this.angle) * (deltaTime / 16);
-
         if (this.alpha < this.alphaMax) this.alpha += this.alphaIncrement;
         if (this.alpha > this.alphaMax) this.alpha = this.alphaMax;
-
-        this.len *= 0.995;
-        if (this.len < 10 || this.x > width || this.y > height) {
-          this.reset();
-        }
+        this.len *= 0.995; if (this.len < 10 || this.x > width || this.y > height) this.reset();
       }
       draw() {
         if (!this.active) return;
-
-        ctx.save();
-        ctx.lineCap = 'round';
-
+        ctx.save(); ctx.lineCap = 'round';
         const gradient = ctx.createLinearGradient(this.x, this.y, this.x - this.trailLength * Math.cos(this.angle), this.y - this.trailLength * Math.sin(this.angle));
-        gradient.addColorStop(0, `rgba(255,255,255,${this.alpha})`);
-        gradient.addColorStop(1, 'rgba(255,255,255,0)');
-
-        ctx.strokeStyle = gradient;
-        ctx.lineWidth = 2.5;
-        ctx.shadowColor = 'white';
-        ctx.shadowBlur = 8;
-
-        ctx.beginPath();
-        ctx.moveTo(this.x, this.y);
-        ctx.lineTo(this.x - this.trailLength * Math.cos(this.angle), this.y - this.trailLength * Math.sin(this.angle));
-        ctx.stroke();
-
-        ctx.beginPath();
-        ctx.fillStyle = `rgba(255,255,255,${this.alpha})`;
-        ctx.shadowBlur = 14;
-        ctx.shadowColor = 'white';
-        ctx.arc(this.x, this.y, 2.2, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.restore();
+        gradient.addColorStop(0, `rgba(255,255,255,${this.alpha})`); gradient.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.strokeStyle = gradient; ctx.lineWidth = 2.5; ctx.shadowColor = 'white'; ctx.shadowBlur = 8;
+        ctx.beginPath(); ctx.moveTo(this.x, this.y); ctx.lineTo(this.x - this.trailLength * Math.cos(this.angle), this.y - this.trailLength * Math.sin(this.angle)); ctx.stroke();
+        ctx.beginPath(); ctx.fillStyle = `rgba(255,255,255,${this.alpha})`; ctx.shadowBlur = 14; ctx.shadowColor = 'white';
+        ctx.arc(this.x, this.y, 2.2, 0, Math.PI * 2); ctx.fill(); ctx.restore();
       }
     }
 
     function init() {
-      width = window.innerWidth;
-      height = window.innerHeight;
-      cx = width / 2;
-      cy = height / 2;
-
-      canvas.width = width;
-      canvas.height = height;
-
+      width = canvas.width = window.innerWidth;
+      height = canvas.height = window.innerHeight;
+      cx = width / 2; cy = height / 2;
       stars.length = 0;
-      dusts.length = 0;
-      shootingStars.length = 0;
-
-      for (let i = 0; i < starCounts.small; i++) stars.push(new Star('small'));
-      for (let i = 0; i < starCounts.medium; i++) stars.push(new Star('medium'));
-      for (let i = 0; i < starCounts.large; i++) stars.push(new Star('large'));
-      for (let i = 0; i < dustCount; i++) dusts.push(new CosmicDust());
-      for (let i = 0; i < shootingStarCount; i++) shootingStars.push(new ShootingStar());
+      Object.entries(starCounts).forEach(([category, count]) => { for (let i = 0; i < count; i++) { stars.push(new Star(category)); } });
+      dusts = Array.from({ length: dustCount }, () => new CosmicDust());
+      shootingStars = Array.from({ length: shootingStarCount }, () => new ShootingStar());
     }
 
-    let lastTime = 0;
-    function animate(time = 0) {
-      const deltaTime = time - lastTime;
-      lastTime = time;
-
-      baseHue += 0.03;
-      if (baseHue > 360) baseHue -= 360;
-
-      ctx.clearRect(0, 0, width, height);
-
-      dusts.forEach(d => {
-        d.hue = (baseHue + 40) % 360;
-        d.update();
-        d.draw();
-      });
-
-      stars.forEach(star => {
-        star.update();
-        star.draw();
-      });
-
-      shootingStars.forEach(s => {
-        s.update(deltaTime);
-        s.draw();
-      });
-
+    let lastTime = performance.now();
+    function animate(now) {
+      const deltaTime = now - lastTime; lastTime = now;
+      ctx.fillStyle = 'rgba(13, 13, 15, 0.4)'; ctx.fillRect(0, 0, width, height);
+      dusts.forEach(dust => { dust.update(); dust.draw(); });
+      stars.forEach(star => { star.update(); star.draw(); });
+      shootingStars.forEach(star => { star.update(deltaTime); star.draw(); });
+      baseHue = (baseHue + 0.015) % 360;
       requestAnimationFrame(animate);
     }
 
-    window.addEventListener('resize', () => {
-      init();
-    });
-
-    init();
-    animate();
+    window.addEventListener('resize', init);
+    init(); animate(performance.now());
   </script>
 </body>
 </html>
