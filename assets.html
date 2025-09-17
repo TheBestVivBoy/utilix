@@ -13,52 +13,70 @@
       --accent2: #0072ff;
       --muted: #a0a0a7;
       --card: #1e1e24;
+      --panel: #141418;
     }
     * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
     body {
       margin: 0;
       font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, Arial;
       background: radial-gradient(circle at top, #1a1a1d, var(--bg));
       color: var(--fg);
       min-height: 100vh;
+      line-height: 1.45;
     }
     #starfield {
       position: fixed; top: 0; left: 0;
       width: 100%; height: 100%;
       z-index: -1; pointer-events: none;
+      filter: drop-shadow(0 0 2px rgba(0,198,255,0.3));
     }
     header {
-      position: fixed;
-      top: 0; left: 0; width: 100%;
-      z-index: 1100; height: 72px;
-      padding: 1rem 2rem;
+      background: transparent;
+      position: fixed; top: 0; left: 0;
+      width: 100%; height: 72px;
+      z-index: 1100; padding: 1rem 2rem;
       display: flex; justify-content: space-between; align-items: center;
       backdrop-filter: blur(10px);
-      border-bottom: 1px solid rgba(255,255,255,0.05);
+      border-bottom: 1px solid rgba(255,255,255,0.02);
     }
     .logo {
       font-weight: 800; font-size: 1.25rem;
       background: linear-gradient(90deg, var(--accent), var(--accent2));
       -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      letter-spacing: -0.02em;
     }
-    nav ul { display: flex; gap: 1.25rem; list-style: none; margin: 0; padding: 0; }
-    nav a { color: var(--fg); text-decoration: none; font-weight: 600; }
-    nav a.active { color: var(--accent); }
-
+    nav ul { display: flex; gap: 1.25rem; list-style: none; margin: 0; padding: 0; align-items: center; }
+    nav a {
+      color: var(--fg); text-decoration: none; font-weight: 600;
+      padding: 6px; border-radius: 6px; position: relative;
+      transition: transform 0.15s ease;
+    }
+    nav a::after {
+      content:""; position: absolute; left: 0; bottom: -6px;
+      width: 0%; height: 2px; background: var(--accent);
+      transition: width 0.28s ease;
+    }
+    nav a:hover { transform: translateY(-2px); }
+    nav a:hover::after { width: 100%; }
+    nav a.active {
+      background: linear-gradient(90deg, rgba(0,198,255,0.08), rgba(0,114,255,0.06));
+      box-shadow: 0 6px 20px rgba(0,114,255,0.04);
+    }
     main.page {
       max-width: 1000px;
       margin: 0 auto;
       padding: 100px 20px 40px;
+      position: relative;
+      z-index: 10;
     }
-
     h1 {
       text-align: center;
-      font-size: 2.2rem;
+      font-size: 2.4rem;
       background: linear-gradient(90deg, var(--accent), var(--accent2));
       -webkit-background-clip: text; -webkit-text-fill-color: transparent;
       margin-bottom: 2rem;
     }
-
     .asset-row {
       display: flex;
       align-items: center;
@@ -69,10 +87,7 @@
       border: 1px solid rgba(255,255,255,0.05);
       transition: transform 0.15s ease, box-shadow 0.15s ease;
     }
-    .asset-row:hover {
-      transform: translateY(-3px);
-      box-shadow: 0 8px 20px rgba(0,0,0,0.5);
-    }
+    .asset-row:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(0,0,0,0.5); }
     .asset-thumb {
       width: 120px; height: 80px;
       object-fit: cover;
@@ -81,15 +96,8 @@
       flex-shrink: 0;
       background: #0f0f12;
     }
-    .asset-info {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-    }
-    .asset-title {
-      font-weight: 700;
-      margin-bottom: 0.3rem;
-    }
+    .asset-info { flex: 1; display: flex; flex-direction: column; }
+    .asset-title { font-weight: 700; margin-bottom: 0.3rem; }
     .asset-id {
       font-family: monospace;
       font-size: 0.9rem;
@@ -97,39 +105,32 @@
       margin-bottom: 0.5rem;
       word-break: break-all;
     }
-    .copy-btn {
+    .copy-btn, .download-btn {
       align-self: flex-start;
       background: linear-gradient(90deg, var(--accent), var(--accent2));
-      border: none;
-      border-radius: 6px;
+      border: none; border-radius: 6px;
       padding: 0.4rem 0.9rem;
-      font-weight: 600;
-      color: #fff;
-      cursor: pointer;
+      font-weight: 600; color: #fff;
+      cursor: pointer; margin-right: 0.5rem;
       transition: transform 0.15s ease, box-shadow 0.15s ease;
     }
-    .copy-btn:hover {
+    .copy-btn:hover, .download-btn:hover {
       transform: translateY(-2px);
       box-shadow: 0 6px 16px rgba(0,198,255,0.25);
     }
-
     footer {
       margin-top: 2.5rem;
       padding: 2rem 1rem;
       text-align: center;
       color: var(--muted);
+      border-top: 1px solid rgba(255,255,255,0.01);
     }
-
+    footer a { color: var(--accent); text-decoration: none; }
     @media (max-width: 600px) {
-      .asset-row {
-        flex-direction: column;
-        align-items: flex-start;
-      }
+      .asset-row { flex-direction: column; align-items: flex-start; }
       .asset-thumb {
-        margin-right: 0;
-        margin-bottom: 0.8rem;
-        width: 100%;
-        height: auto;
+        margin-right: 0; margin-bottom: 0.8rem;
+        width: 100%; height: auto;
       }
     }
   </style>
@@ -142,7 +143,7 @@
     <nav>
       <ul>
         <li><a href="/index">Home</a></li>
-        <li><a href="/assets" class="active">Assets</a></li>
+        <li><a href="/setup">Setup</a></li>
         <li><a href="/faq">FAQ</a></li>
       </ul>
     </nav>
@@ -150,41 +151,56 @@
 
   <main class="page">
     <h1>Asset Library</h1>
+    <center><h4>When using these assets on third-party platforms, please provide credit and include a link back to this page.</h4></center>
 
- <div class="asset-row">
+
+    <div class="asset-row">
       <img src="https://utilix.support/assets/logo.png" alt="Asset Preview" class="asset-thumb">
       <div class="asset-info">
         <div class="asset-title">Logo</div>
         <div class="asset-id" id="asset-10">https://utilix.support/assets/logo.png</div>
-        <button class="copy-btn" onclick="copyId('asset-10')">Copy asset link</button>
+        <div>
+          <button class="copy-btn" onclick="copyId('asset-10')">Copy asset link</button>
+          <button class="download-btn" onclick="downloadAsset('https://utilix.support/assets/logo.png','utilixlogo.png')">Download</button>
+        </div>
       </div>
     </div>
     
-  <div class="asset-row">
+
+    <div class="asset-row">
       <img src="https://utilix.support/assets/utilixbanner.png" alt="Asset Preview" class="asset-thumb">
       <div class="asset-info">
         <div class="asset-title">Banner</div>
         <div class="asset-id" id="asset-11">https://utilix.support/assets/utilixbanner.png</div>
-        <button class="copy-btn" onclick="copyId('asset-11')">Copy asset link</button>
+        <div>
+          <button class="copy-btn" onclick="copyId('asset-11')">Copy asset link</button>
+          <button class="download-btn" onclick="downloadAsset('https://utilix.support/assets/utilixbanner.png','assets/utilixbanner.png')">Download</button>
+        </div>
       </div>
     </div>
-    
-    
- <div class="asset-row">
+
+    <!-- Numbers 1–9 -->
+    <div class="asset-row">
       <img src="https://utilix.support/assets/1.png" alt="Asset Preview" class="asset-thumb">
       <div class="asset-info">
         <div class="asset-title">Number 1</div>
         <div class="asset-id" id="asset-1">https://utilix.support/assets/1.png</div>
-        <button class="copy-btn" onclick="copyId('asset-1')">Copy asset link</button>
+        <div>
+          <button class="copy-btn" onclick="copyId('asset-1')">Copy asset link</button>
+          <button class="download-btn" onclick="downloadAsset('https://utilix.support/assets/1.png','assets/1.png')">Download</button>
+        </div>
       </div>
     </div>
-    
+
     <div class="asset-row">
       <img src="https://utilix.support/assets/2.png" alt="Asset Preview" class="asset-thumb">
       <div class="asset-info">
         <div class="asset-title">Number 2</div>
         <div class="asset-id" id="asset-2">https://utilix.support/assets/2.png</div>
-        <button class="copy-btn" onclick="copyId('asset-2')">Copy asset link</button>
+        <div>
+          <button class="copy-btn" onclick="copyId('asset-2')">Copy asset link</button>
+          <button class="download-btn" onclick="downloadAsset('https://utilix.support/assets/2.png','assets/2.png')">Download</button>
+        </div>
       </div>
     </div>
 
@@ -193,25 +209,34 @@
       <div class="asset-info">
         <div class="asset-title">Number 3</div>
         <div class="asset-id" id="asset-3">https://utilix.support/assets/3.png</div>
-        <button class="copy-btn" onclick="copyId('asset-3')">Copy asset link</button>
+        <div>
+          <button class="copy-btn" onclick="copyId('asset-3')">Copy asset link</button>
+          <button class="download-btn" onclick="downloadAsset('https://utilix.support/assets/3.png','assets/3.png')">Download</button>
+        </div>
       </div>
     </div>
-    
+
     <div class="asset-row">
       <img src="https://utilix.support/assets/4.png" alt="Asset Preview" class="asset-thumb">
       <div class="asset-info">
         <div class="asset-title">Number 4</div>
         <div class="asset-id" id="asset-4">https://utilix.support/assets/4.png</div>
-        <button class="copy-btn" onclick="copyId('asset-4')">Copy asset link</button>
+        <div>
+          <button class="copy-btn" onclick="copyId('asset-4')">Copy asset link</button>
+          <button class="download-btn" onclick="downloadAsset('https://utilix.support/assets/4.png','assets/4.png')">Download</button>
+        </div>
       </div>
     </div>
-    
+
     <div class="asset-row">
       <img src="https://utilix.support/assets/5.png" alt="Asset Preview" class="asset-thumb">
       <div class="asset-info">
         <div class="asset-title">Number 5</div>
         <div class="asset-id" id="asset-5">https://utilix.support/assets/5.png</div>
-        <button class="copy-btn" onclick="copyId('asset-5')">Copy asset link</button>
+        <div>
+          <button class="copy-btn" onclick="copyId('asset-5')">Copy asset link</button>
+          <button class="download-btn" onclick="downloadAsset('https://utilix.support/assets/5.png','assets/5.png')">Download</button>
+        </div>
       </div>
     </div>
 
@@ -220,36 +245,51 @@
       <div class="asset-info">
         <div class="asset-title">Number 6</div>
         <div class="asset-id" id="asset-6">https://utilix.support/assets/6.png</div>
-        <button class="copy-btn" onclick="copyId('asset-6')">Copy asset link</button>
+        <div>
+          <button class="copy-btn" onclick="copyId('asset-6')">Copy asset link</button>
+          <button class="download-btn" onclick="downloadAsset('https://utilix.support/assets/6.png','assets/6.png')">Download</button>
+        </div>
       </div>
     </div>
-    
-     <div class="asset-row">
+
+    <div class="asset-row">
       <img src="https://utilix.support/assets/7.png" alt="Asset Preview" class="asset-thumb">
       <div class="asset-info">
         <div class="asset-title">Number 7</div>
         <div class="asset-id" id="asset-7">https://utilix.support/assets/7.png</div>
-        <button class="copy-btn" onclick="copyId('asset-7')">Copy asset link</button>
+        <div>
+          <button class="copy-btn" onclick="copyId('asset-7')">Copy asset link</button>
+          <button class="download-btn" onclick="downloadAsset('https://utilix.support/assets/7.png','assets/7.png')">Download</button>
+        </div>
       </div>
     </div>
-   
+
     <div class="asset-row">
       <img src="https://utilix.support/assets/8.png" alt="Asset Preview" class="asset-thumb">
       <div class="asset-info">
         <div class="asset-title">Number 8</div>
         <div class="asset-id" id="asset-8">https://utilix.support/assets/8.png</div>
-        <button class="copy-btn" onclick="copyId('asset-8')">Copy asset link</button>
+        <div>
+          <button class="copy-btn" onclick="copyId('asset-8')">Copy asset link</button>
+          <button class="download-btn" onclick="downloadAsset('https://utilix.support/assets/8.png','assets/8.png')">Download</button>
+        </div>
       </div>
     </div>
-    
+
     <div class="asset-row">
       <img src="https://utilix.support/assets/9.png" alt="Asset Preview" class="asset-thumb">
       <div class="asset-info">
         <div class="asset-title">Number 9</div>
         <div class="asset-id" id="asset-9">https://utilix.support/assets/9.png</div>
-        <button class="copy-btn" onclick="copyId('asset-9')">Copy asset link</button>
+        <div>
+          <button class="copy-btn" onclick="copyId('asset-9')">Copy asset link</button>
+          <button class="download-btn" onclick="downloadAsset('https://utilix.support/assets/9.png','assets/9.png')">Download</button>
+        </div>
       </div>
     </div>
+
+    <!-- Add other assets here (same structure as above) -->
+    
   </main>
 
   <footer>
@@ -258,57 +298,41 @@
 
   <script>
     // starfield
-    const canvas = document.getElementById('starfield');
-    const ctx = canvas.getContext('2d');
-    let width, height, cx, cy;
-    const maxDepth = 1200;
-    const stars = [];
-    const starCounts = { small: 300, medium: 200, large: 70 };
+    const canvas=document.getElementById('starfield');const ctx=canvas.getContext('2d');
+    let width,height,cx,cy;const maxDepth=1200;const stars=[];const starCounts={small:300,medium:200,large:70};
+    function randRange(min,max){return Math.random()*(max-min)+min;}
+    class Star{
+      constructor(sizeCategory){this.sizeCategory=sizeCategory;this.init();}
+      init(){this.x=(Math.random()*2-1)*width;this.y=(Math.random()*2-1)*height;this.z=Math.random()*maxDepth;
+        this.baseSize=this.sizeCategory==='small'?randRange(0.15,0.5):this.sizeCategory==='medium'?randRange(0.5,1.1):randRange(1.1,2.0);
+        this.speed=randRange(0.4,1.8)*(this.sizeCategory==='large'?1.4:1);
+        this.twinkleSpeed=randRange(0.004,0.009);this.twinklePhase=Math.random()*Math.PI*2;}
+      update(){this.z-=this.speed;if(this.z<=1){this.init();this.z=maxDepth;}this.twinklePhase+=this.twinkleSpeed;}
+      draw(){const sx=cx+(this.x/this.z)*cx,sy=cy+(this.y/this.z)*cy;
+        const sizeFactor=1-this.z/maxDepth;const r=this.baseSize*sizeFactor*2;
+        const t=0.3*Math.sin(this.twinklePhase)+0.7;ctx.fillStyle=`rgba(255,255,255,${t})`;
+        ctx.beginPath();ctx.arc(sx,sy,r,0,Math.PI*2);ctx.fill();}
+    }
+    function init(){width=window.innerWidth;height=window.innerHeight;cx=width/2;cy=height/2;
+      canvas.width=width;canvas.height=height;stars.length=0;
+      for(let i=0;i<starCounts.small;i++)stars.push(new Star('small'));
+      for(let i=0;i<starCounts.medium;i++)stars.push(new Star('medium'));
+      for(let i=0;i<starCounts.large;i++)stars.push(new Star('large'));}
+    function animate(){ctx.clearRect(0,0,width,height);stars.forEach(s=>{s.update();s.draw();});requestAnimationFrame(animate);}
+    window.addEventListener('resize',init);init();animate();
 
-    function randRange(min, max) { return Math.random() * (max - min) + min; }
-    class Star {
-      constructor(sizeCategory) { this.sizeCategory = sizeCategory; this.init(); }
-      init() {
-        this.x = (Math.random() * 2 - 1) * width;
-        this.y = (Math.random() * 2 - 1) * height;
-        this.z = Math.random() * maxDepth;
-        this.baseSize = this.sizeCategory === 'small' ? randRange(0.15,0.5) :
-          this.sizeCategory === 'medium' ? randRange(0.5,1.1) : randRange(1.1,2.0);
-        this.speed = randRange(0.4,1.8) * (this.sizeCategory==='large'?1.4:1);
-        this.twinkleSpeed = randRange(0.004,0.009);
-        this.twinklePhase = Math.random() * Math.PI*2;
-      }
-      update() { this.z -= this.speed; if(this.z<=1){this.init(); this.z=maxDepth;} this.twinklePhase += this.twinkleSpeed; }
-      draw() {
-        const sx = cx+(this.x/this.z)*cx, sy = cy+(this.y/this.z)*cy;
-        const sizeFactor = 1-this.z/maxDepth;
-        const r = this.baseSize*sizeFactor*2;
-        const t = 0.3*Math.sin(this.twinklePhase)+0.7;
-        ctx.fillStyle = `rgba(255,255,255,${t})`;
-        ctx.beginPath(); ctx.arc(sx,sy,r,0,Math.PI*2); ctx.fill();
-      }
-    }
-    function init() {
-      width=window.innerWidth; height=window.innerHeight;
-      cx=width/2; cy=height/2;
-      canvas.width=width; canvas.height=height;
-      stars.length=0;
-      for(let i=0;i<starCounts.small;i++) stars.push(new Star('small'));
-      for(let i=0;i<starCounts.medium;i++) stars.push(new Star('medium'));
-      for(let i=0;i<starCounts.large;i++) stars.push(new Star('large'));
-    }
-    function animate() {
-      ctx.clearRect(0,0,width,height);
-      stars.forEach(s=>{s.update(); s.draw();});
-      requestAnimationFrame(animate);
-    }
-    window.addEventListener('resize', init);
-    init(); animate();
-
-    // copy function
-    function copyId(id) {
+    // copy
+    function copyId(id){
       const text=document.getElementById(id).innerText;
       navigator.clipboard.writeText(text).then(()=>alert("Copied: "+text));
+    }
+    // download
+    function downloadAsset(url,filename){
+      fetch(url).then(res=>res.blob()).then(blob=>{
+        const link=document.createElement("a");
+        link.href=URL.createObjectURL(blob);link.download=filename;
+        document.body.appendChild(link);link.click();link.remove();URL.revokeObjectURL(link.href);
+      }).catch(err=>console.error("Download failed:",err));
     }
   </script>
 </body>
