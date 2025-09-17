@@ -97,61 +97,21 @@
       margin-bottom: 0.5rem;
       word-break: break-all;
     }
-    .asset-actions {
-      display: flex;
-      gap: 0.6rem;
-      flex-wrap: wrap;
-    }
     .copy-btn, .download-btn {
       align-self: flex-start;
-      position: relative; /* needed for tooltip */
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
       border: none;
       border-radius: 6px;
-      padding: 0.45rem 0.9rem;
+      padding: 0.4rem 0.9rem;
       font-weight: 600;
       color: #fff;
       cursor: pointer;
+      margin-right: 0.5rem;
       transition: transform 0.15s ease, box-shadow 0.15s ease;
     }
-    .copy-btn {
-      background: linear-gradient(90deg, var(--accent), var(--accent2));
-    }
-    .copy-btn:hover {
+    .copy-btn:hover, .download-btn:hover {
       transform: translateY(-2px);
       box-shadow: 0 6px 16px rgba(0,198,255,0.25);
-    }
-    .download-btn {
-      background: linear-gradient(90deg, var(--accent2), var(--accent));
-      text-decoration: none;
-      display: inline-block;
-    }
-    .download-btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 16px rgba(0,114,255,0.25);
-    }
-
-    /* Tooltip effect for Copy */
-    .copy-btn.copied::after {
-      content: "Copied!";
-      position: absolute;
-      top: -28px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: var(--accent);
-      color: #fff;
-      font-size: 0.8rem;
-      padding: 2px 8px;
-      border-radius: 4px;
-      white-space: nowrap;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-      opacity: 0;
-      animation: fadeUp 1.2s ease forwards;
-    }
-    @keyframes fadeUp {
-      0% { opacity: 0; transform: translate(-50%, 0); }
-      15% { opacity: 1; transform: translate(-50%, -4px); }
-      85% { opacity: 1; transform: translate(-50%, -4px); }
-      100% { opacity: 0; transform: translate(-50%, -8px); }
     }
 
     footer {
@@ -192,15 +152,15 @@
   <main class="page">
     <h1>Asset Library</h1>
 
-  
+    <!-- Example asset with both buttons -->
     <div class="asset-row">
       <img src="https://utilix.support/assets/logo.png" alt="Asset Preview" class="asset-thumb">
       <div class="asset-info">
         <div class="asset-title">Logo</div>
         <div class="asset-id" id="asset-10">https://utilix.support/assets/logo.png</div>
-        <div class="asset-actions">
-          <button class="copy-btn" onclick="copyId('asset-10', event)">Copy asset link</button>
-          <a class="download-btn" href="https://utilix.support/assets/logo.png" download>Download asset</a>
+        <div>
+          <button class="copy-btn" onclick="copyId('asset-10')">Copy asset link</button>
+          <button class="download-btn" onclick="downloadAsset('https://utilix.support/assets/logo.png','utilixlogo.png')">Download</button>
         </div>
       </div>
     </div>
@@ -210,21 +170,22 @@
       <div class="asset-info">
         <div class="asset-title">Banner</div>
         <div class="asset-id" id="asset-11">https://utilix.support/assets/utilixbanner.png</div>
-        <div class="asset-actions">
-          <button class="copy-btn" onclick="copyId('asset-11', event)">Copy asset link</button>
-          <a class="download-btn" href="https://utilix.support/assets/utilixbanner.png" download>Download asset</a>
+        <div>
+          <button class="copy-btn" onclick="copyId('asset-11')">Copy asset link</button>
+          <button class="download-btn" onclick="downloadAsset('https://utilix.support/assets/utilixbanner.png','assets/utilixbanner.png')">Download</button>
         </div>
       </div>
     </div>
 
+    <!-- Numbers 1–9 -->
     <div class="asset-row">
       <img src="https://utilix.support/assets/1.png" alt="Asset Preview" class="asset-thumb">
       <div class="asset-info">
         <div class="asset-title">Number 1</div>
         <div class="asset-id" id="asset-1">https://utilix.support/assets/1.png</div>
-        <div class="asset-actions">
-          <button class="copy-btn" onclick="copyId('asset-1', event)">Copy asset link</button>
-          <a class="download-btn" href="https://utilix.support/assets/1.png" download>Download asset</a>
+        <div>
+          <button class="copy-btn" onclick="copyId('asset-1')">Copy asset link</button>
+          <button class="download-btn" onclick="downloadAsset('https://utilix.support/assets/1.png','assets/1.png')">Download</button>
         </div>
       </div>
     </div>
@@ -234,21 +195,21 @@
       <div class="asset-info">
         <div class="asset-title">Number 2</div>
         <div class="asset-id" id="asset-2">https://utilix.support/assets/2.png</div>
-        <div class="asset-actions">
-          <button class="copy-btn" onclick="copyId('asset-2', event)">Copy asset link</button>
-          <a class="download-btn" href="https://utilix.support/assets/2.png" download>Download asset</a>
+        <div>
+          <button class="copy-btn" onclick="copyId('asset-2')">Copy asset link</button>
+          <button class="download-btn" onclick="downloadAsset('https://utilix.support/assets/2.png','assets/2.png')">Download</button>
         </div>
       </div>
     </div>
-    
-        <div class="asset-row">
+
+    <div class="asset-row">
       <img src="https://utilix.support/assets/3.png" alt="Asset Preview" class="asset-thumb">
       <div class="asset-info">
         <div class="asset-title">Number 3</div>
         <div class="asset-id" id="asset-3">https://utilix.support/assets/3.png</div>
-        <div class="asset-actions">
-          <button class="copy-btn" onclick="copyId('asset-3', event)">Copy asset link</button>
-          <a class="download-btn" href="https://utilix.support/assets/3.png" download>Download asset</a>
+        <div>
+          <button class="copy-btn" onclick="copyId('asset-3')">Copy asset link</button>
+          <button class="download-btn" onclick="downloadAsset('https://utilix.support/assets/3.png','assets/3.png')">Download</button>
         </div>
       </div>
     </div>
@@ -258,21 +219,21 @@
       <div class="asset-info">
         <div class="asset-title">Number 4</div>
         <div class="asset-id" id="asset-4">https://utilix.support/assets/4.png</div>
-        <div class="asset-actions">
-          <button class="copy-btn" onclick="copyId('asset-4', event)">Copy asset link</button>
-          <a class="download-btn" href="https://utilix.support/assets/4.png" download>Download asset</a>
+        <div>
+          <button class="copy-btn" onclick="copyId('asset-4')">Copy asset link</button>
+          <button class="download-btn" onclick="downloadAsset('https://utilix.support/assets/4.png','assets/4.png')">Download</button>
         </div>
       </div>
     </div>
-    
+
     <div class="asset-row">
       <img src="https://utilix.support/assets/5.png" alt="Asset Preview" class="asset-thumb">
       <div class="asset-info">
         <div class="asset-title">Number 5</div>
         <div class="asset-id" id="asset-5">https://utilix.support/assets/5.png</div>
-        <div class="asset-actions">
-          <button class="copy-btn" onclick="copyId('asset-5', event)">Copy asset link</button>
-          <a class="download-btn" href="https://utilix.support/assets/5.png" download>Download asset</a>
+        <div>
+          <button class="copy-btn" onclick="copyId('asset-5')">Copy asset link</button>
+          <button class="download-btn" onclick="downloadAsset('https://utilix.support/assets/5.png','assets/5.png')">Download</button>
         </div>
       </div>
     </div>
@@ -282,68 +243,48 @@
       <div class="asset-info">
         <div class="asset-title">Number 6</div>
         <div class="asset-id" id="asset-6">https://utilix.support/assets/6.png</div>
-        <div class="asset-actions">
-          <button class="copy-btn" onclick="copyId('asset-6', event)">Copy asset link</button>
-          <a class="download-btn" href="https://utilix.support/assets/6.png" download>Download asset</a>
+        <div>
+          <button class="copy-btn" onclick="copyId('asset-6')">Copy asset link</button>
+          <button class="download-btn" onclick="downloadAsset('https://utilix.support/assets/6.png','assets/6.png')">Download</button>
         </div>
       </div>
     </div>
 
     <div class="asset-row">
-      <img src="https://utilix.support/assets/5.png" alt="Asset Preview" class="asset-thumb">
+      <img src="https://utilix.support/assets/7.png" alt="Asset Preview" class="asset-thumb">
       <div class="asset-info">
         <div class="asset-title">Number 7</div>
         <div class="asset-id" id="asset-7">https://utilix.support/assets/7.png</div>
-        <div class="asset-actions">
-          <button class="copy-btn" onclick="copyId('asset-7', event)">Copy asset link</button>
-          <a class="download-btn" href="https://utilix.support/assets/7.png" download>Download asset</a>
+        <div>
+          <button class="copy-btn" onclick="copyId('asset-7')">Copy asset link</button>
+          <button class="download-btn" onclick="downloadAsset('https://utilix.support/assets/7.png','assets/7.png')">Download</button>
         </div>
       </div>
     </div>
 
-<div class="asset-row">
-  <img src="https://utilix.support/assets/7.png" alt="Asset Preview" class="asset-thumb">
-  <div class="asset-info">
-    <div class="asset-title">Number 7</div>
-    <div class="asset-id" id="asset-7">https://utilix.support/assets/7.png</div>
-    <div class="asset-actions">
-      <button class="copy-btn" onclick="copyId('asset-7', event)">Copy asset link</button>
-      <a class="download-btn" 
-         href="https://utilix.support/assets/7.png" 
-         download="https://utilix.support/assets/7.png">Download asset</a>
+    <div class="asset-row">
+      <img src="https://utilix.support/assets/8.png" alt="Asset Preview" class="asset-thumb">
+      <div class="asset-info">
+        <div class="asset-title">Number 8</div>
+        <div class="asset-id" id="asset-8">https://utilix.support/assets/8.png</div>
+        <div>
+          <button class="copy-btn" onclick="copyId('asset-8')">Copy asset link</button>
+          <button class="download-btn" onclick="downloadAsset('https://utilix.support/assets/8.png','assets/8.png')">Download</button>
+        </div>
+      </div>
     </div>
-  </div>
-</div>
 
-<div class="asset-row">
-  <img src="https://utilix.support/assets/7.png" alt="Asset Preview" class="asset-thumb">
-  <div class="asset-info">
-    <div class="asset-title">Number 7</div>
-    <div class="asset-id" id="asset-7">https://utilix.support/assets/7.png</div>
-    <div class="asset-actions">
-      <button class="copy-btn" onclick="copyId('asset-7', event)">Copy asset link</button>
-      <button class="download-btn" onclick="downloadAsset('https://utilix.support/assets/7.png', 'assets/7.png')">
-        Download asset
-      </button>
+    <div class="asset-row">
+      <img src="https://utilix.support/assets/9.png" alt="Asset Preview" class="asset-thumb">
+      <div class="asset-info">
+        <div class="asset-title">Number 9</div>
+        <div class="asset-id" id="asset-9">https://utilix.support/assets/9.png</div>
+        <div>
+          <button class="copy-btn" onclick="copyId('asset-9')">Copy asset link</button>
+          <button class="download-btn" onclick="downloadAsset('https://utilix.support/assets/9.png','assets/9.png')">Download</button>
+        </div>
+      </div>
     </div>
-  </div>
-</div>
-
-<script>
-function downloadAsset(url, filename) {
-  fetch(url)
-    .then(res => res.blob())
-    .then(blob => {
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-    })
-    .catch(err => console.error("Download failed:", err));
-}
-</script>
 
   </main>
 
@@ -352,7 +293,7 @@ function downloadAsset(url, filename) {
   </footer>
 
   <script>
-    // starfield
+    // starfield animation
     const canvas = document.getElementById('starfield');
     const ctx = canvas.getContext('2d');
     let width, height, cx, cy;
@@ -400,17 +341,26 @@ function downloadAsset(url, filename) {
     window.addEventListener('resize', init);
     init(); animate();
 
-    // copy function with tooltip
-    function copyId(id, event) {
-      const text = document.getElementById(id).innerText;
-      const button = event.target;
+    // copy function
+    function copyId(id) {
+      const text=document.getElementById(id).innerText;
+      navigator.clipboard.writeText(text).then(()=>alert("Copied: "+text));
+    }
 
-      navigator.clipboard.writeText(text).then(() => {
-        button.classList.add("copied");
-        setTimeout(() => {
-          button.classList.remove("copied");
-        }, 1300);
-      });
+    // universal forced download
+    function downloadAsset(url, filename) {
+      fetch(url)
+        .then(res => res.blob())
+        .then(blob => {
+          const link = document.createElement("a");
+          link.href = URL.createObjectURL(blob);
+          link.download = filename;
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          URL.revokeObjectURL(link.href);
+        })
+        .catch(err => console.error("Download failed:", err));
     }
   </script>
 </body>
