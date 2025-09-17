@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Ethan's World — Staff Handbook</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0d0d0f;
+      --fg: #f2f2f7;
+      --accent: #00c6ff;
+      --accent2: #0072ff;
+      --muted: #a0a0a7;
+      --card: #1e1e24;
+      --panel: #141418;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0; font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      background: radial-gradient(circle at top, #1a1a1d, var(--bg)); color: var(--fg);
+      -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; min-height: 100vh;
+      line-height: 1.45; position: relative; padding-bottom: 64px;
+    }
+    header {
+      background: transparent; position: fixed; width: 100%; z-index: 1100; padding: 1rem 2rem;
+      display:flex; justify-content: space-between; align-items:center; backdrop-filter: blur(10px);
+      border-bottom: 1px solid rgba(255,255,255,0.02); height:72px; top:0; left:0;
+    }
+    .logo { font-weight:800; font-size:1.1rem; background:linear-gradient(90deg,var(--accent),var(--accent2));
+      -webkit-background-clip:text; -webkit-text-fill-color:transparent; letter-spacing:-0.02em; }
+    nav.header-nav ul{ display:flex; gap:1rem; margin:0; padding:0; list-style:none; }
+    nav.header-nav a{ color:var(--fg); text-decoration:none; font-weight:600; padding:6px 8px; border-radius:6px; }
+    .page { max-width:1100px; margin:0 auto; padding:110px 20px 56px; position:relative; z-index:10; }
+
+    .handbook { display:grid; grid-template-columns: 320px 1fr; gap:1.6rem; }
+    .toc { position:sticky; top:96px; align-self:start; background:var(--panel); border-radius:12px; padding:1rem; border:1px solid rgba(255,255,255,0.03); }
+    .toc h3{ margin:0 0 8px 0; font-size:1rem; background:linear-gradient(90deg,var(--accent),var(--accent2)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+    .toc ul{ list-style:none; padding:0; margin:0; color:var(--muted); }
+    .toc a{ display:block; padding:8px 6px; color:var(--muted); text-decoration:none; border-radius:8px; }
+    .toc a:hover { color:var(--fg); background:rgba(255,255,255,0.02); }
+
+    .content { background:linear-gradient(180deg, rgba(255,255,255,0.01), transparent); border-radius:14px; padding:1.6rem; border:1px solid rgba(255,255,255,0.02); }
+    .section { margin-bottom:1.75rem; }
+    .section h2{ margin:0 0 8px 0; font-size:1.15rem; }
+    .muted { color:var(--muted); font-size:0.95rem; }
+
+    .cmd { background:var(--card); padding:0.65rem 0.8rem; border-radius:8px; font-family:monospace; display:inline-block; margin:6px 0; }
+    .pill { display:inline-block; padding:6px 10px; border-radius:999px; background:rgba(0,198,255,0.08); color:var(--accent); font-weight:700; margin-right:8px; }
+
+    table { width:100%; border-collapse:collapse; margin-top:8px; }
+    th, td { text-align:left; padding:8px; border-bottom:1px solid rgba(255,255,255,0.02); }
+    th { color:var(--muted); font-size:0.9rem; }
+
+    footer { margin-top:2rem; color:var(--muted); text-align:center; }
+
+    @media (max-width:900px){ .handbook{ grid-template-columns: 1fr; } .toc{ position:relative; top:auto; } }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo">Ethan's World</div>
+    <nav class="header-nav" aria-label="Primary navigation">
+      <ul>
+        <li><a href="#home" class="active">Handbook</a></li>
+        <li><a href="#commands">Commands</a></li>
+        <li><a href="#moderation">Moderation</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main class="page">
+    <div class="handbook">
+      <aside class="toc">
+        <h3>Staff Handbook</h3>
+        <p class="muted">Quick links</p>
+        <ul>
+          <li><a href="#intro">Intro & Purpose</a></li>
+          <li><a href="#expectations">Staff Expectations & Rules</a></li>
+          <li><a href="#commands">Commands (by role)</a></li>
+          <li><a href="#enforcement">Enforcement Guidelines</a></li>
+          <li><a href="#mute-warn">Mute & Warning Flow</a></li>
+          <li><a href="#ban-guidelines">Ban Guidelines</a></li>
+          <li><a href="#activity">Activity Requirements</a></li>
+          <li><a href="#loa">Leave of Absence (LOA)</a></li>
+          <li><a href="#staff-warning">Staff Warning System</a></li>
+         <!-- <li><a href="#templates">Templates & Logging</a></li>-->
+        </ul>
+      </aside>
+
+      <section class="content" id="intro">
+        <div class="section">
+          <h2>Introduction & Purpose</h2>
+          <p class="muted">This handbook exists to keep Ethan's World staff consistent, fair, and professional while retaining the playful community energy our server is known for. It covers commands, escalation paths, documentation, and activity expectations — follow it, ask for clarification when needed, and lean on higher-ranked staff when unsure.</p>
+        </div>
+
+        <div class="section" id="expectations">
+          <h2>📜 Staff Expectations & Rules</h2>
+          <p class="muted">All staff are expected to read, understand, and follow both the staff rules listed here and the general server rules in <code>📜・rules</code>.</p>
+
+          <h3>Staff Guidelines</h3>
+          <ul class="muted">
+            <li><strong>Respect & Professionalism:</strong> Treat all members and staff with respect. Harassment, discrimination, or misconduct—inside or outside the community—will not be tolerated.</li>
+            <li><strong>Impartial Moderation:</strong> Handle all situations fairly. Personal conflicts must never influence your decisions.</li>
+            <li><strong>Lead by Example:</strong> Follow server rules and uphold high standards of behavior. You represent the server—your actions set the tone.</li>
+            <li><strong>Behavior Outside the Server:</strong> Staff should maintain a positive reputation outside the community.</li>
+            <li><strong>Confidentiality:</strong> Keep staff discussions, reports, and plans private.</li>
+            <li><strong>Proper Report & Punishment Handling:</strong> Investigate carefully before taking action and document all significant actions.</li>
+            <li><strong>Active Participation & Communication:</strong> Meet weekly staff requirements and communicate absences.</li>
+            <li><strong>No Invisible Mode:</strong> Staff must remain visible for accountability and prompt response.</li>
+            <li><strong>Role & Promotion Rules:</strong> Do not assign roles to yourself or others without permission. Promotions are earned through performance.</li>
+            <li><strong>Seek Guidance:</strong> If unsure about a rule or decision, contact higher-ranked staff.</li>
+          </ul>
+
+          <h3>General Server Rules (Applies to Staff Too)</h3>
+          <p class="muted">This is an English-only server. Breaking any of these rules as staff will result in both a member punishment and a staff warning.</p>
+          <ul class="muted">
+            <li>#1 Follow all <a href="https://discordapp.com/terms">Discord TOS</a> & <a href="https://discordapp.com/guidelines">Community Guidelines</a>.</li>
+            <li>#2 Racism is strictly prohibited.</li>
+            <li>#3 No NSFW content.</li>
+            <li>#4 Respect everyone’s identity and orientation.</li>
+            <li>#5 No sharing personal info.</li>
+            <li>#6 Do not record/share voice chats without consent.</li>
+            <li>#7 No cross-trading between games/platforms.</li>
+            <li>#8 No advertising (including DM ads).</li>
+            <li>#9 No impersonation.</li>
+            <li>#10 No spam (6+ repeated msgs).</li>
+            <li>#11 Names must be appropriate & pingable.</li>
+            <li>#13 No alt accounts.</li>
+            <li>#14 Use channels properly.</li>
+            <li>#15 No malicious links or files.</li>
+            <li>#16 No mass pinging without permission.</li>
+            <li>#17 No sensitive/offensive event jokes (like 9/11).</li>
+            <li>#18 No political discussions.</li>
+          </ul>
+
+          <p class="muted"><strong>Enforcement:</strong> Extreme offenses (racism, NSFW, malicious links) = instant ban. Other major rules = warn/mute. Minor rules = verbal first, then warn.</p>
+        </div>
+
+        <div class="section" id="commands">
+          <h2>Commands (by role)</h2>
+          <p class="muted">Commands below are role-gated. Use them responsibly — misuse causes staff warnings.</p>
+
+          <h3>Trainee Moderators</h3>
+          <div class="cmd">!warn [user] [reason]</div>
+          <div class="cmd">!mute [user] [duration] [reason]</div>
+          <p class="muted">Trainee Mods should consult a full Moderator before executing non-obvious actions; training is ongoing.</p>
+
+          <h3>Moderators & Up</h3>
+          <div class="cmd">!kick [user] [reason]</div>
+          <div class="cmd">!ban [user] [reason]</div>
+          <p class="muted">Moderators may execute kicks and bans when rules are broken and documented. For edge cases or appealable content, ping a Head Mod/Admin.</p>
+
+          <p class="muted"><strong>Misuse:</strong> Targeting members unfairly, using commands without documented reason, or applying actions to yourself will result in a staff warning.</p>
+        </div>
+
+        <div class="section" id="enforcement">
+          <h2>Staff Enforcement Guidelines</h2>
+          <p class="muted">Enforcement is split between Minor and Major rules to help staff act consistently.</p>
+
+          <h3 class="muted">Minor Rules — Verbal First</h3>
+          <p class="muted">Rules: #4, #10, #11, #14, #16, #17, #18</p>
+          <table>
+            <tr><th>Action</th><th>Flow</th></tr>
+            <tr><td>1st offense</td><td>Verbal warning</td></tr>
+            <tr><td>Repeated offense</td><td>Issue a warn (modstats entry)</td></tr>
+            <tr><td>Continued violations</td><td>Escalate to longer mute and potential staff warning</td></tr>
+            <tr><td>Documentation</td><td>Record all actions in modstats</td></tr>
+          </table>
+
+          <h3 class="muted">Major Rules — Immediate Action</h3>
+          <p class="muted">Rules: #2, #3, #5, #6, #7, #8, #9, #13, #15</p>
+          <table>
+            <tr><th>Action</th><th>Flow</th></tr>
+            <tr><td>1st offense</td><td>Immediate warn or mute depending on severity</td></tr>
+            <tr><td>Severe cases</td><td>Extreme racism, NSFW content, or malicious links → instant ban (no-appeal for extreme cases)</td></tr>
+            <tr><td>Escalation</td><td>Longer mute and additional warn if needed</td></tr>
+            <tr><td>Documentation</td><td>Always log actions in modstats</td></tr>
+          </table>
+
+          <p class="muted"><strong>When in doubt:</strong> Contact a higher-ranked staff member before taking action.</p>
+        </div>
+
+        <div class="section" id="mute-warn">
+          <h2>🔇 Mute & Warning Guidelines</h2>
+          <p class="muted"><strong>Standard Procedure:</strong></p>
+          <ul class="muted">
+            <li>Verbal warning: Start with a verbal warning for minor offenses (spam, small rule-breaking, etc.).</li>
+            <li>1st warning: Issue a warn (modstats entry).</li>
+            <li>2 warnings within 1 hour: Mute for 1 hour.</li>
+          </ul>
+
+          <p class="muted"><strong>Notes:</strong> Always include a clear reason when you issue a warn or mute and link the rule broken. Keep tone professional in public mod messages; be explicit and factual in logs.</p>
+        </div>
+
+        <div class="section" id="ban-guidelines">
+          <h2>🛡️ Ban Guidelines</h2>
+          <p class="muted">Use <span class="pill">/ban</span> with <em>no appeal = true</em> for:</p>
+          <ul class="muted">
+            <li>Extreme NSFW content</li>
+            <li>Scamming / malicious beam links</li>
+          </ul>
+          <p class="muted">False bans will result in a staff warning — double-check evidence and consult a Head Mod if unsure.</p>
+        </div>
+
+        <div class="section" id="staff-warning">
+          <h2>⚠️ Staff Warning System</h2>
+          <p class="muted">Staff warnings are tracked separately from member discipline.</p>
+          <ul class="muted">
+            <li>5 staff warnings = removal from staff team (reapply allowed)</li>
+            <li>Rules broken from the Staff Guidelines and the main <code>📜・rules</code> channel can result in a warning</li>
+            <li>Monthly resets apply, giving everyone a fresh start each month</li>
+          </ul>
+        </div>
+
+        <div class="section" id="activity">
+          <h2>📊 Weekly Activity Requirements</h2>
+          <p class="muted">To remain active on the staff team you must meet both activity targets each week:</p>
+          <table>
+            <tr><th>Metric</th><th>Target</th></tr>
+            <tr><td>Bot messages (using @Ethan's Utilities)</td><td>500+ messages / week</td></tr>
+            <tr><td>New modstats entries</td><td>10+ per week (warnings, mutes, kicks, bans)</td></tr>
+          </table>
+
+          <p class="muted">Failure to meet requirements:
+            <ul class="muted">
+              <li>1st offence → one-on-one discussion with higher-ranked staff</li>
+              <li>2nd offence → potential removal from staff team</li>
+            </ul>
+          </p>
+        </div>
+
+        <div class="section" id="loa">
+          <h2>📤 Leave of Absence (LOA)</h2>
+          <p class="muted">The <code>@LOA</code> Role is for staff temporarily stepping away for personal reasons, vacations, or other commitments.</p>
+          <ul class="muted">
+            <li>Request in advance — Ask a Head Mod/Admin before going on LOA.</li>
+            <li>Max duration: 1 month per LOA.</li>
+            <li>Frequency: Once every 2 months.</li>
+            <li>Activity: Weekly activity/modstats not required while on LOA.</li>
+            <li>Return: Resume normal duties after LOA.</li>
+          </ul>
+        </div>
+
+        <!--<div class="section" id="templates">
+          <h2>📝 Templates & Logging</h2>
+          <p class="muted">Always document staff actions in the server's modstats system. Use these templates to make logs consistent and searchable.</p>
+
+          <h3 class="muted">Warn Log Template</h3>
+          <pre class="cmd">[WARN] Moderator: @ModName | User: @User | Rule: # | Reason: short reason | Time: YYYY-MM-DD HH:MM UTC</pre>
+
+          <h3 class="muted">Mute Log Template</h3>
+          <pre class="cmd">[MUTE] Moderator: @ModName | User: @User | Duration: 1h | Reason: short reason | Evidence: links | Time: YYYY-MM-DD HH:MM UTC</pre>
+
+          <h3 class="muted">Ban Log Template</h3>
+          <pre class="cmd">[BAN] Moderator: @ModName | User: @User | Reason: short reason | Evidence: links | Appeal: Yes/No | Time: YYYY-MM-DD HH:MM UTC</pre>
+        </div>-->
+
+        <footer>
+          <p>Handbook © Ethan's World — Last updated September 2025</p>
+        </footer>
+      </section>
+    </div>
+  </main>
+</body>
+</html>
