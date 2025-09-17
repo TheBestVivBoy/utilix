@@ -1,0 +1,215 @@
+<!DOCTYPE html> 
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Utilix — Terms of Service</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0d0d0f;
+      --fg: #f2f2f7;
+      --accent: #00c6ff;
+      --accent2: #0072ff;
+      --muted: #a0a0a7;
+      --card: #1e1e24;
+      --panel: #141418;
+      --success: #00dba0;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      background: radial-gradient(circle at top, #1a1a1d, var(--bg));
+      color: var(--fg);
+      min-height: 100vh;
+      line-height: 1.5;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      background: transparent;
+      position: fixed; width: 100%; z-index: 1100;
+      padding: 1rem 2rem;
+      display: flex; justify-content: space-between; align-items: center;
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+      height: 72px; top: 0; left: 0;
+    }
+    .logo {
+      font-weight: 800; font-size: 1.25rem;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      letter-spacing: -0.02em;
+    }
+    nav.header-nav ul { display: flex; gap: 1.25rem; list-style: none; margin: 0; padding: 0; align-items: center; }
+    nav.header-nav a {
+      color: var(--fg); text-decoration: none; font-weight: 600; position: relative;
+      padding: 6px 10px; border-radius: 6px; transition: transform 0.15s ease;
+    }
+    nav.header-nav a::after { content: ""; position: absolute; left: 0; bottom: -6px; width: 0%; height: 2px; background: var(--accent); transition: width 0.28s ease; }
+    nav.header-nav a:hover { transform: translateY(-2px); }
+    nav.header-nav a:hover::after { width: 100%; }
+    nav.header-nav a.active {
+      background: linear-gradient(90deg, rgba(0, 198, 255, 0.08), rgba(0, 114, 255, 0.06));
+      -webkit-background-clip: padding-box; box-shadow: 0 6px 20px rgba(0, 114, 255, 0.04);
+    }
+
+    .page { max-width: 1200px; margin: 0 auto; padding: 96px 20px 56px; flex: 1; }
+
+    .hero { display: flex; align-items: center; justify-content: center; text-align: center; min-height: 38vh; padding: 2rem 1rem; }
+    .hero-inner { max-width: 920px; }
+    .hero h1 {
+      font-size: 2.5rem; line-height: 1.2; margin-bottom: 0.5rem;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .hero p { color: var(--muted); font-size: 1rem; margin-bottom: 1.25rem; max-width: 760px; margin-inline: auto; }
+
+    .layout { display: grid; grid-template-columns: 280px 1fr; gap: 24px; align-items: start; }
+    .toc { position: sticky; top: 96px; background: var(--panel); border: 1px solid rgba(255,255,255,0.04); border-radius: 14px; padding: 1rem; }
+    .toc h2 { margin: 0 0 8px; font-size: 0.95rem; letter-spacing: 0.02em; color: var(--muted); }
+    .toc a { display: block; text-decoration: none; color: var(--fg); padding: 8px 10px; border-radius: 8px; font-weight: 600; font-size: 0.95rem; }
+    .toc a:hover { background: rgba(255,255,255,0.04); }
+    .toc a.active { background: rgba(0, 198, 255, 0.15); }
+
+    .terms-card { background: var(--card); border-radius: 16px; border: 1px solid rgba(255,255,255,0.04); padding: 1.2rem; }
+    .section { padding: 1rem; border: 1px solid rgba(255,255,255,0.05); border-radius: 14px; background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); scroll-margin-top: 90px; }
+    .section + .section { margin-top: 14px; }
+    .section h3 { margin: 0 0 6px; font-size: 1.05rem; background: linear-gradient(90deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .section p, .section li { color: var(--muted); font-size: 0.98rem; }
+
+    .divider { height: 2px; margin: 2.2rem 0; background: linear-gradient(90deg, rgba(0, 198, 255, 0.12), rgba(0, 114, 255, 0.06)); border-radius: 4px; border: 1px solid rgba(255, 255, 255, 0.02); }
+
+    /* Back to top button */
+    #backToTop {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: white;
+      font-size: 1.4rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.4);
+      transition: opacity 0.3s ease, transform 0.2s ease;
+      opacity: 0;
+      pointer-events: none;
+      z-index: 1200;
+    }
+    #backToTop.show { opacity: 1; pointer-events: auto; }
+    #backToTop:hover { transform: translateY(-3px) scale(1.05); }
+
+    /* Footer */
+    .utilix-footer {
+      background: var(--panel);
+      border-top: 1px solid rgba(255,255,255,0.05);
+      padding: 1.5rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+    .utilix-footer .brand img {
+      height: 28px;
+    }
+    .utilix-footer .center {
+      text-align: center;
+      flex: 1;
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+    .utilix-footer .links a {
+      color: var(--fg);
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .utilix-footer .links a:hover {
+      color: var(--accent);
+    }
+    .utilix-footer .discord-link svg {
+      width: 28px;
+      height: 28px;
+      fill: var(--fg);
+      transition: fill 0.2s ease;
+    }
+    .utilix-footer .discord-link:hover svg {
+      fill: var(--accent);
+    }
+
+    /* Responsive */
+    @media (max-width: 900px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+      .toc {
+        position: relative;
+        top: auto;
+        margin-bottom: 1rem;
+      }
+      .utilix-footer {
+        flex-direction: column;
+        text-align: center;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- header, hero, layout, terms content remain as you had -->
+  
+  <button id="backToTop" aria-label="Back to top">↑</button>
+
+
+  <footer class="utilix-footer" role="contentinfo">
+    <a class="brand" href="/" aria-label="Utilix home">
+      <img src="/logo.svg" alt="" onerror="this.style.display='none'">
+    </a>
+    <div class="center">
+      <div>&copy; 2025 <strong>Utilix</strong>. All rights reserved.</div>
+      <div class="links">
+        <a href="/terms">Terms of Service</a> | <a href="/privacy">Privacy Policy</a>
+      </div>
+    </div>
+    <a class="discord-link" href="https://discord.gg/ggqjxNDN2E" target="_blank" rel="noopener" aria-label="Join our Discord server">
+      <svg viewBox="0 0 24 24"><path d="M20.317 4.37a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.078.037c-.211.375-.445.864-.608 1.25-1.845-.277-3.68-.277-5.487 0-.164-.394-.406-.874-.618-1.25a.077.077 0 0 0-.078-.037 19.736 19.736 0 0 0-4.885 1.515.07.07 0 0 0-.032.028C.533 9.046-.319 13.58.099 18.058a.082.082 0 0 0 .031.056c2.053 1.503 4.041 2.423 5.993 3.03a.078.078 0 0 0 .084-.028c.462-.63.873-1.295 1.226-1.994a.076.076 0 0 0-.042-.106c-.653-.248-1.275-.55-1.872-.892a.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .078-.011c3.928 1.794 8.18 1.794 12.062 0a.074.074 0 0 1 .078.01c.12.099.246.198.373.292a.077.077 0 0 1-.007.128c-.598.352-1.22.644-1.873.892a.077.077 0 0 0-.041.107c.361.698.772 1.363 1.225 1.993a.076.076 0 0 0 .085.029c1.961-.607 3.95-1.527 6.002-3.03a.077.077 0 0 0 .031-.055c.5-5.177-.838-9.674-3.548-13.66a.061.061 0 0 0-.031-.029zM8.02 15.33c-1.183 0-2.157-1.086-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.211 0 2.176 1.096 2.157 2.419 0 1.333-.956 2.419-2.157 2.419zm7.975 0c-1.183 0-2.157-1.086-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.419 0 1.333-.947 2.419-2.157 2.419Z"/></svg>
+    </a>
+  </footer>
+
+  <script>
+    const sections = Array.from(document.querySelectorAll('.terms-card .section'));
+    const links = Array.from(document.querySelectorAll('.toc a'));
+    const byId = id => links.find(a => a.getAttribute('href') === '#' + id);
+
+    const obs = new IntersectionObserver((entries) => {
+      entries.forEach((e) => {
+        if (e.isIntersecting) {
+          links.forEach(a => a.classList.remove('active'));
+          byId(e.target.id)?.classList.add('active');
+        }
+      })
+    }, { rootMargin: '-40% 0px -55% 0px', threshold: 0.01 });
+
+    sections.forEach(s => obs.observe(s));
+
+    const backToTop = document.getElementById('backToTop');
+    window.addEventListener('scroll', () => {
+      if (window.scrollY > 400) {
+        backToTop.classList.add('show');
+      } else {
+        backToTop.classList.remove('show');
+      }
+    });
+    backToTop.addEventListener('click', () => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  </script>
+</body>
+</html>
