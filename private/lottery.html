@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Lottery Ticket Roller</title>
+  <style>
+    :root{--bg:#0f1724;--card:#0b1220;--accent:#7c3aed;--muted:#98a2b3;--glass:rgba(255,255,255,0.03)}
+    *{box-sizing:border-box}
+    body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial;color:#e6eef8;background:linear-gradient(180deg,#071028 0%, #071b2a 100%);padding:28px;min-height:100vh}
+    .wrap{max-width:1000px;margin:0 auto}
+    h1{font-size:24px;margin:0 0 10px}
+    .grid{display:grid;grid-template-columns:360px 1fr;gap:18px}
+    .card{background:var(--card);border-radius:12px;padding:16px;box-shadow:0 6px 18px rgba(2,6,23,0.6);border:1px solid rgba(255,255,255,0.03)}
+    label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
+    input[type=text],input[type=number]{width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:var(--glass);color:inherit}
+    .row{display:flex;gap:8px}
+    button{background:linear-gradient(180deg,var(--accent),#5b21b6);color:white;border:none;padding:10px 12px;border-radius:10px;cursor:pointer;box-shadow:0 6px 18px rgba(124,58,237,0.12);font-weight:600}
+    button.ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted);box-shadow:none}
+    .entries{margin-top:12px;max-height:360px;overflow:auto;padding-right:6px}
+    .entry{display:flex;justify-content:space-between;align-items:center;padding:8px;border-radius:8px;margin-bottom:8px;background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.00));border:1px solid rgba(255,255,255,0.02)}
+    .entry .meta{display:flex;gap:10px;align-items:center}
+    .entry .name{font-weight:700}
+    .entry small{color:var(--muted)}
+    .controls{display:flex;gap:8px;margin-top:12px}
+
+    /* right column */
+    .stage{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:28px;text-align:center}
+    .display{width:100%;height:120px;border-radius:12px;background:linear-gradient(180deg,#071b2a,#071224);display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:800;border:1px solid rgba(255,255,255,0.03)}
+    .display .name{padding:8px 14px;border-radius:8px;background:linear-gradient(90deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01))}
+    .info{display:flex;gap:12px;align-items:center}
+    .pill{background:rgba(255,255,255,0.03);padding:8px 10px;border-radius:999px;border:1px solid rgba(255,255,255,0.02);min-width:120px}
+
+    .legend{margin-top:14px;color:var(--muted);font-size:13px}
+    .footer{margin-top:16px;color:var(--muted);font-size:13px}
+
+    /* animation bead */
+    .spinner{height:64px;display:flex;align-items:center;justify-content:center;gap:8px}
+    .spinner .dot{width:56px;height:56px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;border:1px solid rgba(255,255,255,0.03);background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));}
+
+    /* responsive */
+    @media(max-width:880px){.grid{grid-template-columns:1fr;}.stage{padding:16px}.display{height:92px;font-size:22px}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Lottery Ticket Roller</h1>
+    <p style="color:var(--muted);margin-top:6px;margin-bottom:14px">Add participants and how many tickets they bought. Click <strong>Roll</strong> to pick a weighted random winner. Includes animation, remove winner option, and reset.</p>
+
+    <div class="grid">
+      <div class="card">
+        <div>
+          <label for="name">Participant name</label>
+          <input id="name" type="text" placeholder="e.g. Shadow#1234" />
+        </div>
+        <div style="margin-top:10px">
+          <label for="tickets">Tickets bought</label>
+          <input id="tickets" type="number" min="1" value="1" />
+        </div>
+        <div class="controls" style="margin-top:12px">
+          <button id="addBtn">Add / Update</button>
+          <button id="clearForm" class="ghost">Clear</button>
+        </div>
+
+        <div class="legend" style="margin-top:12px">Current entries</div>
+        <div class="entries card" id="entriesList" style="background:transparent;padding:10px 4px;border-radius:8px;box-shadow:none;max-height:300px"></div>
+
+        <div style="display:flex;gap:8px;align-items:center;margin-top:10px">
+          <label style="flex:1;display:flex;gap:8px;align-items:center"><input id="removeAfter" type="checkbox" /> Remove winner after roll</label>
+        </div>
+
+        <div style="margin-top:12px;display:flex;gap:8px;align-items:center">
+          <button id="resetBtn" class="ghost">Reset all</button>
+          <button id="exportBtn" class="ghost">Export JSON</button>
+        </div>
+
+        <div class="footer">Tip: Click an entry's edit icon to quickly change their ticket count.</div>
+      </div>
+
+      <div class="card">
+        <div class="stage">
+          <div class="display" id="display">No entries yet</div>
+
+          <div class="spinner" aria-hidden="true">
+            <div class="dot" id="dot1">—</div>
+            <div class="dot" id="dot2">—</div>
+            <div class="dot" id="dot3">—</div>
+          </div>
+
+          <div class="info">
+            <div class="pill">Total tickets: <span id="totalTickets">0</span></div>
+            <div class="pill">Entries: <span id="countEntries">0</span></div>
+            <div class="pill">Last winner: <span id="lastWinner">—</span></div>
+          </div>
+
+          <div style="display:flex;gap:8px;margin-top:12px">
+            <button id="rollBtn">Roll</button>
+            <button id="rerollBtn" class="ghost" disabled>Roll Again</button>
+            <button id="removeWinnerBtn" class="ghost" disabled>Remove Winner</button>
+          </div>
+
+          <div class="legend" id="probInfo">Probability: —</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // --- State management ---
+    const storageKey = 'lottery_entries_v1';
+    let entries = loadEntries(); // {name: string, tickets: number}
+    let lastWinner = null;
+
+    const nameInput = document.getElementById('name');
+    const ticketsInput = document.getElementById('tickets');
+    const addBtn = document.getElementById('addBtn');
+    const clearForm = document.getElementById('clearForm');
+    const entriesList = document.getElementById('entriesList');
+    const totalTicketsEl = document.getElementById('totalTickets');
+    const countEntriesEl = document.getElementById('countEntries');
+    const display = document.getElementById('display');
+    const rollBtn = document.getElementById('rollBtn');
+    const rerollBtn = document.getElementById('rerollBtn');
+    const removeWinnerBtn = document.getElementById('removeWinnerBtn');
+    const removeAfter = document.getElementById('removeAfter');
+    const resetBtn = document.getElementById('resetBtn');
+    const exportBtn = document.getElementById('exportBtn');
+    const lastWinnerEl = document.getElementById('lastWinner');
+    const probInfo = document.getElementById('probInfo');
+    const dot1 = document.getElementById('dot1');
+    const dot2 = document.getElementById('dot2');
+    const dot3 = document.getElementById('dot3');
+
+    function saveEntries(){localStorage.setItem(storageKey, JSON.stringify(entries));}
+    function loadEntries(){try{return JSON.parse(localStorage.getItem(storageKey)) || []}catch(e){return []}}
+
+    function renderEntries(){
+      entriesList.innerHTML = '';
+      entries.forEach((e, idx) => {
+        const el = document.createElement('div'); el.className='entry';
+        el.innerHTML = `<div class="meta"><div><div class="name">${escapeHtml(e.name)}</div><small>${e.tickets} ticket(s)</small></div></div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <button data-idx="${idx}" class="ghost edit">✎</button>
+            <button data-idx="${idx}" class="ghost remove">✖</button>
+          </div>`;
+        entriesList.appendChild(el);
+      });
+      totalTicketsEl.textContent = totalTickets();
+      countEntriesEl.textContent = entries.length;
+      updateProbabilityInfo();
+      attachEntryButtons();
+    }
+
+    function attachEntryButtons(){
+      [...entriesList.querySelectorAll('.remove')].forEach(btn => btn.onclick = e => {
+        const i = +btn.dataset.idx; entries.splice(i,1); saveEntries(); renderEntries();
+      });
+      [...entriesList.querySelectorAll('.edit')].forEach(btn => btn.onclick = e => {
+        const i = +btn.dataset.idx; nameInput.value = entries[i].name; ticketsInput.value = entries[i].tickets; nameInput.focus();
+      });
+    }
+
+    function totalTickets(){return entries.reduce((s,e)=>s+Number(e.tickets||0),0)}
+
+    function updateProbabilityInfo(){
+      const total = totalTickets();
+      if(!total){probInfo.textContent = 'Probability: —'; return}
+      const rows = entries.map(e=>`${escapeHtml(e.name)}: ${(Number(e.tickets)/total*100).toFixed(2)}%`);
+      probInfo.textContent = 'Probability: ' + rows.join(' • ');
+    }
+
+    function escapeHtml(s){return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"})[c]);}
+
+    // add or update
+    addBtn.onclick = ()=>{
+      const nm = nameInput.value.trim();
+      const tk = Math.max(1, Math.floor(Number(ticketsInput.value)||0));
+      if(!nm) return alert('Please type a participant name');
+      const existing = entries.find(e=>e.name.toLowerCase()===nm.toLowerCase());
+      if(existing){ if(!confirm('Name exists — update ticket count for this participant?')) return; existing.tickets = tk; }
+      else entries.push({name:nm,tickets:tk});
+      saveEntries(); renderEntries(); nameInput.value=''; ticketsInput.value=1; nameInput.focus();
+    }
+    clearForm.onclick = ()=>{nameInput.value='';ticketsInput.value=1}
+
+    resetBtn.onclick = ()=>{
+      if(!confirm('Reset will remove all entries. Continue?')) return; entries=[]; saveEntries(); renderEntries(); displayWinner(null);
+    }
+
+    exportBtn.onclick = ()=>{
+      const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(entries,null,2));
+      const a = document.createElement('a'); a.href = dataStr; a.download = 'lottery_entries.json'; a.click();
+    }
+
+    function displayWinner(name){
+      if(!name){display.textContent = 'No entries yet'; lastWinnerEl.textContent='—'; lastWinner=null; rerollBtn.disabled=true; removeWinnerBtn.disabled=true; return}
+      display.innerHTML = `<div class="name">${escapeHtml(name)}</div>`; lastWinner=name; lastWinnerEl.textContent=name; rerollBtn.disabled=false; removeWinnerBtn.disabled=false;
+    }
+
+    // Weighted random selection using cumulative weights
+    function pickWeightedRandom(){
+      const total = totalTickets(); if(!total) return null;
+      let r = Math.random()*total; for(const e of entries){ r -= e.tickets; if(r < 0) return e.name }
+      return entries[entries.length-1].name; // fallback
+    }
+
+    // Animation: cycle names rapidly, slow down, land on winner
+    let animRunning = false;
+    rollBtn.onclick = ()=> runRoll();
+    rerollBtn.onclick = ()=> runRoll(true);
+    removeWinnerBtn.onclick = ()=> removeWinner();
+
+    function runRoll(isReroll=false){
+      if(animRunning) return; if(!entries.length) return alert('No entries to roll. Add participants first.');
+      animRunning = true; rollBtn.disabled = true; rerollBtn.disabled = true; removeWinnerBtn.disabled = true;
+      const winner = pickWeightedRandom();
+
+      // cycle order - unique list weighted by tickets but for animation we'll show names sampled uniformly from entries
+      const pool = entries.map(e=>e.name);
+      const duration = 3000; // ms
+      const start = performance.now();
+      let lastUpdate = 0;
+      let speed = 45; // ms between changes initially
+      function step(now){
+        const elapsed = now - start;
+        // easing to slow down
+        const t = Math.min(1, elapsed / duration);
+        // easeOutQuad
+        const eased = 1 - (1 - t)*(1 - t);
+        const currentInterval = 20 + eased * 300; // from ~20ms to ~320ms
+        if(now - lastUpdate > currentInterval){
+          // pick a name to show - near the end bias toward winner
+          const bias = eased; // 0..1
+          let name;
+          if(Math.random() < bias*0.65) name = winner; else name = pool[Math.floor(Math.random()*pool.length)];
+          // set display and small dots
+          display.innerHTML = `<div class="name">${escapeHtml(name)}</div>`;
+          dot1.textContent = pool[Math.floor(Math.random()*pool.length)];
+          dot2.textContent = pool[Math.floor(Math.random()*pool.length)];
+          dot3.textContent = pool[Math.floor(Math.random()*pool.length)];
+          lastUpdate = now;
+        }
+        if(elapsed < duration) requestAnimationFrame(step);
+        else finish();
+      }
+      function finish(){
+        displayWinner(winner);
+        animRunning=false; rollBtn.disabled=false;
+        // auto-remove if checkbox is active
+        if(removeAfter.checked){ applyRemoveWinner(winner); }
+      }
+      requestAnimationFrame(step);
+    }
+
+    function applyRemoveWinner(name){
+      const idx = entries.findIndex(e=>e.name===name);
+      if(idx >= 0){ entries.splice(idx,1); saveEntries(); renderEntries(); }
+    }
+
+    function removeWinner(){
+      if(!lastWinner) return; if(!confirm('Remove last winner: '+lastWinner+' ?')) return; applyRemoveWinner(lastWinner); displayWinner(null);
+    }
+
+    // initial render
+    renderEntries(); displayWinner(entries.length?null:null);
+
+    // set last winner disabled state properly
+    (function init(){
+      if(entries.length) display.textContent='Ready to roll';
+      else display.textContent='No entries yet';
+    })();
+
+    // keyboard quick add: Enter on tickets adds
+    ticketsInput.addEventListener('keydown', e=>{ if(e.key==='Enter') addBtn.click(); });
+
+    // expose helper for manual testing in console
+    window._lottery = {entries, saveEntries, loadEntries, pickWeightedRandom, runRoll, renderEntries};
+  </script>
+</body>
+</html>
