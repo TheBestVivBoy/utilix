@@ -343,7 +343,7 @@
   <style>
     .utilix-footer {
       display: grid;
-      grid-template-columns: 1fr auto 1fr;
+      grid-template-columns: 1fr auto 1fr; /* keeps middle perfectly centered */
       align-items: center;
       gap: 1rem;
       padding: 1rem;
@@ -384,6 +384,28 @@
       text-decoration: none;
     }
     .utilix-footer .links a:hover { text-decoration: underline; }
+
+    /* Email styling */
+    .utilix-footer .email {
+      margin-top: 6px;
+    }
+    .utilix-footer .email a {
+      display: inline-flex;
+      align-items: center;
+      gap: .4rem;
+      color: #bbb;
+      text-decoration: none;
+      transition: color .2s ease;
+    }
+    .utilix-footer .email a svg {
+      width: 18px;
+      height: 18px;
+      fill: currentColor;
+    }
+    .utilix-footer .email a:hover {
+      color: #4da6ff;
+      text-decoration: underline;
+    }
 
     .utilix-footer .discord-link {
       justify-self: end;
@@ -439,7 +461,6 @@
   <footer class="utilix-footer" role="contentinfo">
     <a class="brand" href="/" aria-label="Utilix home">
       <img src="/logo.svg" alt="" onerror="this.style.display='none'">
-      <!--<span class="brand-text">Utilix</span>-->
     </a>
 
     <div class="center">
@@ -447,6 +468,14 @@
       <div class="links">
         <a href="/terms">Terms of Service</a> |
         <a href="/privacy">Privacy Policy</a>
+      </div>
+      <div class="email">
+        <a href="mailto:contact@utilix.support">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M2 4h20v16H2V4zm2 2v12h16V6H4zm8 5.2L5.2 7h13.6L12 11.2z"/>
+          </svg>
+          contact@utilix.support
+        </a>
       </div>
     </div>
 
