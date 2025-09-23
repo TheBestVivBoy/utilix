@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Changelog — Utilix</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet" />
+
+
+  <meta property="og:title" content="Utilix Changelog" />
+  <meta property="og:description" content="Latest updates and patch notes for Utilix Bot & Website." />
+  <meta property="og:image" content="https://utilix.support/assets/2025.1.0.png" /> <!-- replace with your banner -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://utilix.support/assets/2025.1.0.png" />
+
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Utilix Changelog" />
+  <meta name="twitter:description" content="Latest updates and patch notes for Utilix Bot & Website." />
+  <meta name="twitter:image" content="https://utilix.support/assets/2025.1.0.png" /> 
+
+  <style>
+    :root {
+      --bg: #0d0d0f;
+      --fg: #f2f2f7;
+      --accent: #00c6ff;
+      --accent2: #0072ff;
+      --muted: #a0a0a7;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      height: 100%;
+      font-family: 'Inter', system-ui, sans-serif;
+      background: radial-gradient(circle at top, #1a1a1d, var(--bg));
+      color: var(--fg);
+      overflow-x: hidden;
+    }
+
+    header {
+      background: transparent;
+      position: fixed;
+      width: 100%;
+      z-index: 1100;
+      padding: 1rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid rgba(255,255,255,0.02);
+    }
+    .logo {
+      font-weight: 800;
+      font-size: 1.25rem;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    nav.header-nav ul {
+      display: flex;
+      gap: 1.25rem;
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      align-items: center;
+    }
+    nav.header-nav a {
+      color: var(--fg);
+      text-decoration: none;
+      font-weight: 600;
+      position: relative;
+      padding: 6px 6px;
+      border-radius: 6px;
+      transition: transform 0.15s ease;
+      user-select: none;
+    }
+    nav.header-nav a::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      bottom: -6px;
+      width: 0%;
+      height: 2px;
+      background: var(--accent);
+      transition: width 0.28s ease;
+    }
+    nav.header-nav a:hover { transform: translateY(-2px); }
+    nav.header-nav a:hover::after { width: 100%; }
+    nav.header-nav a.active {
+      background: linear-gradient(90deg, rgba(0,198,255,0.08), rgba(0,114,255,0.06));
+      box-shadow: 0 6px 20px rgba(0,114,255,0.04);
+    }
+
+    main {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 7rem 1rem 2rem; 
+      min-height: 100vh;
+      position: relative;
+      z-index: 10; 
+    }
+    h1 {
+      font-size: 2.5rem;
+      font-weight: 800;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 0.5rem;
+      text-align: center;
+    }
+    h2 {
+      font-weight: 600;
+      font-size: 1.25rem;
+      margin-bottom: 2rem;
+      color: var(--muted);
+      text-align: center;
+    }
+
+
+    .changelog-card {
+      background: rgba(20,20,25,0.7);
+      border-radius: 1rem;
+      max-width: 800px;
+      width: 100%;
+      box-shadow: 0 8px 25px rgba(0,198,255,0.2);
+      overflow: hidden;
+    }
+
+    .changelog-banner img {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+
+    .meta {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      font-size: 0.9rem;
+    }
+    .meta span {
+      background: rgba(255,255,255,0.08);
+      padding: 0.35rem 0.75rem;
+      border-radius: 999px;
+      font-weight: 600;
+    }
+
+    .changelog-body {
+      padding: 1.5rem;
+    }
+    .changelog-body h4 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin: 1.5rem 0 0.75rem;
+      color: var(--accent);
+    }
+    .changelog-body ul {
+      list-style: disc;
+      padding-left: 1.5rem;
+      line-height: 1.6;
+    }
+    .changelog-body li {
+      margin-bottom: 0.5rem;
+    }
+
+    #starfield {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      z-index: 1;              
+      pointer-events: none;    
+      background: transparent;
+      filter: drop-shadow(0 0 2px rgba(0,198,255,0.3));
+    }
+    @media (prefers-reduced-motion: reduce) {
+      #starfield { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="logo">Utilix</div>
+    <nav class="header-nav" aria-label="Primary navigation">
+      <ul>
+        <li><a href="/index">Home</a></li>
+        <li><a href="/setup">Setup</a></li>
+        <li><a href="/faq">FAQ</a></li>
+        <!--<li><a class="active" href="/changelog">Changelog</a></li>-->
+      </ul>
+    </nav>
+  </header>
+
+  <main>
+    <h1></h1>
+    <h2></h2>
+
+    <article class="changelog-card">
+      <div class="changelog-banner">
+       <img 
+  			src="https://utilix.support/assets/2025.1.0.png" 
+ 			 alt="Utilix update banner"
+  			style="width:100%; height:220px; object-fit:cover; border-radius:0.5rem;"
+			/>
+
+      </div>
+
+      <div class="meta">
+        <span>September 16, 2025</span>
+        <span>15 changes</span>
+        <!--<span>infinity_for_life_</span>-->
+      </div>
+
+      <div class="changelog-body">
+        <!--<h4>Placeholder</h4>
+        <ul>
+          <li>Placeholder</li>
+          <li>Placeholder</li>
+        </ul>-->
+
+        <h4>Bot</h4>
+        <ul>
+          <li></li>
+          <li></li>
+          <li></li>
+		  <li></li>
+          <li></li>
+          <li></li>
+ 
+        </ul>
+
+        <h4>Website</h4>
+        <ul>
+          <li>Updated Footer</li>
+		  <li>Updated All Pages to match new footer</li>
+          <li>Added 403 apge</li>          
+          <li>Uploaded 2 Assets</li>          
+          <li></li>
+          <li></li>
+          <li></li>
+          <li></li>
+          <li></li>
+          <li></li>
+        </ul>
+        
+        <h4>Links to new/updated pages</h4>
+        <ul>
+        <li><a href="/">Home</a></li> 
+        <li><a href="/terms">Terms of Service</a></li>
+        <li><a href="/credits">Credits</a></li>
+        <li><a href="/assets">Assets</a></li>
+        <li><a href="/setup">Setup</a></li>
+        <li><a href="/addbot">Add-bot</a></li>
+        </ul>
+      </div>
+    </article>
+  </main>
+
+  <canvas id="starfield" aria-hidden="true"></canvas>
+
+  <script>
+    (function () {
+      const canvas = document.getElementById('starfield');
+      const ctx = canvas.getContext('2d');
+      let stars = [];
+      let width = 0, height = 0, cx = 0, cy = 0;
+      const STAR_COUNT = 260;
+      const SPEED = 2.0;
+
+      function resize() {
+        width = canvas.width = window.innerWidth;
+        height = canvas.height = window.innerHeight;
+        cx = width / 2;
+        cy = height / 2;
+        initStars();
+      }
+      function initStars() {
+        stars = [];
+        for (let i = 0; i < STAR_COUNT; i++) {
+          stars.push({
+            x: (Math.random() * 2 - 1) * width,
+            y: (Math.random() * 2 - 1) * height,
+            z: Math.random() * width,
+            o: Math.random() * 0.5 + 0.5 
+          });
+        }
+      }
+      function tick() {
+        ctx.clearRect(0, 0, width, height);
+        for (let i = 0; i < stars.length; i++) {
+          const s = stars[i];
+          s.z -= SPEED;
+          if (s.z <= 1) {
+            s.x = (Math.random() * 2 - 1) * width;
+            s.y = (Math.random() * 2 - 1) * height;
+            s.z = width;
+            s.o = Math.random() * 0.5 + 0.5;
+          }
+          const k = 128 / s.z; 
+          const x = s.x * k + cx;
+          const y = s.y * k + cy;
+          if (x < 0 || x >= width || y < 0 || y >= height) continue;
+          const size = Math.max(0.5, 1 * k);
+          ctx.beginPath();
+          ctx.arc(x, y, size, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(255,255,255,${s.o})`;
+          ctx.fill();
+        }
+        requestAnimationFrame(tick);
+      }
+      window.addEventListener('resize', resize);
+      resize();
+      tick();
+    })();
+  </script>
+</body>
+</html>
