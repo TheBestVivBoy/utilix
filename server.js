@@ -1,61 +1,26 @@
-const express = require("express");
-const session = require("express-session");
-const bodyParser = require("body-parser");
-const path = require("path");
-
+const express = require('express');
 const app = express();
+const PORT = 3000;
 
-// Middleware
-app.use(bodyParser.json());
-app.use(express.static(path.join(__dirname, "public"))); // only serve /public
 
-// Session setup
-app.use(session({
-  secret: "hufjkfjghwer9uwe9yruwer9ye8r7we89rweuyr9", // change this to something random/long
-  resave: false,
-  saveUninitialized: false,
-  cookie: { maxAge: 15 * 60 * 1000 } // 15 min session timeout
-}));
+app.use(express.static('public')); // 'public' is your website folder
 
-// Dummy users (replace with DB later if needed)
-const USERS = {
-  admin: "password123",
-  webadmin: "password",
-  devadmin: "password2"
-};
 
-// Auth middleware
-function requireAuth(req, res, next) {
-  if (req.session && req.session.user) {
-    return next();
-  }
-  res.redirect("/login.html");
-}
+app.get('/private', (req, res) => {
 
-// API login endpoint
-app.post("/admin/login", (req, res) => {
-  const { username, password } = req.body;
-
-  if (USERS[username] && USERS[username] === password) {
-    req.session.user = username;
-    return res.json({ success: true });
-  }
-
-  res.json({ success: false, message: "Invalid credentials" });
+  res.redirect('/403');
 });
 
-// Logout endpoint
-app.post("/admin/logout", (req, res) => {
-  req.session.destroy(() => {
-    res.json({ success: true });
-  });
+// Optional: another redirect example
+app.get('/admin', (req, res) => {
+  res.redirect('/not-allowed.html');
 });
 
-// Protected route for dashboard
-app.get("/admin/dashboard", requireAuth, (req, res) => {
-  res.sendFile(path.join(__dirname, "private", "dashboard.html"));
+// Serve homepage
+app.get('/', (req, res) => {
+  res.sendFile(__dirname + '/');
 });
 
-// Start server
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`✅ Server running on http://localhost:${PORT}`));
+app.listen(PORT, () => {
+  console.log(`Server running at http://localhost:${PORT}`);
+});
