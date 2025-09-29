@@ -23,214 +23,229 @@
       background: radial-gradient(circle at top, #1a1a1d, var(--bg));
       color: var(--fg);
       min-height: 100vh;
-      line-height: 1.5;
+      line-height: 1.6;
+      display: flex;
     }
-
     header {
       background: transparent;
-      position: fixed; width: 100%; z-index: 1100;
+      position: fixed;
+      width: 100%;
+      z-index: 1100;
       padding: 1rem 2rem;
-      display: flex; justify-content: space-between; align-items: center;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
       backdrop-filter: blur(10px);
       border-bottom: 1px solid rgba(255, 255, 255, 0.02);
-      height: 72px; top: 0; left: 0;
+      height: 72px;
+      top: 0;
+      left: 0;
     }
     .logo {
-      font-weight: 800; font-size: 1.25rem;
+      font-weight: 800;
+      font-size: 1.25rem;
       background: linear-gradient(90deg, var(--accent), var(--accent2));
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
       letter-spacing: -0.02em;
     }
-    nav.header-nav ul { display: flex; gap: 1.25rem; list-style: none; margin: 0; padding: 0; align-items: center; }
-    nav.header-nav a {
-      color: var(--fg); text-decoration: none; font-weight: 600; position: relative;
-      padding: 6px 10px; border-radius: 6px; transition: transform 0.15s ease;
+    nav.header-nav ul {
+      display: flex;
+      gap: 1.25rem;
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      align-items: center;
     }
-    nav.header-nav a::after { content: ""; position: absolute; left: 0; bottom: -6px; width: 0%; height: 2px; background: var(--accent); transition: width 0.28s ease; }
-    nav.header-nav a:hover { transform: translateY(-2px); }
-    nav.header-nav a:hover::after { width: 100%; }
+    nav.header-nav a {
+      color: var(--fg);
+      text-decoration: none;
+      font-weight: 600;
+      position: relative;
+      padding: 6px 6px;
+      border-radius: 6px;
+      transition: transform 0.15s ease;
+    }
+    nav.header-nav a::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      bottom: -6px;
+      width: 0%;
+      height: 2px;
+      background: var(--accent);
+      transition: width 0.28s ease;
+    }
+    nav.header-nav a:hover {
+      transform: translateY(-2px);
+    }
+    nav.header-nav a:hover::after {
+      width: 100%;
+    }
     nav.header-nav a.active {
       background: linear-gradient(90deg, rgba(0, 198, 255, 0.08), rgba(0, 114, 255, 0.06));
+      -webkit-background-clip: padding-box;
       box-shadow: 0 6px 20px rgba(0, 114, 255, 0.04);
     }
-
-    .page { max-width: 1200px; margin: 0 auto; padding: 96px 20px 56px; }
-
-    .hero { display: flex; align-items: center; justify-content: center; text-align: center; min-height: 38vh; padding: 2rem 1rem; }
-    .hero-inner { max-width: 920px; }
-    .hero h1 {
-      font-size: 3rem; line-height: 1.02; margin-bottom: 0.5rem;
+    .container {
+      display: flex;
+      width: 100%;
+      margin-top: 72px;
+    }
+    .sidebar {
+      width: 260px;
+      flex-shrink: 0;
+      background: var(--panel);
+      border-right: 1px solid rgba(255,255,255,0.05);
+      padding: 1.5rem 1rem;
+      position: sticky;
+      top: 72px;
+      height: calc(100vh - 72px);
+      overflow-y: auto;
+    }
+    .sidebar h3 {
+      font-size: 1rem;
+      margin-bottom: 0.75rem;
+      color: var(--accent);
+      font-weight: 700;
+    }
+    .sidebar ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .sidebar li {
+      margin-bottom: 0.5rem;
+    }
+    .sidebar a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 0.95rem;
+      display: block;
+      padding: 6px 10px;
+      border-radius: 6px;
+      transition: background 0.2s;
+    }
+    .sidebar a:hover {
+      background: rgba(0,198,255,0.08);
+      color: var(--fg);
+    }
+    .page {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 2rem;
+      flex-grow: 1;
+    }
+    h1, h2 {
       background: linear-gradient(90deg, var(--accent), var(--accent2));
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
     }
-    .hero p { color: var(--muted); font-size: 1.05rem; margin-bottom: 1.25rem; max-width: 760px; margin-inline: auto; }
-
-    .meta-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: center; margin-top: 10px; }
-    .badge { font-size: 0.8rem; font-weight: 700; padding: 6px 10px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.03); }
-
-    .layout { display: grid; grid-template-columns: 280px 1fr; gap: 24px; align-items: start; }
-    .toc { position: sticky; top: 96px; background: var(--panel); border: 1px solid rgba(255,255,255,0.04); border-radius: 14px; padding: 1rem; }
-    .toc h2 { margin: 0 0 8px; font-size: 0.95rem; letter-spacing: 0.02em; color: var(--muted); }
-    .toc a { display: block; text-decoration: none; color: var(--fg); padding: 8px 10px; border-radius: 8px; font-weight: 600; font-size: 0.95rem; }
-    .toc a:hover { background: rgba(255,255,255,0.04); }
-    .toc a.active { background: linear-gradient(90deg, rgba(0,198,255,0.1), rgba(0,114,255,0.08)); }
-
-    .terms-card { background: var(--card); border-radius: 16px; border: 1px solid rgba(255,255,255,0.04); padding: 1.2rem; }
-
-    .section { padding: 1rem; border: 1px solid rgba(255,255,255,0.05); border-radius: 14px; background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); scroll-margin-top: 90px; }
-    .section + .section { margin-top: 14px; }
-    .section h3 { margin: 0 0 6px; font-size: 1.05rem; background: linear-gradient(90deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-    .section p, .section li { color: var(--muted); font-size: 0.98rem; }
-    .section ul { margin: 0.25rem 0 0.75rem 1.1rem; }
-
-    footer { margin-top: 2.5rem; padding: 2.2rem 1rem; text-align: center; color: var(--muted); border-top: 1px solid rgba(255, 255, 255, 0.01); }
+    h1 {
+      font-size: 2.4rem;
+      margin-bottom: 1.2rem;
+      text-align: center;
+    }
+    h2 {
+      margin-top: 2rem;
+      font-size: 1.3rem;
+    }
+    p, li {
+      color: var(--muted);
+      font-size: 1rem;
+    }
+    ul { padding-left: 1.2rem; }
+    .divider {
+      height: 2px;
+      margin: 2rem 0;
+      background: linear-gradient(90deg, rgba(0, 198, 255, 0.12), rgba(0, 114, 255, 0.06));
+      border-radius: 4px;
+    }
+    footer {
+      margin-top: 2.5rem;
+      padding: 2.2rem 1rem;
+      text-align: center;
+      color: var(--muted);
+      border-top: 1px solid rgba(255, 255, 255, 0.01);
+    }
     footer a { color: var(--accent); text-decoration: none; }
-
-    /* Back-to-Top button */
-    #back-to-top {
-      position: fixed;
-      bottom: 28px;
-      right: 28px;
-      width: 44px;
-      height: 44px;
-      border-radius: 50%;
-      border: none;
-      background: linear-gradient(135deg, var(--accent), var(--accent2));
-      color: #fff;
-      font-size: 20px;
-      cursor: pointer;
-      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
-      display: none;
-      z-index: 1200;
-      transition: opacity 0.3s ease, transform 0.3s ease;
-    }
-    #back-to-top:hover { transform: translateY(-3px) scale(1.05); }
-
-    @media (max-width: 980px) {
-      .layout { grid-template-columns: 1fr; }
-      .toc { position: relative; top: auto; margin-bottom: 1rem; }
+    @media (max-width: 900px) {
+      .sidebar { display: none; }
+      .page { padding: 1.5rem; }
     }
   </style>
 </head>
 <body>
   <header>
     <div class="logo">Utilix</div>
-    <nav class="header-nav">
+    <nav class="header-nav" aria-label="Primary navigation">
       <ul>
-        <li><a href="/">Home</a></li>
+        <li><a href="/index">Home</a></li>
         <li><a href="/setup">Setup</a></li>
         <li><a href="/faq">FAQ</a></li>
       </ul>
     </nav>
   </header>
 
-  <main class="page">
-    <section class="hero" aria-labelledby="hero-heading">
-      <div class="hero-inner">
-        <h1 id="hero-heading">Privacy Policy</h1>
-        <div class="meta-row">
-          <span class="badge">Effective Date: <strong>July 20, 2025</strong></span>
-        </div>
-        <p>This Privacy Policy explains how Utilix collects, uses, and protects your information when you interact with our Discord bot and related services.</p>
-      </div>
-    </section>
+  <div class="container">
+    <aside class="sidebar">
+      <h3>Sections</h3>
+      <ul>
+        <li><a href="#intro">1. Introduction</a></li>
+        <li><a href="#collect">2. Information We Collect</a></li>
+        <li><a href="#use">3. How We Use Information</a></li>
+        <li><a href="#sharing">4. Sharing & Disclosure</a></li>
+        <li><a href="#security">5. Data Security</a></li>
+        <li><a href="#cookies">6. Cookies & Tracking</a></li>
+        <li><a href="#changes">7. Changes to Policy</a></li>
+        <li><a href="#contact">8. Contact Us</a></li>
+      </ul>
+    </aside>
 
-    <div class="layout">
-      <aside class="toc">
-        <h2>Contents</h2>
-        <a href="#section1">1. Introduction</a>
-        <a href="#section2">2. Information We Collect</a>
-        <a href="#section3">3. How We Use Information</a>
-        <a href="#section4">4. Sharing & Disclosure</a>
-        <a href="#section5">5. Data Security</a>
-        <a href="#section6">6. Cookies & Tracking</a>
-        <a href="#section7">7. Changes to Policy</a>
-        <a href="#section8">8. Contact Us</a>
-      </aside>
+    <main class="page">
+      <h1>Privacy Policy</h1>
+      <p>Welcome to Utilix! By using the Bot, you agree to this Privacy Policy.</p>
+      <div class="divider"></div>
 
-      <section class="terms-card">
-        <div id="section1" class="section">
-          <h3>1. Introduction</h3>
-          <p>Welcome to Utilix! This Privacy Policy outlines how we handle your data and the choices you have regarding its use.</p>
-        </div>
-        <div id="section2" class="section">
-          <h3>2. Information We Collect</h3>
-          <p>We may collect information such as your Discord ID, commands you use, and server settings to improve bot functionality.</p>
-        </div>
-        <div id="section3" class="section">
-          <h3>3. How We Use Information</h3>
-          <ul>
-            <li>To operate and maintain the bot</li>
-            <li>To improve user experience</li>
-            <li>To send updates or announcements</li>
-          </ul>
-        </div>
-        <div id="section4" class="section">
-          <h3>4. Sharing & Disclosure</h3>
-          <p>We do not sell your information. Data may be shared with trusted third-party services for bot operations.</p>
-        </div>
-        <div id="section5" class="section">
-          <h3>5. Data Security</h3>
-          <p>We implement reasonable measures to protect your data, but cannot guarantee absolute security.</p>
-        </div>
-        <div id="section6" class="section">
-          <h3>6. Cookies & Tracking</h3>
-          <p>We may use cookies or similar tracking to enhance the web experience.</p>
-        </div>
-        <div id="section7" class="section">
-          <h3>7. Changes to Policy</h3>
-          <p>We may update this Privacy Policy periodically. The "Effective Date" indicates the latest revision.</p>
-        </div>
-        <div id="section8" class="section">
-          <h3>8. Contact Us</h3>
-          <p>If you have questions, please reach out via <a href="https://discord.gg/GeTDg7k5">the discord server</a>.</p>
-        </div>
-      </section>
-    </div>
-  </main>
+      <h2 id="intro">1. Introduction</h2>
+      <p>Welcome to Utilix! This Privacy Policy outlines how we handle your data and the choices you have regarding its use.</p>
 
-  <button id="back-to-top" aria-label="Back to top">↑</button>
+      <h2 id="collect">2. Information We Collect</h2>
+      <p>We may collect information such as your Discord ID, commands you use, and server settings to improve bot functionality.</p>
 
+      <h2 id="use">3. How We Use Information</h2>
+      <ul>
+        <li>To operate and maintain the bot</li>
+        <li>To improve user experience</li>
+        <li>To send updates or announcements</li>
+      </ul>
 
+      <h2 id="sharing">4. Sharing & Disclosure</h2>
+      <p>We do not sell your information. Data may be shared with trusted third-party services for bot operations.</p>
+
+      <h2 id="security">5. Data Security</h2>
+      <p>We implement reasonable measures to protect your data, but cannot guarantee absolute security.</p>
+
+      <h2 id="cookies">6. Cookies & Tracking</h2>
+      <p>We may use cookies or similar tracking to enhance the web experience.</p>
+
+      <h2 id="changes">7. Changes to Policy</h2>
+      <p>We may update this Privacy Policy periodically. The "Effective Date" indicates the latest revision.</p>
+
+      <h2 id="contact">8. Contact Us</h2>
+      <p>If you have questions, please reach out via the <a href="">Discord server</a></p>
+
+      <footer>
+        <p>&copy; <span id="year"></span> Utilix. All rights reserved.</p>
+      </footer>
+    </main>
+  </div>
 
   <script>
-    // Back-to-top button
-    const backToTop = document.getElementById("back-to-top");
-    window.addEventListener("scroll", () => {
-      if (window.scrollY > 300) {
-        backToTop.style.display = "block";
-        backToTop.style.opacity = "1";
-      } else {
-        backToTop.style.opacity = "0";
-        setTimeout(() => backToTop.style.display = "none", 300);
-      }
-    });
-    backToTop.addEventListener("click", () => window.scrollTo({ top: 0, behavior: "smooth" }));
-
-    // Scroll spy for TOC
-    const sections = document.querySelectorAll(".section");
-    const tocLinks = document.querySelectorAll(".toc a");
-
-    function activateLink() {
-      let current = "";
-      sections.forEach((section) => {
-        const sectionTop = section.offsetTop - 120;
-        if (scrollY >= sectionTop) {
-          current = section.getAttribute("id");
-        }
-      });
-      tocLinks.forEach((link) => {
-        link.classList.remove("active");
-        if (link.getAttribute("href") === "#" + current) {
-          link.classList.add("active");
-        }
-      });
-    }
-    window.addEventListener("scroll", activateLink);
+    document.getElementById("year").textContent = new Date().getFullYear();
   </script>
 </body>
-<!DOCTYPE html>
-<html lang="en">
+  <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -385,4 +400,5 @@
   </footer>
 
 </body>
+</html>
 </html>
