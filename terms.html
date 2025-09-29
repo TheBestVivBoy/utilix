@@ -1,4 +1,4 @@
-<!DOCTYPE html> 
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
@@ -14,7 +14,6 @@
       --muted: #a0a0a7;
       --card: #1e1e24;
       --panel: #141418;
-      --success: #00dba0;
     }
     * { box-sizing: border-box; }
     html { scroll-behavior: smooth; }
@@ -24,120 +23,155 @@
       background: radial-gradient(circle at top, #1a1a1d, var(--bg));
       color: var(--fg);
       min-height: 100vh;
-      line-height: 1.5;
+      line-height: 1.6;
+      display: flex;
     }
-
     header {
       background: transparent;
-      position: fixed; width: 100%; z-index: 1100;
+      position: fixed;
+      width: 100%;
+      z-index: 1100;
       padding: 1rem 2rem;
-      display: flex; justify-content: space-between; align-items: center;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
       backdrop-filter: blur(10px);
       border-bottom: 1px solid rgba(255, 255, 255, 0.02);
-      height: 72px; top: 0; left: 0;
+      height: 72px;
+      top: 0;
+      left: 0;
     }
     .logo {
-      font-weight: 800; font-size: 1.25rem;
+      font-weight: 800;
+      font-size: 1.25rem;
       background: linear-gradient(90deg, var(--accent), var(--accent2));
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
       letter-spacing: -0.02em;
     }
-    nav.header-nav ul { display: flex; gap: 1.25rem; list-style: none; margin: 0; padding: 0; align-items: center; }
-    nav.header-nav a {
-      color: var(--fg); text-decoration: none; font-weight: 600; position: relative;
-      padding: 6px 10px; border-radius: 6px; transition: transform 0.15s ease;
+    nav.header-nav ul {
+      display: flex;
+      gap: 1.25rem;
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      align-items: center;
     }
-    nav.header-nav a::after { content: ""; position: absolute; left: 0; bottom: -6px; width: 0%; height: 2px; background: var(--accent); transition: width 0.28s ease; }
-    nav.header-nav a:hover { transform: translateY(-2px); }
-    nav.header-nav a:hover::after { width: 100%; }
+    nav.header-nav a {
+      color: var(--fg);
+      text-decoration: none;
+      font-weight: 600;
+      position: relative;
+      padding: 6px 6px;
+      border-radius: 6px;
+      transition: transform 0.15s ease;
+    }
+    nav.header-nav a::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      bottom: -6px;
+      width: 0%;
+      height: 2px;
+      background: var(--accent);
+      transition: width 0.28s ease;
+    }
+    nav.header-nav a:hover {
+      transform: translateY(-2px);
+    }
+    nav.header-nav a:hover::after {
+      width: 100%;
+    }
     nav.header-nav a.active {
       background: linear-gradient(90deg, rgba(0, 198, 255, 0.08), rgba(0, 114, 255, 0.06));
-      -webkit-background-clip: padding-box; box-shadow: 0 6px 20px rgba(0, 114, 255, 0.04);
+      -webkit-background-clip: padding-box;
+      box-shadow: 0 6px 20px rgba(0, 114, 255, 0.04);
     }
-
-    .page { max-width: 1200px; margin: 0 auto; padding: 96px 20px 56px; }
-
-    .hero { display: flex; align-items: center; justify-content: center; text-align: center; min-height: 38vh; padding: 2rem 1rem; }
-    .hero-inner { max-width: 920px; }
-    .hero h1 {
-      font-size: 2.5rem; line-height: 1.2; margin-bottom: 0.5rem;
-      background: linear-gradient(90deg, var(--accent), var(--accent2));
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-    }
-    .hero p { color: var(--muted); font-size: 1rem; margin-bottom: 1.25rem; max-width: 760px; margin-inline: auto; }
-
-    .layout { display: grid; grid-template-columns: 280px 1fr; gap: 24px; align-items: start; }
-    .toc { position: sticky; top: 96px; background: var(--panel); border: 1px solid rgba(255,255,255,0.04); border-radius: 14px; padding: 1rem; }
-    .toc h2 { margin: 0 0 8px; font-size: 0.95rem; letter-spacing: 0.02em; color: var(--muted); }
-    .toc a { display: block; text-decoration: none; color: var(--fg); padding: 8px 10px; border-radius: 8px; font-weight: 600; font-size: 0.95rem; }
-    .toc a:hover { background: rgba(255,255,255,0.04); }
-    .toc a.active { background: rgba(0, 198, 255, 0.15); }
-
-    .terms-card { background: var(--card); border-radius: 16px; border: 1px solid rgba(255,255,255,0.04); padding: 1.2rem; }
-    .section { padding: 1rem; border: 1px solid rgba(255,255,255,0.05); border-radius: 14px; background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); scroll-margin-top: 90px; }
-    .section + .section { margin-top: 14px; }
-    .section h3 { margin: 0 0 6px; font-size: 1.05rem; background: linear-gradient(90deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-    .section p, .section li { color: var(--muted); font-size: 0.98rem; }
-
-    .divider { height: 2px; margin: 2.2rem 0; background: linear-gradient(90deg, rgba(0, 198, 255, 0.12), rgba(0, 114, 255, 0.06)); border-radius: 4px; border: 1px solid rgba(255, 255, 255, 0.02); }
-
-    /* Back to top button */
-    #backToTop {
-      position: fixed;
-      bottom: 24px;
-      right: 24px;
-      width: 48px;
-      height: 48px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, var(--accent), var(--accent2));
-      color: white;
-      font-size: 1.4rem;
+    .container {
       display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      box-shadow: 0 4px 14px rgba(0,0,0,0.4);
-      transition: opacity 0.3s ease, transform 0.2s ease;
-      opacity: 0;
-      pointer-events: none;
-      z-index: 1200;
+      width: 100%;
+      margin-top: 72px;
     }
-    #backToTop.show { opacity: 1; pointer-events: auto; }
-    #backToTop:hover { transform: translateY(-3px) scale(1.05); }
-
-    /* Responsive */
+    .sidebar {
+      width: 260px;
+      flex-shrink: 0;
+      background: var(--panel);
+      border-right: 1px solid rgba(255,255,255,0.05);
+      padding: 1.5rem 1rem;
+      position: sticky;
+      top: 72px;
+      height: calc(100vh - 72px);
+      overflow-y: auto;
+    }
+    .sidebar h3 {
+      font-size: 1rem;
+      margin-bottom: 0.75rem;
+      color: var(--accent);
+      font-weight: 700;
+    }
+    .sidebar ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .sidebar li {
+      margin-bottom: 0.5rem;
+    }
+    .sidebar a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 0.95rem;
+      display: block;
+      padding: 6px 10px;
+      border-radius: 6px;
+      transition: background 0.2s;
+    }
+    .sidebar a:hover {
+      background: rgba(0,198,255,0.08);
+      color: var(--fg);
+    }
+    .page {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 2rem;
+      flex-grow: 1;
+    }
+    h1, h2 {
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    h1 {
+      font-size: 2.4rem;
+      margin-bottom: 1.2rem;
+      text-align: center;
+    }
+    h2 {
+      margin-top: 2rem;
+      font-size: 1.3rem;
+    }
+    p, li {
+      color: var(--muted);
+      font-size: 1rem;
+    }
+    ul { padding-left: 1.2rem; }
+    .divider {
+      height: 2px;
+      margin: 2rem 0;
+      background: linear-gradient(90deg, rgba(0, 198, 255, 0.12), rgba(0, 114, 255, 0.06));
+      border-radius: 4px;
+    }
+    footer {
+      margin-top: 2.5rem;
+      padding: 2.2rem 1rem;
+      text-align: center;
+      color: var(--muted);
+      border-top: 1px solid rgba(255, 255, 255, 0.01);
+    }
+    footer a { color: var(--accent); text-decoration: none; }
     @media (max-width: 900px) {
-      .layout {
-        grid-template-columns: 1fr;
-      }
-      .toc {
-        position: relative;
-        top: auto;
-        margin-bottom: 1rem;
-      }
-    }
-
-    @media (max-width: 640px) {
-      header {
-        padding: 0.75rem 1rem;
-      }
-      nav.header-nav ul {
-        flex-wrap: nowrap;
-        overflow-x: auto;
-        gap: 1rem;
-      }
-      .hero h1 {
-        font-size: 1.9rem;
-      }
-      .hero p {
-        font-size: 0.95rem;
-      }
-      .section h3 {
-        font-size: 1rem;
-      }
-      .section p, .section li {
-        font-size: 0.9rem;
-      }
+      .sidebar { display: none; }
+      .page { padding: 1.5rem; }
     }
   </style>
 </head>
@@ -149,193 +183,108 @@
         <li><a href="/index">Home</a></li>
         <li><a href="/setup">Setup</a></li>
         <li><a href="/faq">FAQ</a></li>
+        <li><a href="/terms" class="active">Terms</a></li>
       </ul>
     </nav>
   </header>
 
-  <main class="page">
-    <section class="hero" aria-labelledby="hero-heading">
-      <div class="hero-inner">
-        <h1 id="hero-heading">Utilix - Terms of Service</h1>
-        <div class="meta-row" role="list" aria-label="Document metadata">
-          <span class="badge" role="listitem">Effective Date: <strong>July 20, 2025</strong></span>
-        </div>
-      </div>
-    </section>
+  <div class="container">
+    <aside class="sidebar">
+      <h3>Sections</h3>
+      <ul>
+        <li><a href="#desc">1. Description</a></li>
+        <li><a href="#rules">2. Usage Rules</a></li>
+        <li><a href="#scammer">3. Scammer Database</a></li>
+        <li><a href="#tickets">4. Tickets</a></li>
+        <li><a href="#termination">5. Termination</a></li>
+        <li><a href="#liability">6. Limitation of Liability</a></li>
+        <li><a href="#endorse">7. No Endorsement</a></li>
+        <li><a href="#beta">8. Beta Features</a></li>
+        <li><a href="#suspension">9. Suspension</a></li>
+        <li><a href="#uptime">10. Uptime</a></li>
+        <li><a href="#ownership">11. Ownership</a></li>
+        <li><a href="#commands">12. Command Restrictions</a></li>
+        <li><a href="#owners">13. Responsibility of Owners</a></li>
+        <li><a href="#automation">14. Automated Use</a></li>
+        <li><a href="#misuse">15. Misuse</a></li>
+        <li><a href="#changes">16. Changes</a></li>
+      </ul>
+    </aside>
 
-    <div class="layout" aria-label="Terms layout">
-      <!-- TOC -->
-      <aside class="toc" aria-labelledby="toc-heading">
-        <h2 id="toc-heading">On this page</h2>
-        <nav aria-label="Table of contents">
-          <a href="#intro">Introduction</a>
-          <a href="#desc">1. Description</a>
-          <a href="#usage">2. Usage Rules</a>
-          <a href="#scamdb">3. Scammer Database</a>
-          <a href="#tickets">4. Tickets</a>
-          <a href="#termination">5. Termination</a>
-          <a href="#liability">6. Limitation of Liability</a>
-          <a href="#endorsement">7. No Endorsement or Guarantee</a>
-          <a href="#beta">8. Beta & Experimental Features</a>
-          <a href="#suspension">9. Suspension of Services</a>
-          <a href="#uptime">10. Uptime & Availability</a>
-          <a href="#ownership">11. Ownership & Intellectual Property</a>
-          <a href="#restrictions">12. Command Restrictions</a>
-          <a href="#responsibility">13. Responsibility of Server Owners</a>
-          <a href="#automation">14. Automated Use & Bots</a>
-          <a href="#misuse">15. Misuse of Features</a>
-          <a href="#changes">16. Changes to the Terms</a>
-        </nav>
-      </aside>
+    <main class="page">
+      <h1>Terms of Service</h1>
+      <p>By using Utilix ("the Bot"), you agree to the following terms. If you do not agree, do not invite or use Utilix.</p>
+      <div class="divider"></div>
 
-      <section class="terms-card" aria-label="Terms content">
-   <div id="intro" class="section" tabindex="-1">
-          <h3>Introduction</h3>
-          <p>By using Utilix ("the Bot"), you agree to the following terms. If you do not agree, do not invite or use Utilix.</p>
-        </div>
+      <h2 id="desc">1. Description</h2>
+      <p>Utilix is a Discord bot offering utility features including, but not limited to, a ticket system, scammer reporting database, and other moderation or automation tools.</p>
 
-        <div id="desc" class="section" tabindex="-1">
-          <h3>1. Description</h3>
-          <p>Utilix is a Discord bot offering utility features including, but not limited to, a ticket system, scammer reporting database, and other useful moderation or automation tools.</p>
-        </div>
+      <h2 id="rules">2. Usage Rules</h2>
+      <ul>
+        <li>You must follow Discord's Terms of Service and Community Guidelines.</li>
+        <li>You may not use Utilix to engage in or promote illegal, harmful, or abusive behavior.</li>
+        <li>You must not attempt to exploit, reverse engineer, or overload the Bot.</li>
+      </ul>
 
-        <div id="usage" class="section" tabindex="-1">
-          <h3>2. Usage Rules</h3>
-          <ul>
-            <li>You must follow Discord's Terms of Service and Community Guidelines.</li>
-            <li>You may not use Utilix to engage in or promote illegal, harmful, or abusive behavior.</li>
-            <li>You must not attempt to exploit, reverse engineer, or overload the Bot.</li>
-          </ul>
-        </div>
+      <h2 id="scammer">3. Scammer Database</h2>
+      <ul>
+        <li>The scammer database is community-driven and may contain user-submitted reports.</li>
+        <li>False or malicious reporting may result in blacklisting from the Bot.</li>
+        <li>We are not responsible for damages or losses arising from reliance on this database.</li>
+      </ul>
 
-        <div id="scamdb" class="section" tabindex="-1">
-          <h3>3. Scammer Database</h3>
-          <ul>
-            <li>The scammer database is community-driven and may contain user-submitted reports.</li>
-            <li>False or malicious reporting may result in blacklisting from the Bot.</li>
-            <li>We are not responsible for any damages or losses arising from reliance on this database.</li>
-          </ul>
-        </div>
+      <h2 id="tickets">4. Tickets</h2>
+      <p>Ticket logs may include message content or IDs related to support queries. Server owners are responsible for informing their members if ticket logs are stored or shared with staff.</p>
 
-        <div id="tickets" class="section" tabindex="-1">
-          <h3>4. Tickets</h3>
-          <ul>
-            <li>Ticket logs may include message content or IDs related to support queries.</li>
-            <li>You are responsible for informing your server members if ticket logs are stored or shared with staff.</li>
-          </ul>
-        </div>
+      <h2 id="termination">5. Termination</h2>
+      <p>We reserve the right to remove access to Utilix for any user or server, with or without notice, especially in cases of abuse, violation of terms, or at Discord’s request.</p>
 
-        <div id="termination" class="section" tabindex="-1">
-          <h3>5. Termination</h3>
-          <p>We reserve the right to remove access to Utilix for any user or server, with or without notice, especially in cases of abuse, violation of terms, or at Discord’s request.</p>
-        </div>
+      <h2 id="liability">6. Limitation of Liability</h2>
+      <ul>
+        <li>Utilix is provided "as is" and "as available" without warranties of any kind.</li>
+        <li>We are not liable for data loss, service interruptions, or inaccuracies.</li>
+        <li>We are not liable for disputes or damages arising from Bot functionality or moderation outcomes.</li>
+        <li>We are not liable for reliance on outputs, reports, or actions made using Utilix.</li>
+      </ul>
 
-        <div id="liability" class="section" tabindex="-1">
-          <h3>6. Limitation of Liability</h3>
-          <ul>
-            <li>Utilix is provided "as is" and "as available" without warranties of any kind.</li>
-            <li>We are not liable for data loss, service interruptions, or inaccuracies.</li>
-            <li>We are not liable for damages or disputes arising from Bot functionality or moderation outcomes.</li>
-            <li>We are not liable for reliance on outputs, reports, or actions made using Utilix.</li>
-          </ul>
-        </div>
+      <h2 id="endorse">7. No Endorsement or Guarantee</h2>
+      <p>Utilix does not officially endorse or verify any server, user, or moderator actions taken via the Bot. Presence of a user in the scammer database does not constitute legal judgment.</p>
 
-        <div id="endorsement" class="section" tabindex="-1">
-          <h3>7. No Endorsement or Guarantee</h3>
-          <p>Utilix does not officially endorse or verify any server, user, or moderator actions taken via the Bot. Presence of a user in the scammer database does not constitute legal judgment.</p>
-        </div>
+      <h2 id="beta">8. Beta & Experimental Features</h2>
+      <p>Some features may be released as beta or experimental and may change or be removed at any time. By using them, you acknowledge they are provided without guarantees.</p>
 
-        <div id="beta" class="section" tabindex="-1">
-          <h3>8. Beta & Experimental Features</h3>
-          <p>Some features may be released as beta or experimental.</p>
-          <p>These features may be unstable, change at any time, or be removed without notice.</p>
-          <p>By using them, you acknowledge they are provided without guarantees.</p>
-        </div>
+      <h2 id="suspension">9. Suspension of Services</h2>
+      <p>We may suspend Utilix temporarily for maintenance, updates, or security reasons. We are not liable for interruptions caused by such suspensions.</p>
 
-        <div id="suspension" class="section" tabindex="-1">
-          <h3>9. Suspension of Services</h3>
-          <p>We may suspend Utilix temporarily for maintenance, updates, or security reasons.</p>
-          <p>We are not liable for interruptions caused by such suspensions.</p>
-        </div>
+      <h2 id="uptime">10. Uptime & Availability</h2>
+      <p>We do not guarantee uninterrupted service or permanent availability of Utilix. Features may be modified, removed, or restricted at any time without prior notice.</p>
 
-        <div id="uptime" class="section" tabindex="-1">
-          <h3>10. Uptime & Availability</h3>
-          <p>We do not guarantee uninterrupted service or permanent availability of Utilix.</p>
-          <p>Features may be modified, removed, or restricted at any time without prior notice.</p>
-          <p>Outages, maintenance, or unexpected downtime may occur.</p>
-        </div>
+      <h2 id="ownership">11. Ownership & Intellectual Property</h2>
+      <p>All code, features, branding, and design of Utilix remain the property of the developers. You may not claim ownership, redistribute, or resell Utilix or its features.</p>
 
-        <div id="ownership" class="section" tabindex="-1">
-          <h3>11. Ownership & Intellectual Property</h3>
-          <p>All code, features, branding, and design of Utilix remain the property of the developers.</p>
-          <p>You may not claim ownership, redistribute, or resell Utilix or its features.</p>
-        </div>
+      <h2 id="commands">12. Command Restrictions</h2>
+      <p>Certain commands or features may be restricted by role, server size, or other requirements. Abuse of commands (e.g., spam, mass automation, or evasion of limits) may result in loss of access.</p>
 
-        <div id="restrictions" class="section" tabindex="-1">
-          <h3>12. Command Restrictions</h3>
-          <p>Certain commands or features may be restricted by role, server size, or other requirements.</p>
-          <p>Abuse of commands (e.g., spam, mass automation, or evasion of limits) may result in loss of access.</p>
-        </div>
+      <h2 id="owners">13. Responsibility of Server Owners</h2>
+      <p>Server owners are responsible for how Utilix is used in their server and must ensure compliance with Discord’s Terms of Service and Community Guidelines. They are also responsible for informing members about the use of Utilix features (such as ticket logging or database checks).</p>
 
-        <div id="responsibility" class="section" tabindex="-1">
-          <h3>13. Responsibility of Server Owners</h3>
-          <p>Server owners are responsible for how Utilix is used in their server.</p>
-          <p>You must ensure your server complies with Discord’s Terms of Service and Community Guidelines.</p>
-          <p>You are responsible for informing your members about the use of Utilix features (such as ticket logging or database checks).</p>
-        </div>
+      <h2 id="automation">14. Automated Use & Bots</h2>
+      <p>You may not use Utilix through scripts, self-bots, or unauthorized automation. All interaction must occur through normal Discord clients or intended integrations.</p>
 
-        <div id="automation" class="section" tabindex="-1">
-          <h3>14. Automated Use & Bots</h3>
-          <p>You may not use Utilix through scripts, self-bots, or unauthorized automation.</p>
-          <p>All interaction must occur through normal Discord clients or integrations intended by Discord.</p>
-        </div>
+      <h2 id="misuse">15. Misuse of Features</h2>
+      <p>Using Utilix to spam, raid, harass, or disrupt communities is strictly prohibited. Exploiting bugs, glitches, or loopholes in Utilix is not allowed. We may suspend or terminate usage without notice if misuse is detected.</p>
 
-        <div id="misuse" class="section" tabindex="-1">
-          <h3>15. Misuse of Features</h3>
-          <p>Using Utilix to spam, raid, harass, or disrupt communities is strictly prohibited.</p>
-          <p>Exploiting bugs, glitches, or loopholes in Utilix is not allowed.</p>
-          <p>We may suspend or terminate usage for detected misuse without notice.</p>
-        </div>
+      <h2 id="changes">16. Changes to the Terms</h2>
+      <p>We may revise these Terms at any time. Continued use of Utilix after changes are posted implies acceptance of the updated Terms.</p>
 
-        <div id="changes" class="section" tabindex="-1">
-          <h3>16. Changes to the Terms</h3>
-          <p>We may revise these Terms at any time. Continued use of the Bot after changes are posted implies acceptance of the updated Terms.</p>
-        </div>      </section>
-    </div>
-  </main>
 
-  <button id="backToTop" aria-label="Back to top">↑</button>
+    </main>
+  </div>
 
   <script>
-    const sections = Array.from(document.querySelectorAll('.terms-card .section'));
-    const links = Array.from(document.querySelectorAll('.toc a'));
-    const byId = id => links.find(a => a.getAttribute('href') === '#' + id);
-
-    const obs = new IntersectionObserver((entries) => {
-      entries.forEach((e) => {
-        if (e.isIntersecting) {
-          links.forEach(a => a.classList.remove('active'));
-          byId(e.target.id)?.classList.add('active');
-        }
-      })
-    }, { rootMargin: '-40% 0px -55% 0px', threshold: 0.01 });
-
-    sections.forEach(s => obs.observe(s));
-
-    const backToTop = document.getElementById('backToTop');
-    window.addEventListener('scroll', () => {
-      if (window.scrollY > 400) {
-        backToTop.classList.add('show');
-      } else {
-        backToTop.classList.remove('show');
-      }
-    });
-    backToTop.addEventListener('click', () => {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    });
+    document.getElementById("year").textContent = new Date().getFullYear();
   </script>
 </body>
-<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
@@ -492,5 +441,4 @@
 
 </body>
 </html>
-
-
+</html>
