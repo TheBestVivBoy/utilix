@@ -2,6 +2,8 @@ require("dotenv").config();
 const express = require("express");
 const bodyParser = require("body-parser");
 const session = require("express-session");
+const path = require("path");
+const fs = require("fs");
 
 // node-fetch wrapper for CommonJS
 const fetch = (...args) =>
@@ -75,22 +77,19 @@ app.get("/callback", async (req, res) => {
     if (!Array.isArray(guilds)) guilds = [];
 
     // ---- FILTER SERVERS BOT IS IN ----
-    const fs = require("fs");
-    const path = require("path");
-    
     let botGuilds = [];
     try {
-      const filePath = path.join(__dirname, "bot_guilds.json"); // adjust path if needed
+      const filePath = path.join(__dirname, "bot_guilds.json");
       botGuilds = JSON.parse(fs.readFileSync(filePath, "utf8"));
     } catch (err) {
       console.error("Could not read bot_guilds.json:", err.message);
       botGuilds = [];
     }
-    
+
     const filteredGuilds =
       Array.isArray(botGuilds) && botGuilds.length > 0
         ? guilds.filter((g) => botGuilds.includes(g.id))
-        : guilds; // fallback: show all if no list
+        : guilds;
 
     // Save to session
     req.session.user = userData;
@@ -287,6 +286,18 @@ app.get("/", (req, res) => {
     res.redirect("/dashboard");
   } else {
     res.send(`<a href="/login">Log in with Discord</a>`);
+  }
+});
+
+// --- USER INFO ROUTE (for frontend header) ---
+app.get("/me", (req, res) => {
+  if (req.session.user) {
+    res.json({
+      loggedIn: true,
+      user: req.session.user,
+    });
+  } else {
+    res.json({ loggedIn: false });
   }
 });
 
