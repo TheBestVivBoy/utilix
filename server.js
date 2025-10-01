@@ -65,17 +65,29 @@ app.get("/callback", async (req, res) => {
     const userData = await userResponse.json();
 
     // Fetch user guilds
-    const guildResponse = await fetch("https://discord.com/api/users/@me/guilds", {
-      headers: { Authorization: `Bearer ${tokenData.access_token}` },
-    });
+    const guildResponse = await fetch(
+      "https://discord.com/api/users/@me/guilds",
+      {
+        headers: { Authorization: `Bearer ${tokenData.access_token}` },
+      }
+    );
     let guilds = await guildResponse.json();
-
-    // Ensure guilds is an array
     if (!Array.isArray(guilds)) guilds = [];
+
+    // ---- FILTER SERVERS BOT IS IN ----
+    // Replace this with a real fetch from your bot or database
+    const botGuilds = process.env.BOT_GUILDS
+      ? process.env.BOT_GUILDS.split(",") // put IDs in .env like BOT_GUILDS=123,456
+      : [];
+
+    const filteredGuilds =
+      botGuilds.length > 0
+        ? guilds.filter((g) => botGuilds.includes(g.id))
+        : guilds; // fallback: show all if no list
 
     // Save to session
     req.session.user = userData;
-    req.session.guilds = guilds;
+    req.session.guilds = filteredGuilds;
 
     res.redirect("/dashboard");
   } catch (err) {
@@ -105,42 +117,99 @@ app.get("/dashboard", (req, res) => {
           }
           header {
             display: flex;
-            justify-content: flex-end;
+            justify-content: space-between;
             align-items: center;
             background: rgba(255,255,255,0.05);
             padding: 1rem;
           }
-          header img {
+          .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+          }
+          .user-info img {
             border-radius: 50%;
             width: 40px;
             height: 40px;
           }
+          .logout {
+            color: #a64ca6;
+            text-decoration: none;
+            font-weight: bold;
+          }
           main {
             padding: 2rem;
           }
-          .server {
-            background: rgba(255,255,255,0.05);
-            margin: 0.5rem 0;
-            padding: 1rem;
-            border-radius: 8px;
+          .servers {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
           }
+          .server {
+            width: 100px;
+            text-align: center;
+          }
+          .server img {
+            width: 80px;
+            height: 80px;
+            border-radius: 16px;
+            background: rgba(255,255,255,0.1);
+          }
+          .server-name {
+            margin-top: 0.5rem;
+            font-size: 0.9rem;
+          }
+          a { color: white; text-decoration: none; }
         </style>
       </head>
       <body>
         <header>
-          <img src="https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png" />
+          <div class="user-info">
+            <img src="https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png" />
+            <span>Welcome, ${user.username}#${user.discriminator}</span>
+          </div>
+          <a href="/logout" class="logout">Logout</a>
         </header>
         <main>
-          <h1>Welcome, ${user.username}#${user.discriminator}</h1>
           <h2>Your Servers:</h2>
-          ${
-            guilds.length > 0
-              ? guilds.map((g) => `<div class="server">${g.name}</div>`).join("")
-              : "<p>No servers available</p>"
-          }
-          <br>
-          <a href="/logout" style="color:#a64ca6;">Logout</a>
+          <div class="servers">
+            ${
+              guilds.length > 0
+                ? guilds
+                    .map(
+                      (g) => `
+                  <div class="server">
+                    <a href="/dashboard/${g.id}">
+                      <img src="https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png" alt="${g.name}" />
+                      <div class="server-name">${g.name}</div>
+                    </a>
+                  </div>`
+                    )
+                    .join("")
+                : "<p>No servers available</p>"
+            }
+          </div>
         </main>
+      </body>
+    </html>
+  `);
+});
+
+// --- INDIVIDUAL SERVER DASHBOARD ---
+app.get("/dashboard/:id", (req, res) => {
+  if (!req.session.user) return res.redirect("/login");
+  const guildId = req.params.id;
+  const guild = req.session.guilds.find((g) => g.id === guildId);
+
+  if (!guild) return res.send("You don’t have access to this server.");
+
+  res.send(`
+    <html>
+      <head><title>${guild.name} Dashboard</title></head>
+      <body style="background:#0b0a1e;color:white;font-family:Arial;">
+        <h1>${guild.name} Dashboard</h1>
+        <p>ID: ${guild.id}</p>
+        <a href="/dashboard" style="color:#a64ca6;">← Back to servers</a>
       </body>
     </html>
   `);
