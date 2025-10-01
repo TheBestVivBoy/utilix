@@ -75,9 +75,9 @@ app.get("/callback", async (req, res) => {
     if (!Array.isArray(guilds)) guilds = [];
 
     // ---- FILTER SERVERS BOT IS IN ----
-    // Replace this with a real fetch from your bot or database
+    // Put your bot's guild IDs in .env like: BOT_GUILDS=123,456,789
     const botGuilds = process.env.BOT_GUILDS
-      ? process.env.BOT_GUILDS.split(",") // put IDs in .env like BOT_GUILDS=123,456
+      ? process.env.BOT_GUILDS.split(",")
       : [];
 
     const filteredGuilds =
@@ -149,11 +149,21 @@ app.get("/dashboard", (req, res) => {
             width: 100px;
             text-align: center;
           }
-          .server img {
+          .server-icon {
             width: 80px;
             height: 80px;
             border-radius: 16px;
             background: rgba(255,255,255,0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.5rem;
+          }
+          .server img {
+            width: 80px;
+            height: 80px;
+            border-radius: 16px;
           }
           .server-name {
             margin-top: 0.5rem;
@@ -180,7 +190,11 @@ app.get("/dashboard", (req, res) => {
                       (g) => `
                   <div class="server">
                     <a href="/dashboard/${g.id}">
-                      <img src="https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png" alt="${g.name}" />
+                      ${
+                        g.icon
+                          ? `<img src="https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png" alt="${g.name}" />`
+                          : `<div class="server-icon">${g.name[0]}</div>`
+                      }
                       <div class="server-name">${g.name}</div>
                     </a>
                   </div>`
@@ -196,23 +210,61 @@ app.get("/dashboard", (req, res) => {
 });
 
 // --- INDIVIDUAL SERVER DASHBOARD ---
-app.get("/dashboard/:id", (req, res) => {
+app.get("/dashboard/:id", async (req, res) => {
   if (!req.session.user) return res.redirect("/login");
+
   const guildId = req.params.id;
+  const user = req.session.user;
   const guild = req.session.guilds.find((g) => g.id === guildId);
 
   if (!guild) return res.send("You don’t have access to this server.");
 
-  res.send(`
-    <html>
-      <head><title>${guild.name} Dashboard</title></head>
-      <body style="background:#0b0a1e;color:white;font-family:Arial;">
-        <h1>${guild.name} Dashboard</h1>
-        <p>ID: ${guild.id}</p>
-        <a href="/dashboard" style="color:#a64ca6;">← Back to servers</a>
-      </body>
-    </html>
-  `);
+  try {
+    // Check Discord MANAGE_GUILD permission
+    const MANAGE_GUILD = 0x20;
+    const hasManageGuild =
+      (parseInt(guild.permissions) & MANAGE_GUILD) === MANAGE_GUILD;
+
+    // Ask your bot API if user can manage
+    const response = await fetch("https://api.utilix.support/checkPerms", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        userId: user.id,
+        guildId: guild.id,
+      }),
+    });
+    const botCheck = await response.json();
+
+    if (!hasManageGuild || !botCheck.allowed) {
+      return res.send(`
+        <html>
+          <body style="background:#0b0a1e;color:white;font-family:Arial;">
+            <h1>${guild.name} Dashboard</h1>
+            <p>You don’t have permission to manage this server’s bot dashboard.</p>
+            <a href="/dashboard" style="color:#a64ca6;">← Back to servers</a>
+          </body>
+        </html>
+      `);
+    }
+
+    // If allowed, show dashboard
+    res.send(`
+      <html>
+        <head><title>${guild.name} Dashboard</title></head>
+        <body style="background:#0b0a1e;color:white;font-family:Arial;">
+          <h1>${guild.name} Dashboard</h1>
+          <p>Welcome ${user.username}#${user.discriminator}, you have permission!</p>
+          <p>Server ID: ${guild.id}</p>
+          <p>Server Name: ${guild.name}</p>
+          <a href="/dashboard" style="color:#a64ca6;">← Back to servers</a>
+        </body>
+      </html>
+    `);
+  } catch (err) {
+    console.error("Dashboard error:", err);
+    res.status(500).send("Error checking permissions");
+  }
 });
 
 // --- LOGOUT ROUTE ---
