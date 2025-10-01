@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Staff Application — Utilix</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0d0d0f;
+      --fg: #f2f2f7;
+      --accent: #00c6ff;
+      --accent2: #0072ff;
+      --muted: #a0a0a7;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      height: 100%;
+      font-family: 'Inter', system-ui, sans-serif;
+      background: radial-gradient(circle at top, #1a1a1d, var(--bg));
+      color: var(--fg);
+      overflow-x: hidden;
+    }
+
+    header {
+      background: transparent;
+      position: fixed;
+      width: 100%;
+      z-index: 1100;
+      padding: 1rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid rgba(255,255,255,0.02);
+    }
+    .logo {
+      font-weight: 800;
+      font-size: 1.25rem;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    nav.header-nav ul {
+      display: flex;
+      gap: 1.25rem;
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      align-items: center;
+    }
+    nav.header-nav a {
+      color: var(--fg);
+      text-decoration: none;
+      font-weight: 600;
+      position: relative;
+      padding: 6px 6px;
+      border-radius: 6px;
+      transition: transform 0.15s ease;
+      user-select: none;
+    }
+    nav.header-nav a::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      bottom: -6px;
+      width: 0%;
+      height: 2px;
+      background: var(--accent);
+      transition: width 0.28s ease;
+    }
+    nav.header-nav a:hover { transform: translateY(-2px); }
+    nav.header-nav a:hover::after { width: 100%; }
+    nav.header-nav a.active {
+      background: linear-gradient(90deg, rgba(0,198,255,0.08), rgba(0,114,255,0.06));
+      box-shadow: 0 6px 20px rgba(0,114,255,0.04);
+    }
+
+    main {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 6rem 1rem 2rem;
+      text-align: center;
+      min-height: 100vh;
+      position: relative;
+      z-index: 10;
+    }
+    h1 {
+      font-size: 2.5rem;
+      font-weight: 800;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 0.5rem;
+    }
+    h2 {
+      font-weight: 600;
+      font-size: 1.25rem;
+      margin-bottom: 2rem;
+      color: var(--muted);
+    }
+    form {
+      background: rgba(20,20,25,0.7);
+      padding: 2rem;
+      border-radius: 1rem;
+      max-width: 700px;
+      width: 100%;
+      box-shadow: 0 8px 25px rgba(0,198,255,0.2);
+      text-align: left;
+    }
+    label { font-weight: 600; margin-bottom: 0.5rem; display: block; }
+    input[type="text"], input[type="number"], textarea {
+      width: 100%;
+      padding: 0.75rem;
+      margin-bottom: 1.25rem;
+      border: none;
+      border-radius: 8px;
+      background: rgba(255,255,255,0.08);
+      color: var(--fg);
+      font-size: 1rem;
+    }
+    textarea { resize: vertical; }
+    input:focus, textarea:focus { outline: 2px solid var(--accent); }
+
+    /* Radio groups */
+    .radio-group { margin-bottom: 1.5rem; }
+    .radio-group p { font-weight: 600; margin-bottom: 0.75rem; }
+    .option {
+      display: flex;
+      align-items: center;
+      background: rgba(255,255,255,0.05);
+      padding: 0.6rem 0.8rem;
+      border-radius: 8px;
+      margin-bottom: 0.5rem;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+    .option:hover { background: rgba(255,255,255,0.1); }
+    .option input[type="radio"] {
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      border: 2px solid var(--muted);
+      border-radius: 50%;
+      margin-right: 0.75rem;
+      cursor: pointer;
+      transition: border 0.2s ease;
+    }
+    .option input[type="radio"]:checked {
+      border-color: var(--accent);
+      background: radial-gradient(circle, var(--accent) 50%, transparent 51%);
+    }
+
+    .checkbox {
+      display: flex;
+      align-items: center;
+      margin-bottom: 1.25rem;
+      gap: 0.5rem;
+    }
+    .checkbox input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
+    }
+
+    button {
+      width: 100%;
+      padding: 0.9rem;
+      font-size: 1rem;
+      font-weight: 700;
+      color: white;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      border: none;
+      border-radius: 50px;
+      cursor: pointer;
+      transition: transform 0.18s ease, box-shadow 0.18s ease;
+    }
+    button:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0,198,255,0.4); }
+    #message { margin-top: 1rem; font-weight: 600; text-align: center; }
+
+    #starfield {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      z-index: 1;
+      pointer-events: none;
+      background: transparent;
+      filter: drop-shadow(0 0 2px rgba(0,198,255,0.3));
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo">Utilix</div>
+    <nav class="header-nav" aria-label="Primary navigation">
+      <ul>
+        <li><a href="/index">Home</a></li>
+        <li><a href="/setup">Setup</a></li>
+        <li><a href="/faq">FAQ</a></li>
+        <li><a href="/changelog">Changelog</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main>
+    <h1>Staff Application</h1>
+    <h2>Apply to become a Utilix staff member</h2>
+
+    <!-- Toggle open/closed -->
+    <script>const applicationsOpen = true;</script> <!-- replace to false/true to close/open-->
+
+    <div id="closedMessage" style="display:none; font-weight:600; font-size:1.2rem; color:orange; background:rgba(255,255,255,0.05); padding:1.5rem; border-radius:1rem;">
+      🚫 Applications are closed / not open yet. Please come back later.
+    </div>
+
+     <form id="applicationForm">
+      <!-- Basic Info -->
+      <label for="username">Discord Username</label>
+      <input type="text" id="username" name="username" placeholder="Infinityforlife_." required />
+
+      <label for="age">What is your age?</label>
+      <input type="number" id="age" name="age" min="13" required />
+
+      <label for="timezone">What is your time zone?</label>
+      <input type="text" id="timezone" name="timezone" placeholder="PST / CST / GMT+2" required />
+
+      <!-- Motivation -->
+      <label for="interest">Why are you interested in becoming a moderator?</label>
+      <textarea id="interest" name="interest" rows="3" required></textarea>
+
+      <label for="responsibility">What is a moderator's responsibility?</label>
+      <textarea id="responsibility" name="responsibility" rows="3" required></textarea>
+
+      <label for="unique">Why should we choose you?</label>
+      <textarea id="unique" name="unique" rows="3" required></textarea>
+
+      <label for="experience">Do you have previous staff experience?</label>
+      <textarea id="experience" name="experience" rows="3"></textarea>
+
+      <!-- Multiple Choice Scenarios -->
+      <div class="radio-group">
+        <p id="q8">A person posts gore/NSFW in #media. What do you do?</p>
+        <div class="option"><input type="radio" id="q8a" name="Q8" value="Warn and delete" required><label for="q8a">Warn and delete</label></div>
+        <div class="option"><input type="radio" id="q8b" name="Q8" value="Delete only"><label for="q8b">Delete only</label></div>
+        <div class="option"><input type="radio" id="q8c" name="Q8" value="Kick and delete"><label for="q8c">Kick and delete</label></div>
+        <div class="option"><input type="radio" id="q8d" name="Q8" value="Ban and delete"><label for="q8d">Ban and delete</label></div>
+      </div>
+
+      <div class="radio-group">
+        <p id="q9">Someone bypasses the filter and says the N word. What do you do?</p>
+        <div class="option"><input type="radio" id="q9a" name="Q9" value="Tell them to stop and delete" required><label for="q9a">Tell them to stop and delete</label></div>
+        <div class="option"><input type="radio" id="q9b" name="Q9" value="Ban and delete"><label for="q9b">Ban and delete</label></div>
+        <div class="option"><input type="radio" id="q9c" name="Q9" value="Warn and delete"><label for="q9c">Warn and delete</label></div>
+        <div class="option"><input type="radio" id="q9d" name="Q9" value="Kick and delete"><label for="q9d">Kick and delete</label></div>
+      </div>
+
+      <div class="radio-group">
+        <p id="q10">Two people are arguing in #general and won’t stop. What do you do?</p>
+        <div class="option"><input type="radio" id="q10a" name="Q10" value="Warn starter" required><label for="q10a">Warn the one who started</label></div>
+        <div class="option"><input type="radio" id="q10b" name="Q10" value="Mute both"><label for="q10b">Mute them both</label></div>
+        <div class="option"><input type="radio" id="q10c" name="Q10" value="Ban both"><label for="q10c">Ban them both</label></div>
+        <div class="option"><input type="radio" id="q10d" name="Q10" value="Warn/tell stop"><label for="q10d">Tell them to stop; warn/mute if they continue</label></div>
+      </div>
+
+      <div class="radio-group">
+        <p id="q11">You see another staff member abusing powers. What do you do?</p>
+        <div class="option"><input type="radio" id="q11a" name="Q11" value="Ignore" required><label for="q11a">Ignore, they probably have a reason</label></div>
+        <div class="option"><input type="radio" id="q11b" name="Q11" value="Report with proof"><label for="q11b">Report to higher staff/owner with proof</label></div>
+        <div class="option"><input type="radio" id="q11c" name="Q11" value="Join in"><label for="q11c">Join in as a joke</label></div>
+        <div class="option"><input type="radio" id="q11d" name="Q11" value="Call out publicly"><label for="q11d">Yell at them publicly in chat</label></div>
+      </div>
+
+      <!-- Open Scenarios -->
+      <label for="situation1">You punished the wrong person. What do you do next?</label>
+      <textarea id="situation1" name="situation1" rows="3" required></textarea>
+
+      <label for="situation2">A booster/popular member breaks rules and people defend them. How do you handle it?</label>
+      <textarea id="situation2" name="situation2" rows="3" required></textarea>
+
+      <label for="situation3">A member argues their punishment is unfair. What do you respond?</label>
+      <textarea id="situation3" name="situation3" rows="3" required></textarea>
+
+      <label for="bias">A close friend breaks a rule. What do you do?</label>
+      <textarea id="bias" name="bias" rows="3" required></textarea>
+
+      <label for="harassment">A user reports DM harassment. What do you do?</label>
+      <textarea id="harassment" name="harassment" rows="3" required></textarea>
+
+      <label for="raid">If multiple spammers join at once. What’s your first step/actions?</label>
+      <textarea id="raid" name="raid" rows="3" required></textarea>
+
+      <label for="appeal">Someone claims their punishment was unfair. What steps do you take?</label>
+      <textarea id="appeal" name="appeal" rows="3" required></textarea>
+
+
+      <div class="checkbox">
+        <input type="checkbox" id="rules" name="rules" required>
+        <label for="rules">I have read and understood the server rules</label>
+      </div>
+
+      <button type="submit">Submit Application</button>
+      <div id="message"></div>
+    </form>
+  </main>
+
+
+  <canvas id="starfield" aria-hidden="true"></canvas>
+
+  <script>
+    // Starfield animation
+    (function () {
+      const canvas = document.getElementById('starfield');
+      const ctx = canvas.getContext('2d');
+      let stars = [];
+      let width = 0, height = 0, cx = 0, cy = 0;
+      const STAR_COUNT = 260;
+      const SPEED = 2.0;
+
+      function resize() {
+        width = canvas.width = window.innerWidth;
+        height = canvas.height = window.innerHeight;
+        cx = width / 2;
+        cy = height / 2;
+        initStars();
+      }
+      function initStars() {
+        stars = [];
+        for (let i = 0; i < STAR_COUNT; i++) {
+          stars.push({
+            x: (Math.random() * 2 - 1) * width,
+            y: (Math.random() * 2 - 1) * height,
+            z: Math.random() * width,
+            o: Math.random() * 0.5 + 0.5
+          });
+        }
+      }
+      function tick() {
+        ctx.clearRect(0, 0, width, height);
+        for (let i = 0; i < stars.length; i++) {
+          const s = stars[i];
+          s.z -= SPEED;
+          if (s.z <= 1) {
+            s.x = (Math.random() * 2 - 1) * width;
+            s.y = (Math.random() * 2 - 1) * height;
+            s.z = width;
+            s.o = Math.random() * 0.5 + 0.5;
+          }
+          const k = 128 / s.z;
+          const x = s.x * k + cx;
+          const y = s.y * k + cy;
+          if (x < 0 || x >= width || y < 0 || y >= height) continue;
+          const size = Math.max(0.5, 1 * k);
+          ctx.beginPath();
+          ctx.arc(x, y, size, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(255,255,255,${s.o})`;
+          ctx.fill();
+        }
+        requestAnimationFrame(tick);
+      }
+      window.addEventListener('resize', resize);
+      resize();
+      tick();
+    })();
+
+    // Lock/unlock applications
+    const form = document.getElementById('applicationForm');
+    const closedMessage = document.getElementById('closedMessage');
+    if (!applicationsOpen) {
+      form.style.display = "none";
+      closedMessage.style.display = "block";
+    }
+
+    // Question mapping for nicer embed fields
+    const questionMap = {
+      username: "Discord Username",
+      age: "What is your age?",
+      timezone: "What is your time zone?",
+      interest: "Why are you interested in becoming a moderator?",
+      responsibility: "What is a moderator's responsibility?",
+      unique: "Why should we choose you?",
+      experience: "Do you have previous staff experience?",
+      Q8: "A person posts gore/NSFW in #media. What do you do?",
+      Q9: "Someone bypasses the filter and says the N word. What do you do?",
+      Q10: "Two people are arguing in #general and won’t stop. What do you do?",
+      Q11: "You see another staff member abusing powers. What do you do?",
+      situation1: "You punished the wrong person. What do you do next?",
+      situation2: "A booster/popular member breaks rules and people defend them. How do you handle it?",
+      situation3: "A member argues their punishment is unfair. How do you respond?",
+      bias: "A close friend breaks a rule. What do you do?",
+      harassment: "A user reports DM harassment. What do you do?",
+      raid: "If multiple spammers join at once. What’s your first step/actions?",
+      appeal: "Someone claims their punishment was unfair. What steps do you take?",
+      rules: "Have you read and understood the server rules?"
+    };
+
+    // Submission handler
+    const message = document.getElementById('message');
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      message.textContent = "Submitting...";
+      message.style.color = "white";
+
+      const formData = new FormData(form);
+      const body = {};
+      formData.forEach((value, key) => { body[key] = value });
+
+      try {
+        const res = await fetch("https://discord.com/api/webhooks/1422735604801601648/wLTUtlvHXRVmg18X0pAWiU_T7LcyS_5q3gBSaPfjp4WqhhkQnjK4ILpF7xXnKrTISpwl", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            content: "**New Staff Application Submitted**",
+            embeds: [{
+              title: "Utilix Staff Application",
+              color: 5814783,
+              fields: Object.entries(body).map(([key, value]) => ({
+                name: questionMap[key] || key,
+                value: value || "N/A"
+              }))
+            }]
+          })
+        });
+        if (res.ok) {
+          message.textContent = "✅ Application submitted!";
+          message.style.color = "limegreen";
+          form.reset();
+        } else {
+          message.textContent = "❌ Failed to send.";
+          message.style.color = "red";
+        }
+      } catch (err) {
+        console.error(err);
+        message.textContent = "❌ Network error.";
+        message.style.color = "red";
+      }
+    });
+  </script>
+</body>
+</html>
