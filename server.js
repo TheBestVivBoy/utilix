@@ -108,70 +108,14 @@ app.get("/dashboard", (req, res) => {
                 ? `<img src="https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png" alt="${g.name}" />`
                 : `<div class="server-icon">${g.name[0]}</div>`
             }
-            <div class="server-name">${g.name}</div>
+            <div class="server-name">${g.name.length > 20 ? g.name.slice(0, 20) + "…" : g.name}</div>
           </a>
         </div>`
         )
         .join("")
     : "<p>No servers available</p>";
 
-  res.send(`<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <title>Utilix — Dashboard</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet" />
-  <style>
-    body {
-      font-family: "Inter", sans-serif;
-      background: radial-gradient(circle at 20% 30%, #3b0a5f, #0b0a1e);
-      color: white; margin:0;
-      min-height: 100vh; display:flex; flex-direction:column;
-    }
-    header {
-      position:fixed; top:0; left:0; width:100%; height:72px;
-      display:flex; justify-content:space-between; align-items:center;
-      background:rgba(15,5,35,0.6); padding:1rem 2rem;
-      backdrop-filter:blur(10px); z-index:1000;
-    }
-    .logo { font-weight:800; font-size:1.25rem;
-      background:linear-gradient(90deg,#a64ca6,#6c34cc);
-      -webkit-background-clip:text;-webkit-text-fill-color:transparent;
-    }
-    .auth-wrapper { display:flex; align-items:center; gap:12px; }
-    .auth-wrapper img { border-radius:50%; }
-    .servers {
-      display:grid; grid-template-columns: repeat(auto-fill, minmax(160px,1fr));
-      gap:1rem;
-    }
-    .server { text-align:center; background:rgba(255,255,255,0.05);
-      padding:1rem; border-radius:12px;
-    }
-    .server img, .server-icon {
-      width:80px; height:80px; border-radius:16px; margin-bottom:0.5rem;
-    }
-    .server-icon {
-      background:rgba(255,255,255,0.1); display:flex; align-items:center;
-      justify-content:center; font-weight:bold; font-size:1.5rem;
-    }
-    main { flex:1; padding:100px 20px 40px; max-width:1200px; margin:0 auto; }
-  </style>
-</head>
-<body>
-  <header>
-    <div class="logo">Utilix</div>
-    <div class="auth-wrapper">
-      <img src="https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png" width="32" height="32"/>
-      <span>${user.username}#${user.discriminator}</span>
-      <a href="/logout" style="color:#f55;text-decoration:none">⎋</a>
-    </div>
-  </header>
-  <main>
-    <h2>Your Servers</h2>
-    <div class="servers">${serversHtml}</div>
-  </main>
-</body>
-</html>`);
+  res.send(renderPage(user, "Your Servers", `<div class="servers">${serversHtml}</div>`));
 });
 
 // --- INDIVIDUAL SERVER DASHBOARD ---
@@ -196,18 +140,24 @@ app.get("/dashboard/:id", async (req, res) => {
     const botCheck = await response.json();
 
     if (!hasManageGuild || !botCheck.allowed) {
-      return res.send(`<body style="background:#0b0a1e;color:white;font-family:Inter">
-        <h1>${guild.name} Dashboard</h1>
-        <p>You don’t have permission to manage this server’s bot dashboard.</p>
-        <a href="/dashboard" style="color:#a64ca6">← Back to servers</a>
-      </body>`);
+      return res.send(
+        renderPage(
+          user,
+          `${guild.name} Dashboard`,
+          `<p>You don’t have permission to manage this server’s bot dashboard.</p>
+           <a href="/dashboard" style="color:#a64ca6">← Back to servers</a>`
+        )
+      );
     }
 
-    res.send(`<body style="background:#0b0a1e;color:white;font-family:Inter">
-      <h1>${guild.name} Dashboard</h1>
-      <p>This is a template / to be added soon.</p>
-      <a href="/dashboard" style="color:#a64ca6">← Back to servers</a>
-    </body>`);
+    res.send(
+      renderPage(
+        user,
+        `${guild.name} Dashboard`,
+        `<p>This is a template / to be added soon.</p>
+         <a href="/dashboard" style="color:#a64ca6">← Back to servers</a>`
+      )
+    );
   } catch (err) {
     console.error("Dashboard error:", err);
     res.status(500).send("Error checking permissions");
@@ -233,6 +183,94 @@ app.get("/me", (req, res) => {
     res.json({ loggedIn: false });
   }
 });
+
+// --- HTML PAGE RENDER FUNCTION ---
+function renderPage(user, title, content) {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Utilix — ${title}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet" />
+  <style>
+    body {
+      font-family: "Inter", sans-serif;
+      background: radial-gradient(circle at 20% 30%, #3b0a5f, #0b0a1e);
+      color: white; margin:0;
+      min-height: 100vh; display:flex; flex-direction:column;
+    }
+    header {
+      position:fixed; top:0; left:0; width:100%; height:72px;
+      display:flex; justify-content:space-between; align-items:center;
+      background:rgba(15,5,35,0.6); padding:1rem 2rem;
+      backdrop-filter:blur(10px); z-index:1000;
+    }
+    .logo { font-weight:800; font-size:1.25rem;
+      background:linear-gradient(90deg,#a64ca6,#6c34cc);
+      -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+    }
+    .auth-wrapper { display:flex; align-items:center; gap:12px; }
+    .auth-wrapper img { border-radius:50%; }
+    main { flex:1; padding:100px 20px 40px; max-width:1200px; margin:0 auto; }
+    .servers {
+      display:grid; grid-template-columns: repeat(auto-fill, minmax(160px,1fr));
+      gap:1rem;
+    }
+    .server { text-align:center; background:rgba(255,255,255,0.05);
+      padding:1rem; border-radius:12px;
+    }
+    .server img, .server-icon {
+      width:80px; height:80px; border-radius:16px; margin-bottom:0.5rem;
+    }
+    .server-icon {
+      background:rgba(255,255,255,0.1); display:flex; align-items:center;
+      justify-content:center; font-weight:bold; font-size:1.5rem;
+    }
+    .server-name { font-size:0.9rem; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo">Utilix</div>
+    <div class="auth-wrapper">
+      <img src="https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png" width="32" height="32"/>
+      <span>${user.username}#${user.discriminator}</span>
+      <a href="/logout" style="color:#f55;text-decoration:none">⎋</a>
+    </div>
+  </header>
+  <main>
+    <h2>${title}</h2>
+    ${content}
+  </main>
+  <canvas id="starfield"></canvas>
+  <script>
+    const canvas = document.getElementById('starfield');
+    const ctx = canvas.getContext('2d');
+    let stars = [];
+    function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+    window.addEventListener('resize', resize); resize();
+    function createStars() {
+      stars = [];
+      for(let i=0;i<200;i++){
+        stars.push({x:Math.random()*canvas.width,y:Math.random()*canvas.height,radius:Math.random()*1.5,speed:Math.random()*0.5+0.1,color:\`hsl(\${Math.random()*360},70%,80%)\`});
+      }
+    }
+    function animate() {
+      ctx.fillStyle = 'rgba(11,10,30,0.3)';
+      ctx.fillRect(0,0,canvas.width,canvas.height);
+      stars.forEach(star=>{
+        star.y -= star.speed;
+        if(star.y<0) star.y=canvas.height;
+        ctx.beginPath(); ctx.arc(star.x,star.y,star.radius,0,Math.PI*2);
+        ctx.fillStyle=star.color; ctx.fill();
+      });
+      requestAnimationFrame(animate);
+    }
+    createStars(); animate();
+  </script>
+</body>
+</html>`;
+}
 
 app.listen(PORT, () =>
   console.log(`Server running at http://localhost:${PORT}`)
