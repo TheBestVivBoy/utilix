@@ -75,13 +75,20 @@ app.get("/callback", async (req, res) => {
     if (!Array.isArray(guilds)) guilds = [];
 
     // ---- FILTER SERVERS BOT IS IN ----
-    // Put your bot's guild IDs in .env like: BOT_GUILDS=123,456,789
-    const botGuilds = process.env.BOT_GUILDS
-      ? process.env.BOT_GUILDS.split(",")
-      : [];
-
+    const fs = require("fs");
+    const path = require("path");
+    
+    let botGuilds = [];
+    try {
+      const filePath = path.join(__dirname, "bot_guilds.json"); // adjust path if needed
+      botGuilds = JSON.parse(fs.readFileSync(filePath, "utf8"));
+    } catch (err) {
+      console.error("Could not read bot_guilds.json:", err.message);
+      botGuilds = [];
+    }
+    
     const filteredGuilds =
-      botGuilds.length > 0
+      Array.isArray(botGuilds) && botGuilds.length > 0
         ? guilds.filter((g) => botGuilds.includes(g.id))
         : guilds; // fallback: show all if no list
 
