@@ -110,108 +110,199 @@ app.get("/dashboard", (req, res) => {
   const guilds = Array.isArray(req.session.guilds) ? req.session.guilds : [];
 
   res.send(`
-    <html>
-      <head>
-        <title>Dashboard</title>
-        <style>
-          body {
-            font-family: Arial, sans-serif;
-            background: #0b0a1e;
-            color: white;
-            margin: 0;
-            padding: 0;
-          }
-          header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background: rgba(255,255,255,0.05);
-            padding: 1rem;
-          }
-          .user-info {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-          }
-          .user-info img {
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-          }
-          .logout {
-            color: #a64ca6;
-            text-decoration: none;
-            font-weight: bold;
-          }
-          main {
-            padding: 2rem;
-          }
-          .servers {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 1rem;
-          }
-          .server {
-            width: 100px;
-            text-align: center;
-          }
-          .server-icon {
-            width: 80px;
-            height: 80px;
-            border-radius: 16px;
-            background: rgba(255,255,255,0.1);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            font-size: 1.5rem;
-          }
-          .server img {
-            width: 80px;
-            height: 80px;
-            border-radius: 16px;
-          }
-          .server-name {
-            margin-top: 0.5rem;
-            font-size: 0.9rem;
-          }
-          a { color: white; text-decoration: none; }
-        </style>
-      </head>
-      <body>
-        <header>
-          <div class="user-info">
-            <img src="https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png" />
-            <span>Welcome, ${user.username}#${user.discriminator}</span>
-          </div>
-          <a href="/logout" class="logout">Logout</a>
-        </header>
-        <main>
-          <h2>Your Servers:</h2>
-          <div class="servers">
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Utilix — Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0b0a1e;
+      --fg: #f2f2f7;
+      --accent: #a64ca6;
+      --accent2: #6c34cc;
+      --muted: #c0a0ff;
+      --card: rgba(20, 10, 40, 0.8);
+      --panel: rgba(15, 5, 35, 0.9);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      background: radial-gradient(circle at 20% 30%, #3b0a5f, #0b0a1e);
+      color: var(--fg);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      position: fixed;
+      top: 0; left: 0; width: 100%;
+      z-index: 1100;
+      padding: 1rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      height: 72px;
+      background: rgba(15, 5, 35, 0.6);
+    }
+    .logo {
+      font-weight: 800;
+      font-size: 1.25rem;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .auth-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .auth-wrapper img {
+      border-radius: 50%;
+    }
+    .logout-btn {
+      font-size: 1.2rem;
+      color: #f55;
+      text-decoration: none;
+      margin-left: 8px;
+    }
+    main {
+      flex: 1;
+      padding: 100px 20px 40px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    h2 {
+      margin-bottom: 1rem;
+    }
+    .servers {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 1.5rem;
+    }
+    .server {
+      background: var(--card);
+      border-radius: 14px;
+      padding: 1rem;
+      text-align: center;
+      transition: transform 0.18s ease, box-shadow 0.18s ease;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .server:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 24px rgba(0,0,0,0.6);
+    }
+    .server img, .server-icon {
+      width: 80px;
+      height: 80px;
+      border-radius: 16px;
+      margin-bottom: 0.5rem;
+    }
+    .server-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255,255,255,0.1);
+      font-size: 1.5rem;
+      font-weight: bold;
+    }
+    .server-name {
+      font-size: 0.95rem;
+      color: var(--muted);
+    }
+    a { color: white; text-decoration: none; }
+    canvas#starfield {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo">Utilix</div>
+    <div class="auth-wrapper">
+      <img src="https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png" width="32" height="32" />
+      <span>${user.username}#${user.discriminator}</span>
+      <a href="/logout" class="logout-btn">⎋</a>
+    </div>
+  </header>
+
+  <main>
+    <h2>Your Servers</h2>
+    <div class="servers">
+      ${
+        guilds.length > 0
+          ? guilds
+              .map(
+                (g) => `
+          <a class="server" href="/dashboard/${g.id}">
             ${
-              guilds.length > 0
-                ? guilds
-                    .map(
-                      (g) => `
-                  <div class="server">
-                    <a href="/dashboard/${g.id}">
-                      ${
-                        g.icon
-                          ? `<img src="https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png" alt="${g.name}" />`
-                          : `<div class="server-icon">${g.name[0]}</div>`
-                      }
-                      <div class="server-name">${g.name}</div>
-                    </a>
-                  </div>`
-                    )
-                    .join("")
-                : "<p>No servers available</p>"
+              g.icon
+                ? `<img src="https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png" alt="${g.name}" />`
+                : `<div class="server-icon">${g.name[0]}</div>`
             }
-          </div>
-        </main>
-      </body>
-    </html>
+            <div class="server-name">${g.name}</div>
+          </a>`
+              )
+              .join("")
+          : "<p>No servers available</p>"
+      }
+    </div>
+  </main>
+
+  <canvas id="starfield"></canvas>
+  <script>
+    const canvas = document.getElementById('starfield');
+    const ctx = canvas.getContext('2d');
+    let stars = [];
+
+    function resize() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    function createStars() {
+      stars = [];
+      for(let i=0; i<200; i++) {
+        stars.push({
+          x: Math.random() * canvas.width,
+          y: Math.random() * canvas.height,
+          radius: Math.random() * 1.5,
+          speed: Math.random() * 0.5 + 0.1,
+          color: \`hsl(\${Math.random()*360}, 70%, 80%)\`
+        });
+      }
+    }
+    function animate() {
+      ctx.fillStyle = 'rgba(11, 10, 30, 0.3)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      stars.forEach(star => {
+        star.y -= star.speed;
+        if(star.y < 0) star.y = canvas.height;
+        ctx.beginPath();
+        ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
+        ctx.fillStyle = star.color;
+        ctx.fill();
+      });
+      requestAnimationFrame(animate);
+    }
+    createStars();
+    animate();
+  </script>
+</body>
+</html>
   `);
 });
 
