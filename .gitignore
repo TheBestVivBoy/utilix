@@ -11,8 +11,7 @@ pnpm-debug.log*
 .env
 .env.local
 .env.*.local
-
-
+bot_guilds.json
 # package managers
 package-lock.json
 yarn.lock
