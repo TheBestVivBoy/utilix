@@ -133,7 +133,6 @@ app.get("/dashboard", (req, res) => {
       --card: rgba(20, 10, 40, 0.8);
       --panel: rgba(15, 5, 35, 0.9);
     }
-
     body {
       font-family: "Inter", sans-serif;
       background: radial-gradient(circle at 20% 30%, #3b0a5f, #0b0a1e);
@@ -258,7 +257,7 @@ app.get("/dashboard", (req, res) => {
           y: Math.random() * canvas.height,
           radius: Math.random() * 1.5,
           speed: Math.random() * 0.5 + 0.1,
-          color: \`hsl(\${Math.random()*360}, 70%, 80%)\`
+          color: "hsl(" + (Math.random()*360) + ",70%,80%)"
         });
       }
     }
@@ -316,7 +315,7 @@ app.get("/dashboard/:id", async (req, res) => {
 
     res.send(`<body style="background:#0b0a1e;color:white;font-family:Inter">
       <h1>${guild.name} Dashboard</h1>
-      <p>This page is WIP, Coming soon</p>
+      <p>This is a template / to be added soon.</p>
       <a href="/dashboard" style="color:#a64ca6">← Back to servers</a>
     </body>`);
   } catch (err) {
