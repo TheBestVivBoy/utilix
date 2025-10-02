@@ -20,7 +20,7 @@ app.use(
   })
 );
 
-// Config from env
+// Config
 const CLIENT_ID = process.env.DISCORD_CLIENT_ID || "1392737327125762199";
 const CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET || "";
 const REDIRECT_URI = process.env.DISCORD_REDIRECT_URI || "http://localhost:3000/callback";
@@ -38,41 +38,34 @@ function escapeHtml(str) {
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 }
-
 function firstChar(str) {
   if (!str) return "";
   return String(str).trim().charAt(0).toUpperCase();
 }
-
-// user may have avatar === null
 function discordAvatarUrl(user) {
   if (user && user.avatar) {
     const ext = user.avatar.startsWith("a_") ? "gif" : "png";
     return `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.${ext}`;
   }
-  // default embed avatar index by discriminator
   const disc = user && user.discriminator ? parseInt(user.discriminator, 10) : 0;
   const idx = isNaN(disc) ? 0 : disc % 5;
   return `https://cdn.discordapp.com/embed/avatars/${idx}.png`;
 }
-
 function guildIconUrl(g) {
   if (!g || !g.icon) return null;
   const ext = g.icon.startsWith("a_") ? "gif" : "png";
   return `https://cdn.discordapp.com/icons/${g.id}/${g.icon}.${ext}`;
 }
-
 function truncate(name, max = 20) {
   if (!name) return "";
-  if (name.length <= max) return name;
-  return name.slice(0, max - 1) + "…";
+  return name.length > max ? name.slice(0, max - 1) + "…" : name;
 }
 
 /* -------------------------
    OAuth + Routes
    ------------------------- */
 
-// Login: redirect to Discord
+// Login
 app.get("/login", (req, res) => {
   const authorizeURL = `https://discord.com/oauth2/authorize?client_id=${CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(
     REDIRECT_URI
@@ -80,7 +73,7 @@ app.get("/login", (req, res) => {
   res.redirect(authorizeURL);
 });
 
-// Callback: exchange code for token, fetch user + guilds, filter by bot_guilds.json
+// Callback
 app.get("/callback", async (req, res) => {
   const code = req.query.code;
   if (!code) return res.status(400).send("No code provided");
@@ -119,16 +112,15 @@ app.get("/callback", async (req, res) => {
     let guilds = await guildResponse.json();
     if (!Array.isArray(guilds)) guilds = [];
 
-    // Read bot_guilds.json and coerce values to strings
+    // read bot_guilds.json
     let botGuilds = [];
     try {
-      const filePath = path.join(__dirname, "bot_guilds.json");
-      const raw = fs.readFileSync(filePath, "utf8");
+      const raw = fs.readFileSync(path.join(__dirname, "bot_guilds.json"), "utf8");
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) botGuilds = parsed.map(String);
     } catch (err) {
-      // if file missing or invalid, fallback to show all guilds
-      console.warn("bot_guilds.json not read or invalid, showing all guilds. err:", err.message || err);
+      // fallback show all guilds if file missing/invalid
+      console.warn("bot_guilds.json not found or invalid; showing all guilds.");
       botGuilds = [];
     }
 
@@ -137,7 +129,6 @@ app.get("/callback", async (req, res) => {
         ? guilds.filter((g) => botGuilds.includes(String(g.id)))
         : guilds;
 
-    // Save minimal session info
     req.session.user = userData;
     req.session.guilds = filteredGuilds;
 
@@ -149,7 +140,7 @@ app.get("/callback", async (req, res) => {
 });
 
 /* -------------------------
-   Render helper for full page
+   Page render helper (keeps header/nav/auth + starfield)
    ------------------------- */
 function renderPage(user, title, contentHtml) {
   const avatar = user ? escapeHtml(discordAvatarUrl(user)) : "";
@@ -181,14 +172,31 @@ function renderPage(user, title, contentHtml) {
     .logo{font-weight:800;font-size:1.25rem;background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:-0.02em}
     nav.header-nav ul{display:flex;gap:1.25rem;list-style:none;align-items:center;flex-wrap:wrap;background:rgba(25,5,50,0.3);padding:0.4rem 0.9rem;border-radius:999px;backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.08)}
     nav.header-nav a{position:relative;color:var(--fg);text-decoration:none;font-weight:600;font-size:0.95rem;padding:0.55rem 1.1rem;border-radius:999px;transition:color .25s,background .25s,transform .2s}
-    nav.header-nav a.active{background:linear-gradient(90deg,rgba(166,76,166,0.16),rgba(108,52,204,0.12));color:#fff}
+    /* underline effect requested */
+    nav.header-nav a::after{
+      content:"";
+      position:absolute;
+      left:50%;
+      bottom:6px;
+      transform:translateX(-50%) scaleX(0);
+      transform-origin:center;
+      width:60%;
+      height:2px;
+      background:linear-gradient(90deg,var(--accent),var(--accent2));
+      border-radius:2px;
+      transition:transform .3s ease;
+    }
+    nav.header-nav a:hover{color:var(--accent);transform:translateY(-1px)}
+    nav.header-nav a:hover::after{transform:translateX(-50%) scaleX(1)}
+    nav.header-nav a.active{background:linear-gradient(90deg,rgba(166,76,166,0.16),rgba(108,52,204,0.12));box-shadow:0 0 12px rgba(166,76,166,0.12);color:#fff}
     .discord-btn{background:linear-gradient(90deg,var(--accent),var(--accent2));color:white;font-weight:600;padding:0.6rem 1.2rem;border-radius:999px;text-decoration:none;margin-left:8px}
     .discord-btn:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,0.5)}
     .auth-wrapper{display:flex;align-items:center;gap:12px}
     .auth-wrapper img{border-radius:50%}
     .logout-btn{font-size:1.2rem;color:#f55;text-decoration:none;margin-left:8px}
     .page{flex:1;max-width:1200px;margin:0 auto;padding:96px 20px 56px;position:relative;z-index:10}
-    .servers{display:grid;grid-template-columns:repeat(auto-fit,200px);gap:1.25rem;justify-content:center;justify-items:center}
+    /* Grid: left-to-right filling rows */
+    .servers{display:grid; grid-auto-flow:row; grid-template-columns:repeat(auto-fit,minmax(180px,200px)); gap:1.25rem; justify-content:center; justify-items:center}
     .server{background:var(--card);border-radius:14px;padding:1.1rem;text-align:center;transition:transform .18s ease,box-shadow .18s ease;width:200px}
     .server:hover{transform:translateY(-6px);box-shadow:0 18px 40px rgba(0,0,0,0.6)}
     .server img,.server-icon{width:80px;height:80px;border-radius:16px;margin-bottom:0.5rem}
@@ -201,9 +209,10 @@ function renderPage(user, title, contentHtml) {
 <body>
   <header>
     <div class="logo">Utilix</div>
+
     <nav class="header-nav" aria-label="Primary navigation">
       <ul>
-        <li><a href="/index">Home</a></li>
+        <li><a href="/index" class="active">Home</a></li>
         <li><a href="/setup">Setup</a></li>
         <li><a href="/faq">FAQ</a></li>
         <li><a href="/changelog">Changelog</a></li>
@@ -231,15 +240,14 @@ function renderPage(user, title, contentHtml) {
   </main>
 
   <script>
-    // starfield
     const canvas = document.getElementById('starfield');
     const ctx = canvas.getContext('2d');
     let stars = [];
     function resize(){ canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
     window.addEventListener('resize', resize);
     resize();
-    function createStars(){ stars = []; for(let i=0;i<200;i++){ stars.push({ x: Math.random()*canvas.width, y: Math.random()*canvas.height, radius: Math.random()*1.5, speed: Math.random()*0.5+0.1, color: \`hsl(\${Math.random()*360},70%,80%)\` }); } }
-    function animate(){ ctx.fillStyle = 'rgba(11,10,30,0.3)'; ctx.fillRect(0,0,canvas.width,canvas.height); stars.forEach(s=>{ s.y -= s.speed; if(s.y < 0) s.y = canvas.height; ctx.beginPath(); ctx.arc(s.x,s.y,s.radius,0,Math.PI*2); ctx.fillStyle = s.color; ctx.fill(); }); requestAnimationFrame(animate); }
+    function createStars(){ stars=[]; for(let i=0;i<200;i++){ stars.push({x:Math.random()*canvas.width,y:Math.random()*canvas.height,radius:Math.random()*1.5,speed:Math.random()*0.5+0.1,color:\`hsl(\${Math.random()*360},70%,80%)\`}); } }
+    function animate(){ ctx.fillStyle='rgba(11,10,30,0.3)'; ctx.fillRect(0,0,canvas.width,canvas.height); stars.forEach(s=>{ s.y-=s.speed; if(s.y<0) s.y=canvas.height; ctx.beginPath(); ctx.arc(s.x,s.y,s.radius,0,Math.PI*2); ctx.fillStyle=s.color; ctx.fill(); }); requestAnimationFrame(animate); }
     createStars(); animate();
   </script>
 </body>
@@ -296,7 +304,7 @@ app.get("/dashboard/:id", async (req, res) => {
     const permNum = typeof guild.permissions === "string" ? parseInt(guild.permissions, 10) : guild.permissions;
     const hasManageGuild = (parseInt(permNum || 0, 10) & MANAGE_GUILD) === MANAGE_GUILD;
 
-    // Ask bot API if allowed (your external API)
+    // Ask bot API if allowed
     let botAllowed = false;
     try {
       const response = await fetch("https://api.utilix.support/checkPerms", {
@@ -361,7 +369,6 @@ app.get("/logout", (req, res) => {
 
 app.get("/", (req, res) => {
   if (req.session.user) return res.redirect("/dashboard");
-  // Simple landing: link to login (the full site template lives in your static pages)
   res.send(`<a href="/login">Log in with Discord</a>`);
 });
 
