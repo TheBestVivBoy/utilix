@@ -320,7 +320,15 @@ app.get("/dashboard/:id", async (req, res) => {
       },
       body: JSON.stringify({ guildId })
     });
-    const checkData = await checkRes.json();
+    const text = await checkRes.text();
+    console.log("CheckPerms raw response:", text);
+    let checkData;
+    try {
+      checkData = JSON.parse(text);
+    } catch (err) {
+      console.error("Failed to parse JSON:", err);
+      return res.status(500).send("API returned invalid JSON");
+    }
     if (!hasManageGuild || !checkData.allowed) {
       return res.send(
         renderLayout(
