@@ -194,12 +194,12 @@ function renderLayout(user, content) {
     .logout-btn { font-size:1.2rem; color:#f55; text-decoration:none; margin-left:8px; }
     .page { flex:1; max-width:1200px; margin:0 auto; padding:96px 20px 56px; }
     .servers {
-      display:grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-      gap:1rem; margin-top:1rem; text-align:center; justify-items:start;
+      display:grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap:1rem; margin-top:1rem;
     }
     .server {
       background:rgba(255,255,255,0.05);
-      padding:1rem; border-radius:12px;
+      padding:1rem; border-radius:12px; text-align:center;
       transition:transform 0.2s ease;
     }
     .server:hover { transform:translateY(-4px); }
