@@ -321,7 +321,6 @@ app.get("/dashboard/:id", async (req, res) => {
       body: JSON.stringify({ guildId })
     });
     const checkData = await checkRes.json();
-
     if (!hasManageGuild || !checkData.allowed) {
       return res.send(
         renderLayout(
