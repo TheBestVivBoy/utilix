@@ -61,9 +61,10 @@ app.get("/callback", async (req, res) => {
     });
     const userData = await userResponse.json();
 
-    const guildResponse = await fetch("https://discord.com/api/users/@me/guilds", {
-      headers: { Authorization: `Bearer ${tokenData.access_token}` },
-    });
+    const guildResponse = await fetch(
+      "https://discord.com/api/users/@me/guilds",
+      { headers: { Authorization: `Bearer ${tokenData.access_token}` } }
+    );
     let guilds = await guildResponse.json();
     if (!Array.isArray(guilds)) guilds = [];
 
@@ -90,34 +91,29 @@ app.get("/callback", async (req, res) => {
   }
 });
 
-// --- DASHBOARD ROUTE ---
-app.get("/dashboard", (req, res) => {
-  if (!req.session.user) return res.redirect("/login");
-
-  const user = req.session.user;
-  const guilds = Array.isArray(req.session.guilds) ? req.session.guilds : [];
-
+// --- RENDER PAGE HELPER ---
+function renderPage(user, guilds) {
   const serversHtml = guilds.length
     ? guilds
         .map((g) => {
-          const displayName =
-            g.name.length > 20 ? g.name.substring(0, 20) + "..." : g.name;
+          const name =
+            g.name.length > 20 ? g.name.substring(0, 20) + "…" : g.name;
           return `
         <div class="server">
           <a href="/dashboard/${g.id}">
             ${
               g.icon
-                ? `<img src="https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png" alt="${displayName}" />`
-                : `<div class="server-icon">${g.name[0]}</div>`
+                ? `<img src="https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png" alt="${name}" />`
+                : `<div class="server-icon">${name[0]}</div>`
             }
-            <div class="server-name">${displayName}</div>
+            <div class="server-name">${name}</div>
           </a>
         </div>`;
         })
         .join("")
     : "<p>No servers available</p>";
 
-  res.send(`<!DOCTYPE html>
+  return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
@@ -133,83 +129,92 @@ app.get("/dashboard", (req, res) => {
       --card: rgba(20, 10, 40, 0.8);
       --panel: rgba(15, 5, 35, 0.9);
     }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: "Inter", sans-serif;
       background: radial-gradient(circle at 20% 30%, #3b0a5f, #0b0a1e);
-      color: white; margin:0;
-      min-height: 100vh; display:flex; flex-direction:column;
+      color: var(--fg);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
     }
     header {
-      position:fixed; top:0; left:0; width:100%; height:72px;
-      display:flex; justify-content:space-between; align-items:center;
-      background:rgba(15,5,35,0.6); padding:1rem 2rem;
-      backdrop-filter:blur(10px); z-index:1000;
-      border-bottom: 1px solid rgba(255,255,255,0.05);
+      position: fixed; top: 0; left: 0; width: 100%; height: 72px;
+      display: flex; justify-content: space-between; align-items: center;
+      background: rgba(15,5,35,0.6);
+      padding: 1rem 2rem;
+      backdrop-filter: blur(10px); z-index: 1000;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
     }
-    .logo { font-weight:800; font-size:1.25rem;
-      background:linear-gradient(90deg,#a64ca6,#6c34cc);
-      -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+    .logo {
+      font-weight: 800; font-size: 1.25rem;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
     }
     nav.header-nav ul {
-      display:flex; gap:1.25rem; list-style:none; align-items:center;
-      background:rgba(25,5,50,0.3);
-      padding:0.4rem 0.9rem; border-radius:999px;
-      backdrop-filter:blur(12px);
-      border:1px solid rgba(255,255,255,0.08);
+      display: flex; gap: 1.25rem; list-style: none; align-items: center;
+      flex-wrap: wrap;
+      background: rgba(25, 5, 50, 0.3);
+      padding: 0.4rem 0.9rem;
+      border-radius: 999px;
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
     }
     nav.header-nav a {
-      position:relative; color:var(--fg); text-decoration:none;
-      font-weight:600; font-size:0.95rem;
-      padding:0.55rem 1.1rem; border-radius:999px;
+      position: relative; color: var(--fg); text-decoration: none;
+      font-weight: 600; font-size: 0.95rem;
+      padding: 0.55rem 1.1rem; border-radius: 999px;
       transition: color 0.25s ease, background 0.25s ease, transform 0.2s ease;
     }
     nav.header-nav a::after {
-      content:""; position:absolute; left:50%; bottom:6px;
-      transform:translateX(-50%) scaleX(0);
-      transform-origin:center;
-      width:60%; height:2px;
-      background:linear-gradient(90deg,var(--accent),var(--accent2));
-      border-radius:2px;
-      transition:transform 0.3s ease;
+      content: "";
+      position: absolute;
+      left: 50%; bottom: 6px;
+      transform: translateX(-50%) scaleX(0);
+      transform-origin: center;
+      width: 60%; height: 2px;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      border-radius: 2px;
+      transition: transform 0.3s ease;
     }
-    nav.header-nav a:hover { color:var(--accent); transform:translateY(-1px); }
-    nav.header-nav a:hover::after { transform:translateX(-50%) scaleX(1); }
-    nav.header-nav a.active {
-      background:linear-gradient(90deg,rgba(166,76,166,0.16),rgba(108,52,204,0.12));
-      box-shadow:0 0 12px rgba(166,76,166,0.12); color:white;
+    nav.header-nav a:hover {
+      color: var(--accent);
+      transform: translateY(-1px);
+    }
+    nav.header-nav a:hover::after {
+      transform: translateX(-50%) scaleX(1);
     }
     .auth-wrapper { display:flex; align-items:center; gap:12px; }
     .auth-wrapper img { border-radius:50%; }
-    main { flex:1; padding:100px 20px 40px; max-width:1200px; margin:0 auto; }
     .servers {
-      display:grid;
-      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-      gap:1.25rem;
-      margin-top: 2rem;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 1.25rem;
+      justify-items: start;
     }
-    .server { text-align:center; background:rgba(255,255,255,0.05);
-      padding:1rem; border-radius:12px;
+    .server {
+      background: var(--card);
+      border-radius: 14px;
+      padding: 1.1rem;
+      text-align: center;
+      transition: transform .18s ease, box-shadow .18s ease;
+      width: 100%;
+      max-width: 200px;
     }
     .server img, .server-icon {
-      width:80px; height:80px; border-radius:16px; margin-bottom:0.5rem;
+      width: 80px; height: 80px;
+      border-radius: 16px; margin-bottom: 0.5rem;
     }
     .server-icon {
-      background:rgba(255,255,255,0.1); display:flex; align-items:center;
-      justify-content:center; font-weight:bold; font-size:1.5rem;
+      background: rgba(255,255,255,0.1);
+      display: flex; align-items: center; justify-content: center;
+      font-weight: bold; font-size: 1.5rem;
     }
     .server-name {
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      max-width: 140px;
-      margin: 0 auto;
+      font-size: 0.9rem;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
-    canvas#starfield {
-      position: fixed;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
-      z-index: 0; pointer-events: none;
-    }
+    main { flex:1; padding: 100px 20px 40px; max-width:1200px; margin:0 auto; }
   </style>
 </head>
 <body>
@@ -229,59 +234,20 @@ app.get("/dashboard", (req, res) => {
       <a href="/logout" style="color:#f55;text-decoration:none">⎋</a>
     </div>
   </header>
-
-  <canvas id="starfield"></canvas>
-
   <main>
     <h2>Your Servers</h2>
     <div class="servers">${serversHtml}</div>
   </main>
-
-  <script>
-    const canvas = document.getElementById('starfield');
-    const ctx = canvas.getContext('2d');
-    let stars = [];
-
-    function resize() {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-    }
-    window.addEventListener('resize', resize);
-    resize();
-
-    function createStars() {
-      stars = [];
-      for(let i=0; i<200; i++) {
-        stars.push({
-          x: Math.random() * canvas.width,
-          y: Math.random() * canvas.height,
-          radius: Math.random() * 1.5,
-          speed: Math.random() * 0.5 + 0.1,
-          color: "hsl(" + (Math.random()*360) + ",70%,80%)"
-        });
-      }
-    }
-
-    function animate() {
-      ctx.fillStyle = 'rgba(11, 10, 30, 0.3)';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      stars.forEach(star => {
-        star.y -= star.speed;
-        if(star.y < 0) star.y = canvas.height;
-        ctx.beginPath();
-        ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
-        ctx.fillStyle = star.color;
-        ctx.fill();
-      });
-      requestAnimationFrame(animate);
-    }
-
-    createStars();
-    animate();
-  </script>
 </body>
-</html>`);
+</html>`;
+}
+
+// --- DASHBOARD ROUTE ---
+app.get("/dashboard", (req, res) => {
+  if (!req.session.user) return res.redirect("/login");
+  const user = req.session.user;
+  const guilds = Array.isArray(req.session.guilds) ? req.session.guilds : [];
+  res.send(renderPage(user, guilds));
 });
 
 // --- INDIVIDUAL SERVER DASHBOARD ---
@@ -345,5 +311,5 @@ app.get("/me", (req, res) => {
 });
 
 app.listen(PORT, () =>
-  console.log(\`Server running at http://localhost:\${PORT}\`)
+  console.log(`Server running at http://localhost:${PORT}`)
 );
