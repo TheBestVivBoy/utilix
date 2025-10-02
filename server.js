@@ -53,6 +53,8 @@ app.get("/login", (req, res) => {
   res.redirect(authorizeURL);
 });
 
+const jwt = require("jsonwebtoken");
+
 // --- CALLBACK ROUTE ---
 app.get("/callback", async (req, res) => {
   const code = req.query.code;
@@ -105,8 +107,17 @@ app.get("/callback", async (req, res) => {
         ? guilds.filter((g) => botGuilds.includes(g.id))
         : guilds;
 
+    // Save Discord info in session
     req.session.user = userData;
     req.session.guilds = filteredGuilds;
+
+    // 🔑 Mint JWT for API calls
+    const jwtToken = jwt.sign(
+      { sub: userData.id },                       // store Discord user ID
+      process.env.JWT_SECRET || "fallback-secret",// use a strong secret!
+      { expiresIn: "1h" }                         // valid for 1 hour
+    );
+    req.session.jwt = jwtToken;
 
     res.redirect("/dashboard");
   } catch (err) {
@@ -114,7 +125,6 @@ app.get("/callback", async (req, res) => {
     res.status(500).send("Internal Server Error");
   }
 });
-
 // --- LAYOUT RENDER ---
 function renderLayout(user, content) {
   return `<!DOCTYPE html>
@@ -299,8 +309,11 @@ app.get("/dashboard/:id", async (req, res) => {
 
     const response = await fetch("https://api.utilix.support/checkPerms", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId: user.id, guildId: guild.id }),
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${req.session.jwt}`
+      },
+      body: JSON.stringify({ guildId: guild.id }),
     });
     const botCheck = await response.json();
 
