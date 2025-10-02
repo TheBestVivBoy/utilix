@@ -184,13 +184,12 @@ app.get("/dashboard", (req, res) => {
     main { flex:1; padding:100px 20px 40px; max-width:1200px; margin:0 auto; }
     .servers {
       display:grid;
-      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
       gap:1.25rem;
-      justify-items:center;
+      margin-top: 2rem;
     }
     .server { text-align:center; background:rgba(255,255,255,0.05);
       padding:1rem; border-radius:12px;
-      width:160px;
     }
     .server img, .server-icon {
       width:80px; height:80px; border-radius:16px; margin-bottom:0.5rem;
@@ -205,6 +204,12 @@ app.get("/dashboard", (req, res) => {
       text-overflow: ellipsis;
       max-width: 140px;
       margin: 0 auto;
+    }
+    canvas#starfield {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      z-index: 0; pointer-events: none;
     }
   </style>
 </head>
@@ -225,10 +230,57 @@ app.get("/dashboard", (req, res) => {
       <a href="/logout" style="color:#f55;text-decoration:none">⎋</a>
     </div>
   </header>
+
+  <canvas id="starfield"></canvas>
+
   <main>
     <h2>Your Servers</h2>
     <div class="servers">${serversHtml}</div>
   </main>
+
+  <script>
+    const canvas = document.getElementById('starfield');
+    const ctx = canvas.getContext('2d');
+    let stars = [];
+
+    function resize() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    function createStars() {
+      stars = [];
+      for(let i=0; i<200; i++) {
+        stars.push({
+          x: Math.random() * canvas.width,
+          y: Math.random() * canvas.height,
+          radius: Math.random() * 1.5,
+          speed: Math.random() * 0.5 + 0.1,
+          color: \`hsl(\${Math.random()*360}, 70%, 80%)\`
+        });
+      }
+    }
+
+    function animate() {
+      ctx.fillStyle = 'rgba(11, 10, 30, 0.3)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      stars.forEach(star => {
+        star.y -= star.speed;
+        if(star.y < 0) star.y = canvas.height;
+        ctx.beginPath();
+        ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
+        ctx.fillStyle = star.color;
+        ctx.fill();
+      });
+      requestAnimationFrame(animate);
+    }
+
+    createStars();
+    animate();
+  </script>
 </body>
 </html>`);
 });
@@ -264,7 +316,7 @@ app.get("/dashboard/:id", async (req, res) => {
 
     res.send(`<body style="background:#0b0a1e;color:white;font-family:Inter">
       <h1>${guild.name} Dashboard</h1>
-      <p>This is a template / to be added soon.</p>
+      <p>This page is WIP, Coming soon</p>
       <a href="/dashboard" style="color:#a64ca6">← Back to servers</a>
     </body>`);
   } catch (err) {
@@ -294,5 +346,5 @@ app.get("/me", (req, res) => {
 });
 
 app.listen(PORT, () =>
-  console.log(`Server running at http://localhost:${PORT}`)
+  console.log(\`Server running at http://localhost:\${PORT}\`)
 );
