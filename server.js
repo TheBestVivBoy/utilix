@@ -294,24 +294,26 @@ app.get("/dashboard", (req, res) => {
   res.send(renderLayout(user, `<h2>Your Servers</h2><div class="servers">${serversHtml}</div>`));
 });
 
+
 // --- INDIVIDUAL SERVER DASHBOARD ---
 app.get("/dashboard/:id", async (req, res) => {
   if (!req.session.user) return res.redirect("/login");
+
   const guildId = req.params.id;
   const user = req.session.user;
   const guild = (req.session.guilds || []).find((g) => g.id === guildId);
+
   if (!guild) {
-    return res.send(
-      renderLayout(user, "<p>You don’t have access to this server.</p>")
-    );
+    console.error(`[DASHBOARD] Guild ${guildId} not found in session for user ${user.id}`);
+    return res.send(renderLayout(user, "<p>You don’t have access to this server.</p>"));
   }
 
   try {
     const MANAGE_GUILD = 0x20;
-    const hasManageGuild =
-      (parseInt(guild.permissions) & MANAGE_GUILD) === MANAGE_GUILD;
+    const hasManageGuild = (parseInt(guild.permissions) & MANAGE_GUILD) === MANAGE_GUILD;
 
     // --- Step 1: Permission check ---
+    console.log(`[DASHBOARD] Checking perms for guild ${guildId}, user ${user.id}`);
     const checkRes = await fetch("https://api.utilix.support/checkPerms", {
       method: "POST",
       headers: {
@@ -320,16 +322,20 @@ app.get("/dashboard/:id", async (req, res) => {
       },
       body: JSON.stringify({ guildId })
     });
-    const text = await checkRes.text();
-    console.log("CheckPerms raw response:", text);
+
+    const checkText = await checkRes.text();
+    console.log(`[DASHBOARD] /checkPerms raw response for guild ${guildId}:`, checkText);
+
     let checkData;
     try {
-      checkData = JSON.parse(text);
+      checkData = JSON.parse(checkText);
     } catch (err) {
-      console.error("Failed to parse JSON:", err);
-      return res.status(500).send("API returned invalid JSON");
+      console.error(`[DASHBOARD] Failed to parse /checkPerms JSON:`, err);
+      return res.status(500).send("API returned invalid JSON for checkPerms");
     }
+
     if (!hasManageGuild || !checkData.allowed) {
+      console.warn(`[DASHBOARD] User ${user.id} missing perms in guild ${guildId}`);
       return res.send(
         renderLayout(
           user,
@@ -341,14 +347,37 @@ app.get("/dashboard/:id", async (req, res) => {
     }
 
     // --- Step 2: Fetch dashboard config ---
+    console.log(`[DASHBOARD] Fetching config for guild ${guildId}, user ${user.id}`);
     const dashRes = await fetch(`https://api.utilix.support/dashboard/${guildId}`, {
       method: "GET",
-      headers: {
-        "Authorization": `Bearer ${req.session.jwt}`
-      }
+      headers: { "Authorization": `Bearer ${req.session.jwt}` }
     });
-    const dashData = await dashRes.json();
 
+    const dashText = await dashRes.text();
+    console.log(`[DASHBOARD] /dashboard raw response for guild ${guildId}:`, dashText);
+
+    let dashData;
+    try {
+      dashData = JSON.parse(dashText);
+    } catch (err) {
+      console.error(`[DASHBOARD] Failed to parse /dashboard JSON:`, err);
+      return res.status(500).send("API returned invalid JSON for dashboard");
+    }
+
+    if (!dashData.allowed) {
+      console.warn(`[DASHBOARD] Dashboard denied for user ${user.id} in guild ${guildId}: ${dashData.error}`);
+      return res.send(
+        renderLayout(
+          user,
+          `<h1>${escapeHtml(guild.name)} Dashboard</h1>
+           <p>Access denied: ${escapeHtml(dashData.error || "Unknown error")}</p>
+           <a href="/dashboard" style="color:#a64ca6">← Back to servers</a>`
+        )
+      );
+    }
+
+    // --- Success ---
+    console.log(`[DASHBOARD] Successfully loaded config for guild ${guildId}`);
     res.send(
       renderLayout(
         user,
@@ -357,8 +386,9 @@ app.get("/dashboard/:id", async (req, res) => {
          <a href="/dashboard" style="color:#a64ca6">← Back to servers</a>`
       )
     );
+
   } catch (err) {
-    console.error("Dashboard error:", err);
+    console.error(`[DASHBOARD] Fatal error for guild ${guildId}:`, err);
     res.status(500).send("Error checking permissions");
   }
 });
