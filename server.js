@@ -300,22 +300,29 @@ app.get("/dashboard/:id", async (req, res) => {
   const guildId = req.params.id;
   const user = req.session.user;
   const guild = (req.session.guilds || []).find((g) => g.id === guildId);
-  if (!guild) return res.send(renderLayout(user, "<p>You don’t have access to this server.</p>"));
+  if (!guild) {
+    return res.send(
+      renderLayout(user, "<p>You don’t have access to this server.</p>")
+    );
+  }
 
   try {
     const MANAGE_GUILD = 0x20;
     const hasManageGuild =
       (parseInt(guild.permissions) & MANAGE_GUILD) === MANAGE_GUILD;
-    
-    const response = await fetch(`https://api.utilix.support/dashboard/${guild.id}`, {
-      method: "GET",
-      headers: {
-        "Authorization": `Bearer ${req.session.jwt}`
-      }
-    });
-    const botCheck = await response.json();
 
-    if (!hasManageGuild || !botCheck.allowed) {
+    // --- Step 1: Permission check ---
+    const checkRes = await fetch("https://api.utilix.support/checkPerms", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${req.session.jwt}`
+      },
+      body: JSON.stringify({ guildId })
+    });
+    const checkData = await checkRes.json();
+
+    if (!hasManageGuild || !checkData.allowed) {
       return res.send(
         renderLayout(
           user,
@@ -326,11 +333,20 @@ app.get("/dashboard/:id", async (req, res) => {
       );
     }
 
+    // --- Step 2: Fetch dashboard config ---
+    const dashRes = await fetch(`https://api.utilix.support/dashboard/${guildId}`, {
+      method: "GET",
+      headers: {
+        "Authorization": `Bearer ${req.session.jwt}`
+      }
+    });
+    const dashData = await dashRes.json();
+
     res.send(
       renderLayout(
         user,
         `<h1>${escapeHtml(guild.name)} Dashboard</h1>
-         <p>This is a placeholder dashboard template.</p>
+         <pre>${escapeHtml(JSON.stringify(dashData.config, null, 2))}</pre>
          <a href="/dashboard" style="color:#a64ca6">← Back to servers</a>`
       )
     );
