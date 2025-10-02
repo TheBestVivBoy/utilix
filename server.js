@@ -192,7 +192,11 @@ function renderLayout(user, content) {
     }
     .discord-btn:hover { transform:translateY(-2px); box-shadow:0 6px 18px rgba(0,0,0,0.5); }
     .logout-btn { font-size:1.2rem; color:#f55; text-decoration:none; margin-left:8px; }
-    .page { flex:1; max-width:1200px; margin:0 auto; padding:96px 20px 56px; }
+    .page {
+      flex:1; max-width:1200px; margin:0 auto;
+      padding:96px 20px 56px;
+      position:relative; z-index:1; /* ✅ ensures servers show above canvas */
+    }
     .servers {
       display:grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
       gap:1rem; margin-top:1rem;
