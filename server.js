@@ -306,14 +306,12 @@ app.get("/dashboard/:id", async (req, res) => {
     const MANAGE_GUILD = 0x20;
     const hasManageGuild =
       (parseInt(guild.permissions) & MANAGE_GUILD) === MANAGE_GUILD;
-
-    const response = await fetch("https://api.utilix.support/checkPerms", {
-      method: "POST",
+    
+    const response = await fetch(`https://api.utilix.support/dashboard/${guild.id}`, {
+      method: "GET",
       headers: {
-        "Content-Type": "application/json",
         "Authorization": `Bearer ${req.session.jwt}`
-      },
-      body: JSON.stringify({ guildId: guild.id }),
+      }
     });
     const botCheck = await response.json();
 
