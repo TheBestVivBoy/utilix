@@ -592,10 +592,11 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!value && formData.getAll('value[]').length > 0) {
         value = formData.getAll('value[]').join(',');
       }
-      const guildId = form.closest('main').dataset.guildId;
+      const guildId = form.closest('main').dataset.guildId || '';
+      console.log('Submitting config:', { guildId, key, value }); // Debugging
       if (!guildId) {
         const popup = document.getElementById('popup');
-        popup.textContent = 'Error occurred';
+        popup.textContent = 'Error: No guild ID';
         popup.classList.add('show');
         popup.style.color = '#f55';
         setTimeout(() => {
@@ -610,6 +611,7 @@ document.addEventListener('DOMContentLoaded', () => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ key, value })
         });
+        console.log('Fetch response:', res.status); // Debugging
         const popup = document.getElementById('popup');
         if (res.ok) {
           popup.textContent = 'Saved changes';
@@ -625,6 +627,7 @@ document.addEventListener('DOMContentLoaded', () => {
           }, 2000);
         }
       } catch (err) {
+        console.error('Fetch error:', err); // Debugging
         const popup = document.getElementById('popup');
         popup.textContent = 'Error occurred';
         popup.classList.add('show');
