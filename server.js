@@ -3,7 +3,6 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const session = require("express-session");
 const path = require("path");
-const fs = require("fs");
 const jwtLib = require("jsonwebtoken");
 
 // node-fetch wrapper for CommonJS dynamic import
@@ -178,22 +177,22 @@ function renderConfigSections(guildId, config, roles, channels) {
 
 function renderConfigItem(guildId, key, value, roles, channels) {
   const isMulti = multiKeys.includes(key);
-  const values = isMulti && typeof value === "string" ? value.split(",") : [value];
+  const values = isMulti && typeof value === "string" ? value.split(",").filter(v => v) : [value];
   const pretty = getPrettyName(key);
-  const roleData = JSON.stringify((roles.roles || []).map(r => ({ id: r.id, name: r.name })));
+  const roleData = JSON.stringify((roles.roles || []).map(r => ({ id: r.id, name: r.name || '' })));
 
   let inputHtml = "";
   if (isRoleKey(key) && isMulti) {
     inputHtml = `
       <div class="tag-input-wrapper" style="flex:1;">
-        <div class="tags" data-key="${escapeHtml(key)}" style="display:flex;gap:0.5rem;flex-wrap:wrap;padding:0.5rem;border:1px solid rgba(255,255,255,0.1);border-radius:4px;background:var(--panel);">
+        <div class="tags" data-key="${escapeHtml(key)}" style="display:flex;gap:0.5rem;flex-wrap:wrap;padding:0.5rem;border:1px solid rgba(255,255,255,0.1);border-radius:4px;background:var(--panel);min-height:2.5rem;">
           ${values.filter(v => v).map(v => {
             const role = (roles.roles || []).find(r => r.id === v);
             return role ? `<span class="tag" data-id="${escapeHtml(v)}">${escapeHtml(role.name)} <button type="button" class="remove-tag" style="margin-left:0.3rem;color:#f55;border:none;background:none;cursor:pointer;">x</button></span>` : "";
           }).join("")}
         </div>
         <input type="text" class="tag-input" placeholder="Type role name..." style="width:100%;padding:0.5rem;border:none;border-top:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);">
-        <div class="dropdown" style="display:none;position:absolute;background:var(--panel);border:1px solid rgba(255,255,255,0.1);border-radius:4px;max-height:150px;overflow-y:auto;width:100%;">
+        <div class="dropdown" style="display:none;position:absolute;background:var(--panel);border:1px solid rgba(255,255,255,0.1);border-radius:4px;max-height:150px;overflow-y:auto;width:100%;z-index:1000;">
           <div class="dropdown-options"></div>
         </div>
         <input type="hidden" name="value" value="${escapeHtml(values.join(","))}">
@@ -203,7 +202,7 @@ function renderConfigItem(guildId, key, value, roles, channels) {
     inputHtml += `<option value="">None</option>`;
     (roles.roles || []).forEach((r) => {
       const selected = r.id === value ? "selected" : "";
-      inputHtml += `<option value="${escapeHtml(r.id)}" ${selected}>${escapeHtml(r.name)}</option>`;
+      inputHtml += `<option value="${escapeHtml(r.id)}" ${selected}>${escapeHtml(r.name || '')}</option>`;
     });
     inputHtml += `</select>`;
   } else if (isChannelKey(key)) {
@@ -211,7 +210,7 @@ function renderConfigItem(guildId, key, value, roles, channels) {
     inputHtml += `<option value="">None</option>`;
     (channels.channels || []).forEach((c) => {
       const selected = key === "greeting_channel_id" ? values.includes(c.id) ? "selected" : "" : c.id === value ? "selected" : "";
-      inputHtml += `<option value="${escapeHtml(c.id)}" ${selected}>${escapeHtml(c.name)} (${escapeHtml(c.type)})</option>`;
+      inputHtml += `<option value="${escapeHtml(c.id)}" ${selected}>${escapeHtml(c.name || '')} (${escapeHtml(c.type || '')})</option>`;
     });
     inputHtml += `</select>`;
   } else if (key === "log_events") {
@@ -240,7 +239,7 @@ function renderConfigItem(guildId, key, value, roles, channels) {
     inputHtml = `<input type="text" name="value" value="${escapeHtml(value || "")}" style="flex:1;padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);">`;
   }
 
-  let html = `<div class="config-item" style="display:flex;align-items:center;gap:0.5rem;justify-content:space-between;" data-key="${escapeHtml(key)}" data-roles='${roleData}'>`;
+  let html = `<div class="config-item" style="display:flex;align-items:center;gap:0.5rem;justify-content:space-between;" data-key="${escapeHtml(key)}" data-roles='${escapeHtml(roleData)}'>`;
   html += `<label style="font-weight:600;min-width:150px;">${escapeHtml(pretty)}</label>`;
   html += `<form class="config-form" style="display:flex;gap:0.5rem;flex:1;">`;
   html += `<input type="hidden" name="key" value="${escapeHtml(key)}">`;
@@ -257,7 +256,7 @@ function renderShopSection(guildId, shop, roles) {
   html += `<form action="/dashboard/${guildId}/shop" method="POST" style="display:grid;gap:0.5rem;margin-bottom:1rem;">`;
   html += `<label>Role:</label><select name="role_id" required style="padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);">`;
   (roles.roles || []).forEach((r) => {
-    html += `<option value="${escapeHtml(r.id)}">${escapeHtml(r.name)}</option>`;
+    html += `<option value="${escapeHtml(r.id)}">${escapeHtml(r.name || '')}</option>`;
   });
   html += `</select>`;
   html += `<label>Name:</label><input name="name" required style="padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);">`;
@@ -272,10 +271,10 @@ function renderShopSection(guildId, shop, roles) {
     html += '<tbody>';
     shop.items.forEach((item) => {
       const role = (roles.roles || []).find((r) => r.id == item.role_id) || { name: 'Unknown' };
-      html += `<tr><td>${escapeHtml(item.name)}</td><td>${escapeHtml(role.name)}</td><td>${escapeHtml(item.price)}</td><td>${item.active ? 'Yes' : 'No'}</td><td style="display:flex;gap:0.5rem;">`;
+      html += `<tr><td>${escapeHtml(item.name || '')}</td><td>${escapeHtml(role.name)}</td><td>${escapeHtml(item.price || '')}</td><td>${item.active ? 'Yes' : 'No'}</td><td style="display:flex;gap:0.5rem;">`;
       html += `<form action="/dashboard/${guildId}/shop/${item.id}/update" method="POST" style="display:flex;gap:0.5rem;">`;
-      html += `<input name="name" value="${escapeHtml(item.name)}" style="padding:0.3rem;width:100px;">`;
-      html += `<input name="price" value="${escapeHtml(item.price)}" type="number" style="padding:0.3rem;width:80px;">`;
+      html += `<input name="name" value="${escapeHtml(item.name || '')}" style="padding:0.3rem;width:100px;">`;
+      html += `<input name="price" value="${escapeHtml(item.price || '')}" type="number" style="padding:0.3rem;width:80px;">`;
       html += `<button type="submit" style="padding:0.3rem 0.6rem;background:var(--accent);color:white;border:none;border-radius:4px;cursor:pointer;">Update</button>`;
       html += `</form>`;
       html += `<form action="/dashboard/${guildId}/shop/${item.id}/toggle" method="POST"><button type="submit" style="padding:0.3rem 0.6rem;background:#6c34cc;color:white;border:none;border-radius:4px;cursor:pointer;">Toggle</button></form>`;
@@ -311,7 +310,7 @@ function renderMemberSearchSection(guildId, member = null) {
 
 function renderLayout(user, contentHtml) {
   const av = escapeHtml(avatarUrl(user || {}));
-  const userDisplay = user ? `${escapeHtml(user.username)}#${escapeHtml(user.discriminator)}` : "";
+  const userDisplay = user ? `${escapeHtml(user.username || '')}#${escapeHtml(user.discriminator || '')}` : "";
   const addBotUrl = `https://discord.com/oauth2/authorize?client_id=${encodeURIComponent(
     CLIENT_ID || ""
   )}&permissions=8&scope=bot%20applications.commands`;
@@ -441,19 +440,29 @@ canvas#starfield{ width:100%; height:100%; display:block; }
     </div>
   </header>
   <div class="canvas-wrap"><canvas id="starfield"></canvas></div>
-  <main class="page">
+  <main class="page" data-guild-id="${contentHtml.includes('No access') || contentHtml.includes('Error') ? '' : contentHtml.match(/\/dashboard\/(\d+)/)?.[1] || ''}">
     ${contentHtml}
   </main>
 <script>
+/* client-side escapeHtml */
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 /* starfield animation */
 const canvas = document.getElementById('starfield');
 const ctx = canvas.getContext('2d');
-function resizeCanvas(){ canvas.width = innerWidth; canvas.height = innerHeight; }
+function resizeCanvas(){ canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
 window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
 let stars = [];
-function createStars(){ stars=[]; for(let i=0;i<200;i++){ stars.push({x:Math.random()*canvas.width,y:Math.random()*canvas.height,r:Math.random()*1.5,s:Math.random()*0.5+0.1,c:'hsl('+Math.random()*360+',70%,80%)'});} }
-function animate(){ ctx.fillStyle='rgba(11,10,30,0.3)'; ctx.fillRect(0,0,canvas.width,canvas.height); for(const s of stars){ s.y-=s.s; if(s.y<0) s.y=canvas.height; ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,Math.PI*2); ctx.fillStyle=s.c; ctx.fill(); } requestAnimationFrame(animate); }
+function createStars(){ stars = []; for(let i = 0; i < 200; i++){ stars.push({x: Math.random() * canvas.width, y: Math.random() * canvas.height, r: Math.random() * 1.5, s: Math.random() * 0.5 + 0.1, c: 'hsl(' + Math.random() * 360 + ',70%,80%)'}); } }
+function animate(){ ctx.fillStyle = 'rgba(11,10,30,0.3)'; ctx.fillRect(0,0,canvas.width,canvas.height); for(const s of stars){ s.y -= s.s; if(s.y < 0) s.y = canvas.height; ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2); ctx.fillStyle = s.c; ctx.fill(); } requestAnimationFrame(animate); }
 createStars(); animate();
 
 /* Tag input handling for roles */
@@ -464,8 +473,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const dropdown = wrapper.querySelector('.dropdown');
     const dropdownOptions = dropdown.querySelector('.dropdown-options');
     const hiddenInput = wrapper.querySelector('input[name="value"]');
-    const roles = JSON.parse(wrapper.closest('.config-item').dataset.roles || '[]');
-    
+    let roles = [];
+    try {
+      roles = JSON.parse(wrapper.closest('.config-item').dataset.roles || '[]');
+    } catch (e) {
+      console.error('Failed to parse roles:', e);
+    }
+
     input.addEventListener('input', () => {
       const query = input.value.toLowerCase();
       if (query.length < 1) {
@@ -473,34 +487,34 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
       const filtered = roles.filter(r => r.name.toLowerCase().includes(query));
-      dropdownOptions.innerHTML = filtered.map(r => `<div data-id="${r.id}">${r.name}</div>`).join('');
+      dropdownOptions.innerHTML = filtered.map(r => '<div data-id="' + escapeHtml(r.id) + '">' + escapeHtml(r.name) + '</div>').join('');
       dropdown.style.display = filtered.length > 0 ? 'block' : 'none';
     });
-    
+
     dropdownOptions.addEventListener('click', (e) => {
       const option = e.target.closest('div[data-id]');
       if (!option) return;
       const id = option.dataset.id;
       const name = option.textContent;
-      if (!tagsContainer.querySelector(`.tag[data-id="${id}"]`)) {
+      if (!tagsContainer.querySelector('.tag[data-id="' + escapeHtml(id) + '"]')) {
         const tag = document.createElement('span');
         tag.className = 'tag';
         tag.dataset.id = id;
-        tag.innerHTML = \`${name} <button type="button" class="remove-tag" style="margin-left:0.3rem;color:#f55;border:none;background:none;cursor:pointer;">x</button>\`;
+        tag.innerHTML = escapeHtml(name) + ' <button type="button" class="remove-tag" style="margin-left:0.3rem;color:#f55;border:none;background:none;cursor:pointer;">x</button>';
         tagsContainer.appendChild(tag);
         updateHiddenInput(tagsContainer, hiddenInput);
       }
       input.value = '';
       dropdown.style.display = 'none';
     });
-    
+
     tagsContainer.addEventListener('click', (e) => {
       if (e.target.classList.contains('remove-tag')) {
         e.target.parentElement.remove();
         updateHiddenInput(tagsContainer, hiddenInput);
       }
     });
-    
+
     input.addEventListener('blur', () => {
       setTimeout(() => dropdown.style.display = 'none', 200);
     });
@@ -524,6 +538,13 @@ document.addEventListener('DOMContentLoaded', () => {
         value = formData.getAll('value[]').join(',');
       }
       const guildId = form.closest('main').dataset.guildId;
+      if (!guildId) {
+        status.textContent = 'Error: No guild ID';
+        status.className = 'status error';
+        status.style.display = 'inline';
+        setTimeout(() => status.style.display = 'none', 2000);
+        return;
+      }
       try {
         const res = await fetch(\`/dashboard/\${guildId}/config\`, {
           method: 'POST',
@@ -666,18 +687,18 @@ app.get("/dashboard/:id", async (req, res) => {
 
     if (!hasManage || !botCheck.allowed) {
       return res.send(
-        renderLayout(user, `<div class="card"><h2>${escapeHtml(guild.name)}</h2><p>No permission</p></div>`)
+        renderLayout(user, `<div class="card"><h2>${escapeHtml(guild.name || '')}</h2><p>No permission</p></div>`)
       );
     }
 
     const data = await fetchGuildData(guildId, jwt);
 
-    let contentHtml = `<h1>${escapeHtml(guild.name)}</h1>`;
+    let contentHtml = `<h1>${escapeHtml(guild.name || '')}</h1>`;
     contentHtml += renderConfigSections(guildId, data.config, data.roles, data.channels);
     contentHtml += renderShopSection(guildId, data.shop, data.roles);
     contentHtml += renderMemberSearchSection(guildId);
 
-    res.send(renderLayout(user, contentHtml.replace('<main class="page">', `<main class="page" data-guild-id="${guildId}">`)));
+    res.send(renderLayout(user, contentHtml));
   } catch (err) {
     console.error(err);
     res.send(renderLayout(user, `<div class="card"><h2>Error</h2></div>`));
@@ -698,12 +719,12 @@ app.get("/dashboard/:id/members", async (req, res) => {
     const data = await fetchGuildData(guildId, req.session.jwt, { member: member.success ? member : null });
 
     const guild = (req.session.guilds || []).find((g) => g.id === guildId);
-    let contentHtml = `<h1>${escapeHtml(guild.name)}</h1>`;
+    let contentHtml = `<h1>${escapeHtml(guild.name || '')}</h1>`;
     contentHtml += renderConfigSections(guildId, data.config, data.roles, data.channels);
     contentHtml += renderShopSection(guildId, data.shop, data.roles);
     contentHtml += renderMemberSearchSection(guildId, data.member);
 
-    res.send(renderLayout(req.session.user, contentHtml.replace('<main class="page">', `<main class="page" data-guild-id="${guildId}">`)));
+    res.send(renderLayout(req.session.user, contentHtml));
   } catch (err) {
     console.error(err);
     res.redirect(`/dashboard/${guildId}`);
