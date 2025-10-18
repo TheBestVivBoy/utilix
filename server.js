@@ -84,9 +84,9 @@ const prettyNames = {
   bot_admin_role_id: "Bot Admin",
   ticket_admin_1_role_id: "Ticket Admin",
   bot_profile_nick: "Bot Profile Name",
-  bot_profile_bio: "Bot's Profile Bio",
-  bot_profile_avatar_url: "Bot Profile Avatar URL",
-  bot_profile_banner_url: "Bot Profile Banner URL",
+  bot_profile_bio: "Bot's profile bio",
+  bot_profile_avatar_url: "Bot Profile avatar url",
+  bot_profile_banner_url: "Bot Profile Banner url",
   warn_role_id: "Warn Role Permission",
   mute_role_id: "Mute Role Permission",
   unmute_role_id: "Unmute Role Permission",
@@ -99,14 +99,13 @@ const prettyNames = {
   invite_manager_role_id: "Invite Manager Role Permission",
   welcome_message: "Welcome Message",
   goodbye_message: "Goodbye Message",
-  welcome_channel_id: "Welcome/Goodbye Channel",
-  greeting_channel_id: "Greeting's Channel",
-  auto_roles_on_join: "Auto Roles on Join",
+  welcome_channel: "Welcome/Goodbye Channel",
+  greeting_channel: "Greeting's Channel",
   modlog_channel_id: "Modlogs",
   logs_channel_id: "Action Log",
   log_events: "Event Log",
-  ban_threshold: "Ban Threshold",
-  ticket_log_1_channel_id: "Ticket Logging / Transcripts",
+  ban_threshold: "Ban threshold",
+  ticket_log_1_channel_id: "Ticket Logging / Ticket Transcripts",
 };
 
 function getPrettyName(key) {
@@ -117,24 +116,23 @@ const sectionGroups = {
   "Bot Administrator Permissions": ["prefix", "bot_admin_role_id", "ticket_admin_1_role_id"],
   "Bot Customization": ["bot_profile_nick", "bot_profile_bio", "bot_profile_avatar_url", "bot_profile_banner_url"],
   "Moderation Roles": ["warn_role_id", "mute_role_id", "unmute_role_id", "unwarn_role_id", "ban_role_id", "unban_role_id", "kick_role_id", "minigames_staff_role_id", "ticket_staff_1_role_id", "invite_manager_role_id"],
-  "Join / Leaves": ["welcome_message", "goodbye_message", "welcome_channel_id", "greeting_channel_id", "auto_roles_on_join"],
+  "Join / Leaves": ["welcome_message", "goodbye_message", "welcome_channel", "greeting_channel"],
   "Logging": ["modlog_channel_id", "logs_channel_id", "log_events", "ban_threshold", "ticket_log_1_channel_id"],
 };
 
 const multiKeys = [
   "bot_admin_role_id", "ticket_admin_1_role_id",
   "warn_role_id", "mute_role_id", "unmute_role_id", "unwarn_role_id", "ban_role_id", "unban_role_id", "kick_role_id", "minigames_staff_role_id", "ticket_staff_1_role_id", "invite_manager_role_id",
-  "greeting_channel_id", "auto_roles_on_join", "log_events",
+  "greeting_channel", "log_events"
 ];
 
 async function fetchGuildData(guildId, jwt, extra = {}) {
   const headers = { Authorization: `Bearer ${jwt}` };
-  const [configRes, shopRes, rolesRes, channelsRes, logEventsRes] = await Promise.all([
+  const [configRes, shopRes, rolesRes, channelsRes] = await Promise.all([
     fetch(`${API_BASE}/dashboard/${guildId}`, { headers }),
     fetch(`${API_BASE}/dashboard/${guildId}/shop`, { headers }),
     fetch(`${API_BASE}/dashboard/${guildId}/roles`, { headers }),
     fetch(`${API_BASE}/dashboard/${guildId}/channels`, { headers }),
-    fetch(`${API_BASE}/dashboard/${guildId}/log_events`, { headers }),
   ]);
 
   const data = {
@@ -142,13 +140,12 @@ async function fetchGuildData(guildId, jwt, extra = {}) {
     shop: shopRes.ok ? await shopRes.json() : { success: false, items: [] },
     roles: rolesRes.ok ? await rolesRes.json() : { success: false, roles: [] },
     channels: channelsRes.ok ? await channelsRes.json() : { success: false, channels: [] },
-    logEvents: logEventsRes.ok ? await logEventsRes.json() : { success: false, events: [] },
     ...extra,
   };
   return data;
 }
 
-function renderConfigSections(guildId, config, roles, channels, logEvents) {
+function renderConfigSections(guildId, config, roles, channels) {
   let html = "";
   const allGroupedKeys = Object.values(sectionGroups).flat();
   const configKeys = Object.keys(config.config || {});
@@ -157,9 +154,9 @@ function renderConfigSections(guildId, config, roles, channels, logEvents) {
     const sectionKeys = keys.filter((k) => configKeys.includes(k));
     if (sectionKeys.length === 0) continue;
 
-    html += `<h2 class="accordion-header" style="cursor:pointer;">${escapeHtml(title)}</h2><div class="card accordion-body" style="display:none;grid-template-columns:1fr 1fr;gap:1rem;">`;
+    html += `<h2>${escapeHtml(title)}</h2><div class="card" style="display:grid;gap:1rem;">`;
     for (const key of sectionKeys) {
-      html += renderConfigItem(guildId, key, config.config[key], roles, channels, logEvents);
+      html += renderConfigItem(guildId, key, config.config[key], roles, channels);
     }
     html += `</div>`;
   }
@@ -167,9 +164,9 @@ function renderConfigSections(guildId, config, roles, channels, logEvents) {
   // General section for ungrouped keys
   const generalKeys = configKeys.filter((k) => !allGroupedKeys.includes(k));
   if (generalKeys.length > 0) {
-    html += `<h2 class="accordion-header" style="cursor:pointer;">General</h2><div class="card accordion-body" style="display:none;grid-template-columns:1fr 1fr;gap:1rem;">`;
+    html += `<h2>General</h2><div class="card" style="display:grid;gap:1rem;">`;
     for (const key of generalKeys) {
-      html += renderConfigItem(guildId, key, config.config[key], roles, channels, logEvents);
+      html += renderConfigItem(guildId, key, config.config[key], roles, channels);
     }
     html += `</div>`;
   }
@@ -177,49 +174,27 @@ function renderConfigSections(guildId, config, roles, channels, logEvents) {
   return html;
 }
 
-function renderConfigItem(guildId, key, value, roles, channels, logEvents) {
+function renderConfigItem(guildId, key, value, roles, channels) {
   const isMulti = multiKeys.includes(key);
-  const values = isMulti && typeof value === "string" ? value.split(",").filter(v => v) : [value];
+  const values = isMulti && typeof value === "string" ? value.split(",") : [value];
+  const nameAttr = isMulti && (isRoleKey(key) || isChannelKey(key)) ? "value[]" : "value";
   const pretty = getPrettyName(key);
-  const roleData = JSON.stringify((roles.roles || []).map(r => ({ id: r.id, name: r.name || '' })));
 
   let inputHtml = "";
-  if (isRoleKey(key) && isMulti) {
-    inputHtml = `
-      <div class="tag-input-wrapper" style="flex:1;position:relative;">
-        <div class="tags" data-key="${escapeHtml(key)}" style="display:flex;gap:0.5rem;flex-wrap:wrap;padding:0.5rem;border:1px solid rgba(255,255,255,0.1);border-radius:4px;background:var(--panel);min-height:2.5rem;align-items:center;">
-          ${values.filter(v => v).map(v => {
-            const role = (roles.roles || []).find(r => r.id === v);
-            return role ? `<span class="tag" data-id="${escapeHtml(v)}">${escapeHtml(role.name)} <button type="button" class="remove-tag" style="margin-left:0.3rem;color:#f55;border:none;background:none;cursor:pointer;">x</button></span>` : "";
-          }).join("")}
-          <input type="text" class="tag-input" placeholder="Type role name..." style="flex:1;border:none;background:none;color:var(--fg);outline:none;">
-        </div>
-        <div class="dropdown" style="display:none;position:absolute;background:var(--panel);border:1px solid rgba(255,255,255,0.1);border-radius:4px;max-height:150px;overflow-y:auto;width:100%;z-index:1000;">
-          <div class="dropdown-options"></div>
-        </div>
-        <input type="hidden" name="value" value="${escapeHtml(values.join(","))}">
-      </div>`;
-  } else if (isRoleKey(key)) {
-    inputHtml = `<select name="value" style="flex:1;padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);">`;
+  if (isRoleKey(key)) {
+    inputHtml = `<select name="${nameAttr}" style="flex:1;padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);" ${isMulti ? "multiple" : ""}>`;
     inputHtml += `<option value="">None</option>`;
     (roles.roles || []).forEach((r) => {
-      const selected = r.id === value ? "selected" : "";
-      inputHtml += `<option value="${escapeHtml(r.id)}" ${selected}>${escapeHtml(r.name || '')}</option>`;
+      const selected = isMulti ? values.includes(r.id) ? "selected" : "" : r.id === value ? "selected" : "";
+      inputHtml += `<option value="${escapeHtml(r.id)}" ${selected}>${escapeHtml(r.name)}</option>`;
     });
     inputHtml += `</select>`;
   } else if (isChannelKey(key)) {
-    inputHtml = `<select name="value" style="flex:1;padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);" ${key === "greeting_channel_id" ? "multiple size='3'" : ""}>`;
+    inputHtml = `<select name="${nameAttr}" style="flex:1;padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);" ${isMulti ? "multiple" : ""}>`;
     inputHtml += `<option value="">None</option>`;
-    (channels.channels || []).filter(c => c.type !== "category").forEach((c) => {
-      const selected = key === "greeting_channel_id" ? values.includes(c.id) ? "selected" : "" : c.id === value ? "selected" : "";
-      inputHtml += `<option value="${escapeHtml(c.id)}" ${selected}>${escapeHtml(c.name || '')} (${escapeHtml(c.type || '')})</option>`;
-    });
-    inputHtml += `</select>`;
-  } else if (key === "log_events") {
-    inputHtml = `<select name="value[]" multiple size="5" style="flex:1;padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);">`;
-    (logEvents.events || []).forEach((e) => {
-      const selected = values.includes(e.id) ? "selected" : "";
-      inputHtml += `<option value="${escapeHtml(e.id)}" ${selected}>${escapeHtml(e.name || '')}</option>`;
+    (channels.channels || []).forEach((c) => {
+      const selected = isMulti ? values.includes(c.id) ? "selected" : "" : c.id === value ? "selected" : "";
+      inputHtml += `<option value="${escapeHtml(c.id)}" ${selected}>${escapeHtml(c.name)} (${escapeHtml(c.type)})</option>`;
     });
     inputHtml += `</select>`;
   } else if (isMessageKey(key)) {
@@ -228,16 +203,18 @@ function renderConfigItem(guildId, key, value, roles, channels, logEvents) {
     inputHtml = `<input type="number" name="value" value="${escapeHtml(value || "")}" style="flex:1;padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);">`;
   } else if (isUrlKey(key)) {
     inputHtml = `<input type="url" name="value" value="${escapeHtml(value || "")}" style="flex:1;padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);">`;
+  } else if (isMulti) {
+    inputHtml = `<input type="text" name="value" value="${escapeHtml(value || "")}" style="flex:1;padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);" placeholder="Comma separated values">`;
   } else {
     inputHtml = `<input type="text" name="value" value="${escapeHtml(value || "")}" style="flex:1;padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);">`;
   }
 
-  let html = `<div class="config-item" style="display:flex;align-items:center;gap:0.5rem;justify-content:space-between;" data-key="${escapeHtml(key)}" data-roles='${escapeHtml(roleData)}'>`;
+  let html = `<div style="display:flex;align-items:center;gap:0.5rem;justify-content:space-between;">`;
   html += `<label style="font-weight:600;min-width:150px;">${escapeHtml(pretty)}</label>`;
-  html += `<form class="config-form" style="display:flex;gap:0.5rem;flex:1;">`;
+  html += `<form action="/dashboard/${guildId}/config" method="POST" style="display:flex;gap:0.5rem;flex:1;">`;
   html += `<input type="hidden" name="key" value="${escapeHtml(key)}">`;
   html += inputHtml;
-  html += `<button type="submit" style="padding:0.5rem 1rem;background:var(--accent);color:white;border:none;border-radius:4px;cursor:pointer;">Save</button>`;
+  html += `<button type="submit" style="padding:0.5rem 1rem;background:var(--accent);color:white;border:none;border-radius:4px;cursor:pointer;">Update</button>`;
   html += `</form></div>`;
   return html;
 }
@@ -248,7 +225,7 @@ function renderShopSection(guildId, shop, roles) {
   html += `<form action="/dashboard/${guildId}/shop" method="POST" style="display:grid;gap:0.5rem;margin-bottom:1rem;">`;
   html += `<label>Role:</label><select name="role_id" required style="padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);">`;
   (roles.roles || []).forEach((r) => {
-    html += `<option value="${escapeHtml(r.id)}">${escapeHtml(r.name || '')}</option>`;
+    html += `<option value="${escapeHtml(r.id)}">${escapeHtml(r.name)}</option>`;
   });
   html += `</select>`;
   html += `<label>Name:</label><input name="name" required style="padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);">`;
@@ -260,13 +237,13 @@ function renderShopSection(guildId, shop, roles) {
   if (shop.items && shop.items.length > 0) {
     html += '<table style="width:100%;border-collapse:collapse;">';
     html += '<thead><tr><th>Name</th><th>Role</th><th>Price</th><th>Active</th><th>Actions</th></tr></thead>';
-    html += '<tbody>';
+  html += '<tbody>';
     shop.items.forEach((item) => {
       const role = (roles.roles || []).find((r) => r.id == item.role_id) || { name: 'Unknown' };
-      html += `<tr><td>${escapeHtml(item.name || '')}</td><td>${escapeHtml(role.name)}</td><td>${escapeHtml(item.price || '')}</td><td>${item.active ? 'Yes' : 'No'}</td><td style="display:flex;gap:0.5rem;">`;
+      html += `<tr><td>${escapeHtml(item.name)}</td><td>${escapeHtml(role.name)}</td><td>${escapeHtml(item.price)}</td><td>${item.active ? 'Yes' : 'No'}</td><td style="display:flex;gap:0.5rem;">`;
       html += `<form action="/dashboard/${guildId}/shop/${item.id}/update" method="POST" style="display:flex;gap:0.5rem;">`;
-      html += `<input name="name" value="${escapeHtml(item.name || '')}" style="padding:0.3rem;width:100px;">`;
-      html += `<input name="price" value="${escapeHtml(item.price || '')}" type="number" style="padding:0.3rem;width:80px;">`;
+      html += `<input name="name" value="${escapeHtml(item.name)}" style="padding:0.3rem;width:100px;">`;
+      html += `<input name="price" value="${escapeHtml(item.price)}" type="number" style="padding:0.3rem;width:80px;">`;
       html += `<button type="submit" style="padding:0.3rem 0.6rem;background:var(--accent);color:white;border:none;border-radius:4px;cursor:pointer;">Update</button>`;
       html += `</form>`;
       html += `<form action="/dashboard/${guildId}/shop/${item.id}/toggle" method="POST"><button type="submit" style="padding:0.3rem 0.6rem;background:#6c34cc;color:white;border:none;border-radius:4px;cursor:pointer;">Toggle</button></form>`;
@@ -302,7 +279,7 @@ function renderMemberSearchSection(guildId, member = null) {
 
 function renderLayout(user, contentHtml) {
   const av = escapeHtml(avatarUrl(user || {}));
-  const userDisplay = user ? `${escapeHtml(user.username || '')}#${escapeHtml(user.discriminator || '')}` : "";
+  const userDisplay = user ? `${escapeHtml(user.username)}#${escapeHtml(user.discriminator)}` : "";
   const addBotUrl = `https://discord.com/oauth2/authorize?client_id=${encodeURIComponent(
     CLIENT_ID || ""
   )}&permissions=8&scope=bot%20applications.commands`;
@@ -319,7 +296,7 @@ function renderLayout(user, contentHtml) {
   --bg:#0b0a1e; --fg:#f2f2f7; --accent:#a64ca6; --accent2:#6c34cc;
   --muted:#c0a0ff; --card:rgba(20,10,40,0.85); --panel:rgba(15,5,35,0.95);
 }
-* {box-sizing:border-box;margin:0;padding:0}
+*{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
 body{
   font-family:"Inter",system-ui,-apple-system,Segoe UI,Roboto,Arial;
@@ -328,6 +305,7 @@ body{
   min-height:100vh; display:flex; flex-direction:column; overflow-x:hidden;
   position:relative;
 }
+/* Header */
 header{
   position:fixed; top:0; left:0; width:100%; height:72px; z-index:1100;
   display:flex; justify-content:space-between; align-items:center;
@@ -363,6 +341,8 @@ nav.header-nav a.active{
   color: white;
   box-shadow: 0 0 12px rgba(166,76,166,0.12);
 }
+
+/* Auth area */
 .auth-wrapper{ display:flex; align-items:center; gap:12px; }
 .auth-wrapper img{ width:36px; height:36px; border-radius:50%; object-fit:cover; }
 .discord-btn{
@@ -370,15 +350,19 @@ nav.header-nav a.active{
   padding:0.6rem 1.2rem; border-radius:999px; text-decoration:none;
 }
 .logout-btn{ font-size:1.1rem; color:#f55; text-decoration:none; }
+
+/* Page layout */
 .page{ flex:1; max-width:1200px; margin:0 auto; padding:96px 20px 56px; position:relative; z-index:1; }
 h1,h2{ margin-bottom:12px; }
-h3{ margin-bottom:8px; }
+
+/* Servers grid - responsive, left-to-right wrapping */
 .servers{
-  display:flex;
-  flex-wrap:wrap;
-  align-items:center;
+  display:grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   gap:1rem;
-  margin-top:12px;
+  justify-content:start;
+  align-items:start;
+  margin-top: 12px;
 }
 .server{
   background:var(--card);
@@ -392,29 +376,13 @@ h3{ margin-bottom:8px; }
 .server img, .server-icon{ width:80px; height:80px; border-radius:16px; margin-bottom:0.5rem; object-fit:cover; }
 .server-icon{ display:flex; align-items:center; justify-content:center; background: rgba(255,255,255,0.06); font-weight:700; font-size:1.5rem; }
 .server-name{ font-size:0.95rem; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:140px; margin:0 auto; }
-.card{ background:var(--card); padding:16px; border-radius:12px; border:1px solid rgba(255,255,255,0.04); margin-bottom:2rem; }
-table th, table td { padding: 0.5rem; border-bottom: 1px solid rgba(255,255,255,0.05); text-align: left; }
-table th { font-weight: 600; }
+
+/* cards */
+.card{ background:var(--card); padding:16px; border-radius:12px; border:1px solid rgba(255,255,255,0.04); }
+
+/* starfield */
 .canvas-wrap{ position:fixed; inset:0; z-index:0; pointer-events:none; }
 canvas#starfield{ width:100%; height:100%; display:block; }
-.tag-input-wrapper { position: relative; }
-.tags { min-height: 2.5rem; display: flex; align-items: center; flex-wrap: wrap; }
-.tag { background: rgba(255,255,255,0.1); padding: 0.3rem 0.6rem; border-radius: 4px; display: flex; align-items: center; }
-.tag-input { min-width: 100px; border:none; background:none; color:var(--fg); outline:none; }
-.dropdown { z-index: 1000; }
-.dropdown-options div { padding: 0.5rem; cursor: pointer; }
-.dropdown-options div:hover { background: rgba(255,255,255,0.1); }
-.popup {
-  position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
-  background: var(--panel); color: var(--fg); padding: 0.8rem 1.5rem;
-  border-radius: 8px; border: 1px solid transparent;
-  border-image: linear-gradient(90deg, var(--accent), var(--accent2)) 1;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.5); z-index: 2000;
-  opacity: 0; transition: opacity 0.3s ease;
-}
-.popup.show { opacity: 1; }
-.accordion-header { cursor: pointer; }
-.accordion-body { display: none; grid-template-columns: 1fr 1fr; gap: 1rem; }
 </style>
 </head>
 <body>
@@ -430,9 +398,11 @@ canvas#starfield{ width:100%; height:100%; display:block; }
         </ul>
       </nav>
     </div>
+
     <div style="display:flex;align-items:center;gap:12px">
       <a class="discord-btn" href="/dashboard">Manage Servers</a>
       <a class="discord-btn" href="${escapeHtml(addBotUrl)}" target="_blank" rel="noopener">Add to Server</a>
+
       <div class="auth-wrapper">
         <img src="${av}" alt="avatar"/>
         <div style="font-weight:600">${userDisplay}</div>
@@ -440,221 +410,24 @@ canvas#starfield{ width:100%; height:100%; display:block; }
       </div>
     </div>
   </header>
-  <div class="canvas-wrap"><canvas id="starfield"></canvas></div>
-  <main class="page" data-guild-id="${contentHtml.includes('No access') || contentHtml.includes('Error') ? '' : contentHtml.match(/\/dashboard\/(\d+)/)?.[1] || ''}">
-    ${contentHtml}
-    <div id="popup" class="popup">Saved changes</div>
-  </main>
-<script>
-/* client-side escapeHtml */
-function escapeHtml(str) {
-  return String(str)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
 
+  <div class="canvas-wrap"><canvas id="starfield"></canvas></div>
+
+  <main class="page">
+    ${contentHtml}
+  </main>
+
+<script>
 /* starfield animation */
 const canvas = document.getElementById('starfield');
 const ctx = canvas.getContext('2d');
-function resizeCanvas(){ canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+function resizeCanvas(){ canvas.width = innerWidth; canvas.height = innerHeight; }
 window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
 let stars = [];
-function createStars(){ stars = []; for(let i = 0; i < 200; i++){ stars.push({x: Math.random() * canvas.width, y: Math.random() * canvas.height, r: Math.random() * 1.5, s: Math.random() * 0.5 + 0.1, c: 'hsl(' + Math.random() * 360 + ',70%,80%)'}); } }
-function animate(){ ctx.fillStyle = 'rgba(11,10,30,0.3)'; ctx.fillRect(0,0,canvas.width,canvas.height); for(const s of stars){ s.y -= s.s; if(s.y < 0) s.y = canvas.height; ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2); ctx.fillStyle = s.c; ctx.fill(); } requestAnimationFrame(animate); }
+function createStars(){ stars=[]; for(let i=0;i<200;i++){ stars.push({x:Math.random()*canvas.width,y:Math.random()*canvas.height,r:Math.random()*1.5,s:Math.random()*0.5+0.1,c:'hsl('+Math.random()*360+',70%,80%)'});} }
+function animate(){ ctx.fillStyle='rgba(11,10,30,0.3)'; ctx.fillRect(0,0,canvas.width,canvas.height); for(const s of stars){ s.y-=s.s; if(s.y<0) s.y=canvas.height; ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,Math.PI*2); ctx.fillStyle=s.c; ctx.fill(); } requestAnimationFrame(animate); }
 createStars(); animate();
-
-/* Tag input handling for roles */
-document.addEventListener('DOMContentLoaded', () => {
-  document.querySelectorAll('.tag-input-wrapper').forEach(wrapper => {
-    const input = wrapper.querySelector('.tag-input');
-    const tagsContainer = wrapper.querySelector('.tags');
-    const dropdown = wrapper.querySelector('.dropdown');
-    const dropdownOptions = dropdown.querySelector('.dropdown-options');
-    const hiddenInput = wrapper.querySelector('input[name="value"]');
-    let roles = [];
-    try {
-      roles = JSON.parse(wrapper.closest('.config-item').dataset.roles || '[]');
-    } catch (e) {
-      console.error('Failed to parse roles:', e);
-    }
-
-    input.addEventListener('input', () => {
-      const query = input.value.toLowerCase();
-      if (query.length < 1) {
-        dropdown.style.display = 'none';
-        return;
-      }
-      const filtered = roles.filter(r => r.name.toLowerCase().includes(query));
-      dropdownOptions.innerHTML = filtered.map(r => '<div data-id="' + escapeHtml(r.id) + '">' + escapeHtml(r.name) + '</div>').join('');
-      dropdown.style.display = filtered.length > 0 ? 'block' : 'none';
-    });
-
-    input.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && dropdown.querySelector('.dropdown-options div')) {
-        e.preventDefault();
-        const firstOption = dropdown.querySelector('.dropdown-options div');
-        const id = firstOption.dataset.id;
-        const name = firstOption.textContent;
-        if (!tagsContainer.querySelector('.tag[data-id="' + escapeHtml(id) + '"]')) {
-          const tag = document.createElement('span');
-          tag.className = 'tag';
-          tag.dataset.id = id;
-          tag.innerHTML = escapeHtml(name) + ' <button type="button" class="remove-tag" style="margin-left:0.3rem;color:#f55;border:none;background:none;cursor:pointer;">x</button>';
-          tagsContainer.insertBefore(tag, input);
-          updateHiddenInput(tagsContainer, hiddenInput);
-        }
-        input.value = '';
-        dropdown.style.display = 'none';
-      } else if (e.key === 'Backspace' && input.value === '' && tagsContainer.querySelectorAll('.tag').length > 0) {
-        const lastTag = tagsContainer.querySelector('.tag:last-of-type');
-        if (lastTag) lastTag.remove();
-        updateHiddenInput(tagsContainer, hiddenInput);
-      }
-    });
-
-    dropdownOptions.addEventListener('click', (e) => {
-      const option = e.target.closest('div[data-id]');
-      if (!option) return;
-      const id = option.dataset.id;
-      const name = option.textContent;
-      if (!tagsContainer.querySelector('.tag[data-id="' + escapeHtml(id) + '"]')) {
-        const tag = document.createElement('span');
-        tag.className = 'tag';
-        tag.dataset.id = id;
-        tag.innerHTML = escapeHtml(name) + ' <button type="button" class="remove-tag" style="margin-left:0.3rem;color:#f55;border:none;background:none;cursor:pointer;">x</button>';
-        tagsContainer.insertBefore(tag, input);
-        updateHiddenInput(tagsContainer, hiddenInput);
-      }
-      input.value = '';
-      dropdown.style.display = 'none';
-    });
-
-    tagsContainer.addEventListener('click', (e) => {
-      if (e.target.classList.contains('remove-tag')) {
-        e.target.parentElement.remove();
-        updateHiddenInput(tagsContainer, hiddenInput);
-      }
-    });
-
-    input.addEventListener('blur', () => {
-      setTimeout(() => dropdown.style.display = 'none', 200);
-    });
-  });
-
-  function updateHiddenInput(tagsContainer, hiddenInput) {
-    const ids = Array.from(tagsContainer.querySelectorAll('.tag')).map(tag => tag.dataset.id);
-    hiddenInput.value = ids.join(',');
-  }
-
-  /* Seamless form submission with popup */
-  document.querySelectorAll('.config-form').forEach(form => {
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const formData = new FormData(form);
-      const key = formData.get('key');
-      let value = formData.get('value');
-      if (!value && formData.getAll('value[]').length > 0) {
-        value = formData.getAll('value[]').join(',');
-      }
-      const guildId = form.closest('main').dataset.guildId;
-      if (!guildId) {
-        const popup = document.getElementById('popup');
-        popup.textContent = 'Error occurred';
-        popup.classList.add('show');
-        popup.style.color = '#f55';
-        setTimeout(() => {
-          popup.classList.remove('show');
-          popup.style.color = 'var(--fg)';
-        }, 2000);
-        return;
-      }
-      try {
-          const res = await fetch('/dashboard/' + guildId + '/config', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ key, value })
-        });
-        const popup = document.getElementById('popup');
-        if (res.ok) {
-          popup.textContent = 'Saved changes';
-          popup.classList.add('show');
-          setTimeout(() => popup.classList.remove('show'), 2000);
-        } else {
-          popup.textContent = 'Error occurred';
-          popup.classList.add('show');
-          popup.style.color = '#f55';
-          setTimeout(() => {
-            popup.classList.remove('show');
-            popup.style.color = 'var(--fg)';
-          }, 2000);
-        }
-      } catch (err) {
-        const popup = document.getElementById('popup');
-        popup.textContent = 'Error occurred';
-        popup.classList.add('show');
-        popup.style.color = '#f55';
-        setTimeout(() => {
-          popup.classList.remove('show');
-          popup.style.color = 'var(--fg)';
-        }, 2000);
-      }
-    });
-  });
-
-  /* Search bars */
-  const page = document.querySelector('.page');
-  if (document.querySelector('.servers')) {
-    const search = document.createElement('input');
-    search.type = 'text';
-    search.id = 'search';
-    search.placeholder = 'Search servers...';
-    search.style = 'width:100%;padding:0.5rem;margin-bottom:1rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);';
-    page.insertBefore(search, page.querySelector('h2 + div'));
-    search.addEventListener('input', () => {
-      const query = search.value.toLowerCase();
-      const servers = document.querySelectorAll('.server');
-      servers.forEach(server => {
-        const name = server.querySelector('.server-name').textContent.toLowerCase();
-        server.style.display = name.includes(query) ? '' : 'none';
-      });
-      const arrows = document.querySelectorAll('.servers span');
-      arrows.forEach(arrow => arrow.style.display = '');
-    });
-  } else if (document.querySelector('.config-item')) {
-    const search = document.createElement('input');
-    search.type = 'text';
-    search.id = 'search';
-    search.placeholder = 'Search config...';
-    search.style = 'width:100%;padding:0.5rem;margin-bottom:1rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);';
-    page.insertBefore(search, page.querySelector('h1 + h2'));
-    search.addEventListener('input', () => {
-      const query = search.value.toLowerCase();
-      document.querySelectorAll('.config-item').forEach(item => {
-        const label = item.querySelector('label').textContent.toLowerCase();
-        item.style.display = label.includes(query) ? 'flex' : 'none';
-      });
-      // Hide sections if all items hidden
-      document.querySelectorAll('.card').forEach(card => {
-        const items = card.querySelectorAll('.config-item');
-        const visible = Array.from(items).some(i => i.style.display !== 'none');
-        card.style.display = visible ? 'grid' : 'none';
-        card.previousElementSibling.style.display = visible ? 'block' : 'none';
-      });
-    });
-  }
-
-  /* Accordion for sections */
-  document.querySelectorAll('.accordion-header').forEach(header => {
-    header.addEventListener('click', () => {
-      const body = header.nextElementSibling;
-      body.style.display = body.style.display === 'none' ? 'grid' : 'none';
-    });
-  });
-});
 </script>
 </body>
 </html>`;
@@ -713,7 +486,18 @@ app.get("/callback", async (req, res) => {
     });
     let guilds = await guildResp.json();
     if (!Array.isArray(guilds)) guilds = [];
-    req.session.guilds = guilds;
+
+    // filter
+    let botGuildData;
+    try {
+      const raw = fs.readFileSync(path.join(__dirname, "bot_guilds.json"), "utf8");
+      botGuildData = JSON.parse(raw);
+    } catch {}
+
+    const guildIds = botGuildData?.guild_ids || [];
+
+    req.session.guilds =
+      guildIds.length > 0 ? guilds.filter((g) => guildIds.includes(g.id)) : guilds;
 
     res.redirect("/dashboard");
   } catch (err) {
@@ -724,48 +508,12 @@ app.get("/callback", async (req, res) => {
 
 /* ---------------- Dashboard ---------------- */
 
-app.get("/dashboard", async (req, res) => {
+app.get("/dashboard", (req, res) => {
   if (!req.session.user) return res.redirect("/login");
-
   const user = req.session.user;
-  const jwt = req.session.jwt;
   const guilds = req.session.guilds || [];
 
-  let botGuildIds = [];
-  try {
-    botGuildIds = require(path.join(__dirname, "bot_guilds.json")).guild_ids;
-  } catch (err) {
-    console.error("Failed to load bot_guilds.json:", err);
-  }
-  const botGuildSet = new Set(botGuildIds);
-
-  const candidateGuilds = guilds.filter(g => botGuildSet.has(String(g.id)));
-
-  let results = {};
-  if (candidateGuilds.length > 0) {
-    try {
-      const batchRes = await fetch(`${API_BASE}/checkPermsBatch`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${jwt}`,
-        },
-        body: JSON.stringify({ guildIds: candidateGuilds.map(g => g.id) }),
-      });
-
-      if (batchRes.ok) {
-        const data = await batchRes.json();
-        results = data.results || {};
-      }
-    } catch (err) {
-      console.error("Error calling /checkPermsBatch:", err);
-    }
-  }
-  const filteredGuilds = candidateGuilds.filter(g => {
-    const entry = results[g.id];
-    return entry?.allowed;
-  });
-  const serversHtml = filteredGuilds
+  const serversHtml = guilds
     .map((g) => {
       const name = truncateName(g.name || "");
       const icon = guildIconUrl(g);
@@ -775,7 +523,7 @@ app.get("/dashboard", async (req, res) => {
           : `<div class="server-icon">${escapeHtml(name.charAt(0))}</div>`
       }<div class="server-name">${escapeHtml(name)}</div></a></div>`;
     })
-    .join('<span style="color:var(--muted);padding:0 0.5rem;">-></span>');
+    .join("");
 
   res.send(renderLayout(user, `<h2>Your Servers</h2><div class="servers">${serversHtml}</div>`));
 });
@@ -810,14 +558,14 @@ app.get("/dashboard/:id", async (req, res) => {
 
     if (!hasManage || !botCheck.allowed) {
       return res.send(
-        renderLayout(user, `<div class="card"><h2>${escapeHtml(guild.name || '')}</h2><p>No permission</p></div>`)
+        renderLayout(user, `<div class="card"><h2>${escapeHtml(guild.name)}</h2><p>No permission</p></div>`)
       );
     }
 
     const data = await fetchGuildData(guildId, jwt);
 
-    let contentHtml = `<h1>${escapeHtml(guild.name || '')}</h1>`;
-    contentHtml += renderConfigSections(guildId, data.config, data.roles, data.channels, data.logEvents);
+    let contentHtml = `<h1>${escapeHtml(guild.name)}</h1>`;
+    contentHtml += renderConfigSections(guildId, data.config, data.roles, data.channels);
     contentHtml += renderShopSection(guildId, data.shop, data.roles);
     contentHtml += renderMemberSearchSection(guildId);
 
@@ -828,44 +576,12 @@ app.get("/dashboard/:id", async (req, res) => {
   }
 });
 
-app.get("/dashboard/:id/members", async (req, res) => {
-  if (!req.session.user) return res.redirect("/login");
-  const guildId = req.params.id;
-  const query = req.query.query;
-  if (!query) return res.redirect(`/dashboard/${guildId}`);
-
-  try {
-    const headers = { Authorization: `Bearer ${req.session.jwt}` };
-    const memberRes = await fetch(`${API_BASE}/dashboard/${guildId}/members?query=${encodeURIComponent(query)}`, { headers });
-    const member = memberRes.ok ? await memberRes.json() : { success: false };
-
-    const data = await fetchGuildData(guildId, req.session.jwt, { member: member.success ? member : null });
-
-    const guild = (req.session.guilds || []).find((g) => g.id === guildId);
-    let contentHtml = `<h1>${escapeHtml(guild.name || '')}</h1>`;
-    contentHtml += renderConfigSections(guildId, data.config, data.roles, data.channels, data.logEvents);
-    contentHtml += renderShopSection(guildId, data.shop, data.roles);
-    contentHtml += renderMemberSearchSection(guildId, data.member);
-
-    res.send(renderLayout(req.session.user, contentHtml));
-  } catch (err) {
-    console.error(err);
-    res.redirect(`/dashboard/${guildId}`);
-  }
-});
-
 /* ---------------- Config Updates ---------------- */
 
 app.post("/dashboard/:id/config", async (req, res) => {
-  if (!req.session.user) return res.status(401).json({ error: "Unauthorized" });
+  if (!req.session.user) return res.redirect("/login");
   const guildId = req.params.id;
-  let { key, value } = req.body;
-
-  if (Array.isArray(value)) {
-    value = value.join(",");
-  }
-
-  value = String(value); // Ensure string for IDs
+  const { key, value } = req.body;
 
   try {
     const headers = {
@@ -879,13 +595,13 @@ app.post("/dashboard/:id/config", async (req, res) => {
     });
 
     if (updateRes.ok) {
-      res.json({ success: true });
+      res.redirect(`/dashboard/${guildId}`);
     } else {
-      res.status(400).json({ error: "Error saving config" });
+      res.status(400).send("Error updating config");
     }
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Internal error" });
+    res.status(500).send("Internal error");
   }
 });
 
@@ -904,7 +620,7 @@ app.post("/dashboard/:id/shop", async (req, res) => {
     const addRes = await fetch(`${API_BASE}/dashboard/${guildId}/shop`, {
       method: "POST",
       headers,
-      body: JSON.stringify({ role_id: String(role_id), name, price }),
+      body: JSON.stringify({ role_id, name, price }),
     });
 
     if (addRes.ok) {
