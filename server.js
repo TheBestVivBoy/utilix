@@ -573,7 +573,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
       try {
-        const res = await fetch(\`/dashboard/\${guildId}/config\`, {
+          const res = await fetch('/dashboard/' + guildId + '/config', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ key, value })
@@ -733,7 +733,7 @@ app.get("/dashboard", async (req, res) => {
 
   let botGuildIds = [];
   try {
-    botGuildIds = require("../bot_guilds.json").guild_ids.map(String);
+    botGuildIds = require(path.join(__dirname, "bot_guilds.json")).guild_ids;
   } catch (err) {
     console.error("Failed to load bot_guilds.json:", err);
   }
