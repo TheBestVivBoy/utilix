@@ -149,7 +149,7 @@ async function fetchGuildData(guildId, jwt, extra = {}) {
 }
 
 function renderConfigSections(guildId, config, roles, channels, logEvents) {
-  let html = "";
+  let html = `<div class="section" id="settings-section">`;
   const allGroupedKeys = Object.values(sectionGroups).flat();
   const configKeys = Object.keys(config.config || {});
 
@@ -173,7 +173,7 @@ function renderConfigSections(guildId, config, roles, channels, logEvents) {
     }
     html += `</div>`;
   }
-
+  html += `</div>`;
   return html;
 }
 
@@ -237,13 +237,14 @@ function renderConfigItem(guildId, key, value, roles, channels, logEvents) {
   html += `<form class="config-form" style="display:flex;gap:0.5rem;flex:1;">`;
   html += `<input type="hidden" name="key" value="${escapeHtml(key)}">`;
   html += inputHtml;
-  html += `<button type="submit" style="padding:0.5rem 1rem;background:var(--accent);color:white;border:none;border-radius:4px;cursor:pointer;">Save</button>`;
+  html += `<button type="submit" style="padding:0.5rem 1rem;background:linear-gradient(90deg,var(--accent),var(--accent2));color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600;box-shadow:0 2px 8px rgba(0,0,0,0.3);transition:transform 0.2s ease,box-shadow 0.2s ease;">Save</button>`;
   html += `</form></div>`;
   return html;
 }
 
 function renderShopSection(guildId, shop, roles) {
-  let html = '<h2>Shop</h2><div class="card">';
+  let html = `<div class="section" id="shop-section" style="display:none;">`;
+  html += '<h2>Shop</h2><div class="card">';
   html += '<h3>Add Item</h3>';
   html += `<form action="/dashboard/${guildId}/shop" method="POST" style="display:grid;gap:0.5rem;margin-bottom:1rem;">`;
   html += `<label>Role:</label><select name="role_id" required style="padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);">`;
@@ -253,7 +254,7 @@ function renderShopSection(guildId, shop, roles) {
   html += `</select>`;
   html += `<label>Name:</label><input name="name" required style="padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);">`;
   html += `<label>Price:</label><input name="price" type="number" required style="padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);">`;
-  html += `<button type="submit" style="padding:0.5rem 1rem;background:var(--accent);color:white;border:none;border-radius:4px;cursor:pointer;">Add</button>`;
+  html += `<button type="submit" style="padding:0.5rem 1rem;background:linear-gradient(90deg,var(--accent),var(--accent2));color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600;box-shadow:0 2px 8px rgba(0,0,0,0.3);transition:transform 0.2s ease,box-shadow 0.2s ease;">Add</button>`;
   html += `</form>`;
 
   html += '<h3>Items</h3>';
@@ -265,40 +266,39 @@ function renderShopSection(guildId, shop, roles) {
       const role = (roles.roles || []).find((r) => r.id == item.role_id) || { name: 'Unknown' };
       html += `<tr><td>${escapeHtml(item.name || '')}</td><td>${escapeHtml(role.name)}</td><td>${escapeHtml(item.price || '')}</td><td>${item.active ? 'Yes' : 'No'}</td><td style="display:flex;gap:0.5rem;">`;
       html += `<form action="/dashboard/${guildId}/shop/${item.id}/update" method="POST" style="display:flex;gap:0.5rem;">`;
-      html += `<input name="name" value="${escapeHtml(item.name || '')}" style="padding:0.3rem;width:100px;">`;
-      html += `<input name="price" value="${escapeHtml(item.price || '')}" type="number" style="padding:0.3rem;width:80px;">`;
-      html += `<button type="submit" style="padding:0.3rem 0.6rem;background:var(--accent);color:white;border:none;border-radius:4px;cursor:pointer;">Update</button>`;
+      html += `<input name="name" value="${escapeHtml(item.name || '')}" style="padding:0.3rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);width:100px;">`;
+      html += `<input name="price" value="${escapeHtml(item.price || '')}" type="number" style="padding:0.3rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);width:80px;">`;
+      html += `<button type="submit" style="padding:0.3rem 0.6rem;background:linear-gradient(90deg,var(--accent),var(--accent2));color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600;box-shadow:0 2px 8px rgba(0,0,0,0.3);">Update</button>`;
       html += `</form>`;
-      html += `<form action="/dashboard/${guildId}/shop/${item.id}/toggle" method="POST"><button type="submit" style="padding:0.3rem 0.6rem;background:#6c34cc;color:white;border:none;border-radius:4px;cursor:pointer;">Toggle</button></form>`;
-      html += `<form action="/dashboard/${guildId}/shop/${item.id}/delete" method="POST"><button type="submit" style="padding:0.3rem 0.6rem;background:#f55;color:white;border:none;border-radius:4px;cursor:pointer;">Delete</button></form>`;
+      html += `<form action="/dashboard/${guildId}/shop/${item.id}/toggle" method="POST"><button type="submit" style="padding:0.3rem 0.6rem;background:linear-gradient(90deg,#6c34cc,#4a2a99);color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600;box-shadow:0 2px 8px rgba(0,0,0,0.3);">Toggle</button></form>`;
+      html += `<form action="/dashboard/${guildId}/shop/${item.id}/delete" method="POST"><button type="submit" style="padding:0.3rem 0.6rem;background:#f55;color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600;box-shadow:0 2px 8px rgba(0,0,0,0.3);">Delete</button></form>`;
       html += `</td></tr>`;
     });
     html += '</tbody></table>';
   } else {
     html += '<p>No items yet.</p>';
   }
-  html += '</div>';
+  html += '</div></div>';
   return html;
 }
 
 function renderMemberSearchSection(guildId, member = null) {
-  let html = '<h2>Member Lookup</h2><div class="card">';
+  let html = `<div class="section" id="members-section" style="display:none;">`;
+  html += '<h2>Member Lookup</h2><div class="card">';
   html += `<form action="/dashboard/${guildId}/members" method="GET" style="display:flex;gap:0.5rem;margin-bottom:1rem;">`;
   html += `<input name="query" placeholder="ID or username" required style="flex:1;padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);">`;
-  html += `<button type="submit" style="padding:0.5rem 1rem;background:var(--accent);color:white;border:none;border-radius:4px;cursor:pointer;">Search</button>`;
+  html += `<button type="submit" style="padding:0.5rem 1rem;background:linear-gradient(90deg,var(--accent),var(--accent2));color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600;box-shadow:0 2px 8px rgba(0,0,0,0.3);transition:transform 0.2s ease,box-shadow 0.2s ease;">Search</button>`;
   html += `</form>`;
   if (member) {
     if (member.in_guild) {
-      html += `<pre>${escapeHtml(JSON.stringify(member.member, null, 2))}</pre>`;
+      html += `<pre style="background:var(--panel);padding:1rem;border-radius:8px;border:1px solid rgba(255,255,255,0.05);">${escapeHtml(JSON.stringify(member.member, null, 2))}</pre>`;
     } else {
       html += '<p>Member not found in guild.</p>';
     }
   }
-  html += '</div>';
+  html += '</div></div>';
   return html;
 }
-
-/* --------------- render layout --------------- */
 
 function renderLayout(user, contentHtml) {
   const av = escapeHtml(avatarUrl(user || {}));
@@ -315,109 +315,225 @@ function renderLayout(user, contentHtml) {
 <title>Utilix</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet" />
 <style>
-:root{
-  --bg:#0b0a1e; --fg:#f2f2f7; --accent:#a64ca6; --accent2:#6c34cc;
-  --muted:#c0a0ff; --card:rgba(20,10,40,0.85); --panel:rgba(15,5,35,0.95);
+:root {
+  --bg: #0b0a1e;
+  --fg: #f2f2f7;
+  --accent: #b266b2;
+  --accent2: #7a44d4;
+  --muted: #c0a0ff;
+  --card: rgba(20,10,40,0.85);
+  --panel: rgba(15,5,35,0.95);
 }
-* {box-sizing:border-box;margin:0;padding:0}
-html{scroll-behavior:smooth}
-body{
-  font-family:"Inter",system-ui,-apple-system,Segoe UI,Roboto,Arial;
-  background:radial-gradient(circle at 20% 30%, #3b0a5f, var(--bg));
-  color:var(--fg);
-  min-height:100vh; display:flex; flex-direction:column; overflow-x:hidden;
-  position:relative;
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: "Inter", system-ui, -apple-system, Segoe UI, Roboto, Arial;
+  background: radial-gradient(circle at 20% 30%, #3b0a5f, var(--bg));
+  color: var(--fg);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+  position: relative;
 }
-header{
-  position:fixed; top:0; left:0; width:100%; height:72px; z-index:1100;
-  display:flex; justify-content:space-between; align-items:center;
-  padding:1rem 2rem; backdrop-filter:blur(10px); background:rgba(15,5,35,0.6);
-  border-bottom:1px solid rgba(255,255,255,0.05);
+header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 72px;
+  z-index: 1100;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 2rem;
+  backdrop-filter: blur(10px);
+  background: rgba(15,5,35,0.6);
+  border-bottom: 1px solid rgba(255,255,255,0.05);
 }
-.logo{
-  font-weight:800; font-size:1.25rem;
-  background:linear-gradient(90deg,var(--accent),var(--accent2));
-  -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+.logo {
+  font-weight: 800;
+  font-size: 1.25rem;
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
-nav.header-nav ul{
-  display:flex; gap:1.25rem; list-style:none; align-items:center;
-  background: rgba(25,5,50,0.3); padding:0.4rem 0.9rem; border-radius:999px;
-  border:1px solid rgba(255,255,255,0.08);
+nav.header-nav ul {
+  display: flex;
+  gap: 1.25rem;
+  list-style: none;
+  align-items: center;
+  background: rgba(25,5,50,0.3);
+  padding: 0.4rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.08);
   backdrop-filter: blur(12px);
 }
-nav.header-nav a{
-  position:relative; color:var(--fg); text-decoration:none; font-weight:600;
-  font-size:0.95rem; padding:0.55rem 1.1rem; border-radius:999px;
+nav.header-nav a {
+  position: relative;
+  color: var(--fg);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.95rem;
+  padding: 0.55rem 1.1rem;
+  border-radius: 999px;
 }
-nav.header-nav a::after{
-  content:""; position:absolute; left:50%; bottom:6px;
-  transform:translateX(-50%) scaleX(0); transform-origin:center;
-  width:60%; height:2px; border-radius:2px;
-  background:linear-gradient(90deg,var(--accent),var(--accent2));
+nav.header-nav a::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 6px;
+  transform: translateX(-50%) scaleX(0);
+  transform-origin: center;
+  width: 60%;
+  height: 2px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
   transition: transform 0.3s ease;
 }
-nav.header-nav a:hover{ color: var(--accent); transform:translateY(-1px); }
-nav.header-nav a:hover::after{ transform:translateX(-50%) scaleX(1); }
-nav.header-nav a.active{
-  background: linear-gradient(90deg, rgba(166,76,166,0.16), rgba(108,52,204,0.12));
+nav.header-nav a:hover { color: var(--accent); transform: translateY(-1px); }
+nav.header-nav a:hover::after { transform: translateX(-50%) scaleX(1); }
+nav.header-nav a.active {
+  background: linear-gradient(90deg, rgba(178,102,178,0.16), rgba(122,68,212,0.12));
   color: white;
-  box-shadow: 0 0 12px rgba(166,76,166,0.12);
+  box-shadow: 0 0 12px rgba(178,102,178,0.12);
 }
-.auth-wrapper{ display:flex; align-items:center; gap:12px; }
-.auth-wrapper img{ width:36px; height:36px; border-radius:50%; object-fit:cover; }
-.discord-btn{
-  background:linear-gradient(90deg,var(--accent),var(--accent2)); color:white; font-weight:600;
-  padding:0.6rem 1.2rem; border-radius:999px; text-decoration:none;
+.auth-wrapper { display: flex; align-items: center; gap: 12px; }
+.auth-wrapper img { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; }
+.discord-btn {
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  color: white;
+  font-weight: 600;
+  padding: 0.6rem 1.2rem;
+  border-radius: 999px;
+  text-decoration: none;
 }
-.logout-btn{ font-size:1.1rem; color:#f55; text-decoration:none; }
-.page{ flex:1; max-width:1200px; margin:0 auto; padding:96px 20px 56px; position:relative; z-index:1; }
-h1,h2{ margin-bottom:12px; }
-h3{ margin-bottom:8px; }
-.servers{
-  display:flex;
-  flex-wrap:wrap;
-  align-items:center;
-  gap:1rem;
-  margin-top:12px;
+.logout-btn { font-size: 1.1rem; color: #f55; text-decoration: none; }
+.page {
+  flex: 1;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 96px 20px 56px;
+  position: relative;
+  z-index: 1;
+  display: flex;
+  gap: 2rem;
 }
-.server{
-  background:var(--card);
-  border-radius:12px;
-  padding:1rem;
-  text-align:center;
-  border:1px solid rgba(255,255,255,0.04);
-  transition: transform 0.18s ease, box-shadow 0.18s ease;
+.content-area {
+  flex: 1;
+  transition: opacity 0.3s ease, transform 0.3s ease;
 }
-.server:hover{ transform: translateY(-6px); box-shadow: 0 18px 40px rgba(0,0,0,0.6); }
-.server img, .server-icon{ width:80px; height:80px; border-radius:16px; margin-bottom:0.5rem; object-fit:cover; }
-.server-icon{ display:flex; align-items:center; justify-content:center; background: rgba(255,255,255,0.06); font-weight:700; font-size:1.5rem; }
-.server-name{ font-size:0.95rem; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:140px; margin:0 auto; }
-.card{ background:var(--card); padding:16px; border-radius:12px; border:1px solid rgba(255,255,255,0.04); margin-bottom:2rem; }
+.content-area.hidden { opacity: 0; transform: translateY(20px); }
+h1, h2 { margin-bottom: 12px; font-weight: 600; }
+h3 { margin-bottom: 8px; font-weight: 600; }
+.servers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-top: 12px;
+}
+.server {
+  background: var(--card);
+  border-radius: 12px;
+  padding: 1rem;
+  text-align: center;
+  border: 1px solid rgba(255,255,255,0.04);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.server:hover { transform: translateY(-6px); box-shadow: 0 18px 40px rgba(0,0,0,0.6); }
+.server img, .server-icon { width: 80px; height: 80px; border-radius: 16px; margin-bottom: 0.5rem; object-fit: cover; }
+.server-icon { display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.06); font-weight: 700; font-size: 1.5rem; }
+.server-name { font-size: 0.95rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px; margin: 0 auto; }
+.card { background: var(--card); padding: 16px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.04); margin-bottom: 2rem; }
 table th, table td { padding: 0.5rem; border-bottom: 1px solid rgba(255,255,255,0.05); text-align: left; }
 table th { font-weight: 600; }
-.canvas-wrap{ position:fixed; inset:0; z-index:0; pointer-events:none; }
-canvas#starfield{ width:100%; height:100%; display:block; }
+.canvas-wrap { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+canvas#starfield { width: 100%; height: 100%; display: block; }
 .tag-input-wrapper { position: relative; }
 .tags { min-height: 2.5rem; display: flex; align-items: center; flex-wrap: wrap; }
 .tag { background: rgba(255,255,255,0.1); padding: 0.3rem 0.6rem; border-radius: 4px; display: flex; align-items: center; }
-.tag-input { min-width: 100px; border:none; background:none; color:var(--fg); outline:none; }
+.tag-input { min-width: 100px; border: none; background: none; color: var(--fg); outline: none; }
 .dropdown { z-index: 1000; }
 .dropdown-options div { padding: 0.5rem; cursor: pointer; }
 .dropdown-options div:hover { background: rgba(255,255,255,0.1); }
 .popup {
-  position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
-  background: var(--panel); color: var(--fg); padding: 0.8rem 1.5rem;
-  border-radius: 8px; border: 1px solid transparent;
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--panel);
+  color: var(--fg);
+  padding: 0.8rem 1.5rem;
+  border-radius: 8px;
+  border: 1px solid transparent;
   border-image: linear-gradient(90deg, var(--accent), var(--accent2)) 1;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.5); z-index: 2000;
-  opacity: 0; transition: opacity 0.3s ease;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+  z-index: 2000;
+  opacity: 0;
+  transition: opacity 0.3s ease;
 }
 .popup.show { opacity: 1; }
 .accordion-header { cursor: pointer; }
 .accordion-body { display: none; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.nav-sidebar {
+  width: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  position: sticky;
+  top: 96px;
+  align-self: flex-start;
+}
+.nav-sidebar button {
+  padding: 0.8rem;
+  background: linear-gradient(90deg, rgba(178,102,178,0.2), rgba(122,68,212,0.2));
+  color: var(--fg);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.95rem;
+  text-align: left;
+  transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+.nav-sidebar button:hover {
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+.nav-sidebar button.active {
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  color: white;
+}
+.loading-screen {
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 3000;
+}
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid var(--fg);
+  border-top: 4px solid var(--accent);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
 </style>
 </head>
 <body>
+  <div id="loading-screen" class="loading-screen">
+    <div class="loading-spinner"></div>
+    <p style="margin-top:1rem;font-weight:600;">Loading Utilix Dashboard...</p>
+  </div>
   <header>
     <div style="display:flex;align-items:center;gap:16px">
       <div class="logo">Utilix</div>
@@ -442,7 +558,8 @@ canvas#starfield{ width:100%; height:100%; display:block; }
   </header>
   <div class="canvas-wrap"><canvas id="starfield"></canvas></div>
   <main class="page" data-guild-id="${contentHtml.includes('No access') || contentHtml.includes('Error') ? '' : contentHtml.match(/\/dashboard\/(\d+)/)?.[1] || ''}">
-    ${contentHtml}
+    <div class="content-area" id="content-area">${contentHtml}</div>
+    <nav class="nav-sidebar" id="nav-sidebar"></nav>
     <div id="popup" class="popup">Saved changes</div>
   </main>
 <script>
@@ -459,16 +576,47 @@ function escapeHtml(str) {
 /* starfield animation */
 const canvas = document.getElementById('starfield');
 const ctx = canvas.getContext('2d');
-function resizeCanvas(){ canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
 window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
 let stars = [];
-function createStars(){ stars = []; for(let i = 0; i < 200; i++){ stars.push({x: Math.random() * canvas.width, y: Math.random() * canvas.height, r: Math.random() * 1.5, s: Math.random() * 0.5 + 0.1, c: 'hsl(' + Math.random() * 360 + ',70%,80%)'}); } }
-function animate(){ ctx.fillStyle = 'rgba(11,10,30,0.3)'; ctx.fillRect(0,0,canvas.width,canvas.height); for(const s of stars){ s.y -= s.s; if(s.y < 0) s.y = canvas.height; ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2); ctx.fillStyle = s.c; ctx.fill(); } requestAnimationFrame(animate); }
-createStars(); animate();
+function createStars() {
+  stars = [];
+  for (let i = 0; i < 200; i++) {
+    stars.push({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+      r: Math.random() * 1.5,
+      s: Math.random() * 0.5 + 0.1,
+      c: 'hsl(' + Math.random() * 360 + ',70%,80%)'
+    });
+  }
+}
+function animate() {
+  ctx.fillStyle = 'rgba(11,10,30,0.3)';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  for (const s of stars) {
+    s.y -= s.s;
+    if (s.y < 0) s.y = canvas.height;
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+    ctx.fillStyle = s.c;
+    ctx.fill();
+  }
+  requestAnimationFrame(animate);
+}
+createStars();
+animate();
 
 /* Tag input handling for roles */
 document.addEventListener('DOMContentLoaded', () => {
+  const loadingScreen = document.getElementById('loading-screen');
+  if (loadingScreen) {
+    setTimeout(() => {
+      loadingScreen.style.display = 'none';
+    }, 1000); // Adjust timing as needed
+  }
+
   document.querySelectorAll('.tag-input-wrapper').forEach(wrapper => {
     const input = wrapper.querySelector('.tag-input');
     const tagsContainer = wrapper.querySelector('.tags');
@@ -573,7 +721,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
       try {
-          const res = await fetch('/dashboard/' + guildId + '/config', {
+        const res = await fetch('/dashboard/' + guildId + '/config', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ key, value })
@@ -612,7 +760,7 @@ document.addEventListener('DOMContentLoaded', () => {
     search.type = 'text';
     search.id = 'search';
     search.placeholder = 'Search servers...';
-    search.style = 'width:100%;padding:0.5rem;margin-bottom:1rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);';
+    search.style = 'width:300px;padding:0.5rem;margin-bottom:1rem;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);';
     page.insertBefore(search, page.querySelector('h2 + div'));
     search.addEventListener('input', () => {
       const query = search.value.toLowerCase();
@@ -621,15 +769,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const name = server.querySelector('.server-name').textContent.toLowerCase();
         server.style.display = name.includes(query) ? '' : 'none';
       });
-      const arrows = document.querySelectorAll('.servers span');
-      arrows.forEach(arrow => arrow.style.display = '');
     });
   } else if (document.querySelector('.config-item')) {
     const search = document.createElement('input');
     search.type = 'text';
     search.id = 'search';
     search.placeholder = 'Search config...';
-    search.style = 'width:100%;padding:0.5rem;margin-bottom:1rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);';
+    search.style = 'width:300px;padding:0.5rem;margin-bottom:1rem;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);';
     page.insertBefore(search, page.querySelector('h1 + h2'));
     search.addEventListener('input', () => {
       const query = search.value.toLowerCase();
@@ -637,7 +783,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const label = item.querySelector('label').textContent.toLowerCase();
         item.style.display = label.includes(query) ? 'flex' : 'none';
       });
-      // Hide sections if all items hidden
       document.querySelectorAll('.card').forEach(card => {
         const items = card.querySelectorAll('.config-item');
         const visible = Array.from(items).some(i => i.style.display !== 'none');
@@ -654,6 +799,40 @@ document.addEventListener('DOMContentLoaded', () => {
       body.style.display = body.style.display === 'none' ? 'grid' : 'none';
     });
   });
+
+  /* Sidebar navigation */
+  const navSidebar = document.getElementById('nav-sidebar');
+  if (navSidebar && page.dataset.guildId) {
+    const sections = [
+      { id: 'settings-section', label: 'Settings' },
+      { id: 'shop-section', label: 'Shop' },
+      { id: 'members-section', label: 'Member Lookup' }
+    ];
+    navSidebar.innerHTML = sections.map(section => 
+      `<button data-section="${section.id}" style="${section.id === 'settings-section' ? 'background:linear-gradient(90deg, var(--accent), var(--accent2));color:white;' : ''}">${section.label}</button>`
+    ).join('');
+    
+    document.querySelectorAll('.nav-sidebar button').forEach(button => {
+      button.addEventListener('click', () => {
+        const sectionId = button.dataset.section;
+        const contentArea = document.getElementById('content-area');
+        document.querySelectorAll('.section').forEach(section => {
+          section.style.display = section.id === sectionId ? 'block' : 'none';
+        });
+        document.querySelectorAll('.nav-sidebar button').forEach(btn => {
+          btn.style.background = '';
+          btn.style.color = '';
+        });
+        button.style.background = 'linear-gradient(90deg, var(--accent), var(--accent2))';
+        button.style.color = 'white';
+        contentArea.classList.add('hidden');
+        setTimeout(() => {
+          contentArea.classList.remove('hidden');
+        }, 300);
+      });
+    });
+    document.getElementById('settings-section').style.display = 'block';
+  }
 });
 </script>
 </body>
@@ -715,7 +894,52 @@ app.get("/callback", async (req, res) => {
     if (!Array.isArray(guilds)) guilds = [];
     req.session.guilds = guilds;
 
-    res.redirect("/dashboard");
+    // Render dashboard with loading screen
+    const user = req.session.user;
+    let botGuildIds = [];
+    try {
+      botGuildIds = require(path.join(__dirname, "bot_guilds.json")).guild_ids;
+    } catch (err) {
+      console.error("Failed to load bot_guilds.json:", err);
+    }
+    const botGuildSet = new Set(botGuildIds);
+    const candidateGuilds = guilds.filter(g => botGuildSet.has(String(g.id)));
+    let results = {};
+    if (candidateGuilds.length > 0) {
+      try {
+        const batchRes = await fetch(`${API_BASE}/checkPermsBatch`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${myJwt}`,
+          },
+          body: JSON.stringify({ guildIds: candidateGuilds.map(g => g.id) }),
+        });
+        if (batchRes.ok) {
+          const data = await batchRes.json();
+          results = data.results || {};
+        }
+      } catch (err) {
+        console.error("Error calling /checkPermsBatch:", err);
+      }
+    }
+    const filteredGuilds = candidateGuilds.filter(g => {
+      const entry = results[g.id];
+      return entry?.allowed;
+    });
+    const serversHtml = filteredGuilds
+      .map((g) => {
+        const name = truncateName(g.name || "");
+        const icon = guildIconUrl(g);
+        return `<div class="server"><a href="/dashboard/${g.id}">${
+          icon
+            ? `<img src="${escapeHtml(icon)}"/>`
+            : `<div class="server-icon">${escapeHtml(name.charAt(0))}</div>`
+        }<div class="server-name">${escapeHtml(name)}</div></a></div>`;
+      })
+      .join('');
+
+    res.send(renderLayout(user, `<h2>Your Servers</h2><div class="servers">${serversHtml}</div>`));
   } catch (err) {
     console.error("Callback error:", err);
     res.status(500).send("Internal Error");
@@ -775,7 +999,7 @@ app.get("/dashboard", async (req, res) => {
           : `<div class="server-icon">${escapeHtml(name.charAt(0))}</div>`
       }<div class="server-name">${escapeHtml(name)}</div></a></div>`;
     })
-    .join('<span style="color:var(--muted);padding:0 0.5rem;">-></span>');
+    .join('');
 
   res.send(renderLayout(user, `<h2>Your Servers</h2><div class="servers">${serversHtml}</div>`));
 });
