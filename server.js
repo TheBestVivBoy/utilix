@@ -726,31 +726,45 @@ app.get("/callback", async (req, res) => {
 
 app.get("/dashboard", async (req, res) => {
   if (!req.session.user) return res.redirect("/login");
+
   const user = req.session.user;
   const jwt = req.session.jwt;
-  let guilds = req.session.guilds || [];
+  const guilds = req.session.guilds || [];
 
-  // Filter guilds where bot is present
-  const filteredGuilds = [];
-  for (const guild of guilds) {
+  let botGuildIds = [];
+  try {
+    botGuildIds = require("../bot_guilds.json").guild_ids.map(String);
+  } catch (err) {
+    console.error("Failed to load bot_guilds.json:", err);
+  }
+  const botGuildSet = new Set(botGuildIds);
+
+  const candidateGuilds = guilds.filter(g => botGuildSet.has(String(g.id)));
+
+  let results = {};
+  if (candidateGuilds.length > 0) {
     try {
-      const botCheckRes = await fetch(`${API_BASE}/checkPerms`, {
+      const batchRes = await fetch(`${API_BASE}/checkPermsBatch`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${jwt}`,
         },
-        body: JSON.stringify({ guildId: guild.id }),
+        body: JSON.stringify({ guildIds: candidateGuilds.map(g => g.id) }),
       });
-      if (botCheckRes.ok) {
-        const botCheck = await botCheckRes.json();
-        if (botCheck.allowed) filteredGuilds.push(guild);
+
+      if (batchRes.ok) {
+        const data = await batchRes.json();
+        results = data.results || {};
       }
     } catch (err) {
-      console.error(`Error checking bot perms for guild ${guild.id}:`, err);
+      console.error("Error calling /checkPermsBatch:", err);
     }
   }
-
+  const filteredGuilds = candidateGuilds.filter(g => {
+    const entry = results[g.id];
+    return entry?.allowed;
+  });
   const serversHtml = filteredGuilds
     .map((g) => {
       const name = truncateName(g.name || "");
