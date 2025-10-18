@@ -134,7 +134,7 @@ async function fetchGuildData(guildId, jwt, extra = {}) {
     fetch(`${API_BASE}/dashboard/${guildId}/shop`, { headers }),
     fetch(`${API_BASE}/dashboard/${guildId}/roles`, { headers }),
     fetch(`${API_BASE}/dashboard/${guildId}/channels`, { headers }),
-    fetch(`${API_BASE}/dashboard/log_events`, { headers }),
+    fetch(`${API_BASE}/dashboard/${guildId}/log_events`, { headers }),
   ]);
 
   const data = {
@@ -210,7 +210,7 @@ function renderConfigItem(guildId, key, value, roles, channels, logEvents) {
   } else if (isChannelKey(key)) {
     inputHtml = `<select name="value" style="flex:1;padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);" ${key === "greeting_channel_id" ? "multiple size='3'" : ""}>`;
     inputHtml += `<option value="">None</option>`;
-    (channels.channels || []).forEach((c) => {
+    (channels.channels || []).filter(c => c.type !== "category").forEach((c) => {
       const selected = key === "greeting_channel_id" ? values.includes(c.id) ? "selected" : "" : c.id === value ? "selected" : "";
       inputHtml += `<option value="${escapeHtml(c.id)}" ${selected}>${escapeHtml(c.name || '')} (${escapeHtml(c.type || '')})</option>`;
     });
@@ -238,7 +238,6 @@ function renderConfigItem(guildId, key, value, roles, channels, logEvents) {
   html += `<input type="hidden" name="key" value="${escapeHtml(key)}">`;
   html += inputHtml;
   html += `<button type="submit" style="padding:0.5rem 1rem;background:var(--accent);color:white;border:none;border-radius:4px;cursor:pointer;">Save</button>`;
-  html += `<span class="status" style="color:#0f0;font-size:0.9rem;display:none;"></span>`;
   html += `</form></div>`;
   return html;
 }
@@ -320,7 +319,7 @@ function renderLayout(user, contentHtml) {
   --bg:#0b0a1e; --fg:#f2f2f7; --accent:#a64ca6; --accent2:#6c34cc;
   --muted:#c0a0ff; --card:rgba(20,10,40,0.85); --panel:rgba(15,5,35,0.95);
 }
-*{box-sizing:border-box;margin:0;padding:0}
+* {box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
 body{
   font-family:"Inter",system-ui,-apple-system,Segoe UI,Roboto,Arial;
@@ -375,11 +374,10 @@ nav.header-nav a.active{
 h1,h2{ margin-bottom:12px; }
 h3{ margin-bottom:8px; }
 .servers{
-  display:grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
   gap:1rem;
-  justify-content:start;
-  align-items:start;
   margin-top:12px;
 }
 .server{
@@ -393,7 +391,7 @@ h3{ margin-bottom:8px; }
 .server:hover{ transform: translateY(-6px); box-shadow: 0 18px 40px rgba(0,0,0,0.6); }
 .server img, .server-icon{ width:80px; height:80px; border-radius:16px; margin-bottom:0.5rem; object-fit:cover; }
 .server-icon{ display:flex; align-items:center; justify-content:center; background: rgba(255,255,255,0.06); font-weight:700; font-size:1.5rem; }
-.server-name{ font-size:0.95rem; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:180px; margin:0 auto; }
+.server-name{ font-size:0.95rem; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:140px; margin:0 auto; }
 .card{ background:var(--card); padding:16px; border-radius:12px; border:1px solid rgba(255,255,255,0.04); margin-bottom:2rem; }
 table th, table td { padding: 0.5rem; border-bottom: 1px solid rgba(255,255,255,0.05); text-align: left; }
 table th { font-weight: 600; }
@@ -402,12 +400,10 @@ canvas#starfield{ width:100%; height:100%; display:block; }
 .tag-input-wrapper { position: relative; }
 .tags { min-height: 2.5rem; display: flex; align-items: center; flex-wrap: wrap; }
 .tag { background: rgba(255,255,255,0.1); padding: 0.3rem 0.6rem; border-radius: 4px; display: flex; align-items: center; }
-.tag-input { min-width: 100px; }
+.tag-input { min-width: 100px; border:none; background:none; color:var(--fg); outline:none; }
 .dropdown { z-index: 1000; }
 .dropdown-options div { padding: 0.5rem; cursor: pointer; }
 .dropdown-options div:hover { background: rgba(255,255,255,0.1); }
-.status.success { color: #0f0; }
-.status.error { color: #f55; }
 .popup {
   position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
   background: var(--panel); color: var(--fg); padding: 0.8rem 1.5rem;
@@ -443,7 +439,7 @@ canvas#starfield{ width:100%; height:100%; display:block; }
     </div>
   </header>
   <div class="canvas-wrap"><canvas id="starfield"></canvas></div>
-  <main class="page" data-guild-id="${contentHtml.includes('No access') || contentHtml.includes('Error') ? '' : contentHtml.match(/\/dashboard\/(\d+)/)?.[1] || ''}">
+  <main class="page">
     ${contentHtml}
     <div id="popup" class="popup">Saved changes</div>
   </main>
@@ -511,6 +507,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         input.value = '';
         dropdown.style.display = 'none';
+      } else if (e.key === 'Backspace' && input.value === '' && tagsContainer.querySelectorAll('.tag').length > 0) {
+        const lastTag = tagsContainer.querySelector('.tag:last-of-type');
+        if (lastTag) lastTag.remove();
+        updateHiddenInput(tagsContainer, hiddenInput);
       }
     });
 
@@ -552,8 +552,6 @@ document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('.config-form').forEach(form => {
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const status = form.querySelector('.status');
-      status.style.display = 'none';
       const formData = new FormData(form);
       const key = formData.get('key');
       let value = formData.get('value');
@@ -562,39 +560,87 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       const guildId = form.closest('main').dataset.guildId;
       if (!guildId) {
-        status.textContent = 'Error: No guild ID';
-        status.className = 'status error';
-        status.style.display = 'inline';
-        setTimeout(() => status.style.display = 'none', 2000);
+        const popup = document.getElementById('popup');
+        popup.textContent = 'Error occurred';
+        popup.classList.add('show');
+        popup.style.color = '#f55';
+        setTimeout(() => {
+          popup.classList.remove('show');
+          popup.style.color = 'var(--fg)';
+        }, 2000);
         return;
       }
       try {
-        const res = await fetch(\`/dashboard/\${guildId}/config\`, {
+        const res = await fetch(`/dashboard/${guildId}/config`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ key, value })
         });
+        const popup = document.getElementById('popup');
         if (res.ok) {
-          status.textContent = 'Saved!';
-          status.className = 'status success';
-          status.style.display = 'inline';
-          const popup = document.getElementById('popup');
+          popup.textContent = 'Saved changes';
           popup.classList.add('show');
+          setTimeout(() => popup.classList.remove('show'), 2000);
+        } else {
+          popup.textContent = 'Error occurred';
+          popup.classList.add('show');
+          popup.style.color = '#f55';
           setTimeout(() => {
             popup.classList.remove('show');
-            status.style.display = 'none';
+            popup.style.color = 'var(--fg)';
           }, 2000);
-        } else {
-          throw new Error('Save failed');
         }
       } catch (err) {
-        status.textContent = 'Error saving';
-        status.className = 'status error';
-        status.style.display = 'inline';
-        setTimeout(() => status.style.display = 'none', 2000);
+        const popup = document.getElementById('popup');
+        popup.textContent = 'Error occurred';
+        popup.classList.add('show');
+        popup.style.color = '#f55';
+        setTimeout(() => {
+          popup.classList.remove('show');
+          popup.style.color = 'var(--fg)';
+        }, 2000);
       }
     });
   });
+
+  /* Search bars */
+  const page = document.querySelector('.page');
+  if (document.querySelector('.servers')) {
+    const search = document.createElement('input');
+    search.type = 'text';
+    search.id = 'search';
+    search.placeholder = 'Search servers...';
+    search.style = 'width:100%;padding:0.5rem;margin-bottom:1rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);';
+    page.insertBefore(search, page.querySelector('h2 + div'));
+    search.addEventListener('input', () => {
+      const query = search.value.toLowerCase();
+      document.querySelectorAll('.server').forEach(server => {
+        const name = server.querySelector('.server-name').textContent.toLowerCase();
+        server.style.display = name.includes(query) ? '' : 'none';
+      });
+    });
+  } else if (document.querySelector('.config-item')) {
+    const search = document.createElement('input');
+    search.type = 'text';
+    search.id = 'search';
+    search.placeholder = 'Search config...';
+    search.style = 'width:100%;padding:0.5rem;margin-bottom:1rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);';
+    page.insertBefore(search, page.querySelector('h1 + h2'));
+    search.addEventListener('input', () => {
+      const query = search.value.toLowerCase();
+      document.querySelectorAll('.config-item').forEach(item => {
+        const label = item.querySelector('label').textContent.toLowerCase();
+        item.style.display = label.includes(query) ? 'flex' : 'none';
+      });
+      // Hide sections if all items hidden
+      document.querySelectorAll('.card').forEach(card => {
+        const items = card.querySelectorAll('.config-item');
+        const visible = Array.from(items).some(i => i.style.display !== 'none');
+        card.style.display = visible ? 'grid' : 'none';
+        card.previousElementSibling.style.display = visible ? 'block' : 'none';
+      });
+    });
+  }
 });
 </script>
 </body>
@@ -702,7 +748,7 @@ app.get("/dashboard", async (req, res) => {
           : `<div class="server-icon">${escapeHtml(name.charAt(0))}</div>`
       }<div class="server-name">${escapeHtml(name)}</div></a></div>`;
     })
-    .join("");
+    .join(' <span style="color:var(--muted);">-></span> ');
 
   res.send(renderLayout(user, `<h2>Your Servers</h2><div class="servers">${serversHtml}</div>`));
 });
@@ -792,6 +838,8 @@ app.post("/dashboard/:id/config", async (req, res) => {
     value = value.join(",");
   }
 
+  value = String(value); // Ensure string for IDs
+
   try {
     const headers = {
       "Content-Type": "application/json",
@@ -829,7 +877,7 @@ app.post("/dashboard/:id/shop", async (req, res) => {
     const addRes = await fetch(`${API_BASE}/dashboard/${guildId}/shop`, {
       method: "POST",
       headers,
-      body: JSON.stringify({ role_id, name, price }),
+      body: JSON.stringify({ role_id: String(role_id), name, price }),
     });
 
     if (addRes.ok) {
