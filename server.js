@@ -157,7 +157,7 @@ function renderConfigSections(guildId, config, roles, channels, logEvents) {
     const sectionKeys = keys.filter((k) => configKeys.includes(k));
     if (sectionKeys.length === 0) continue;
 
-    html += `<h2>${escapeHtml(title)}</h2><div class="card" style="display:grid;gap:1rem;">`;
+    html += `<h2 class="accordion-header" style="cursor:pointer;">${escapeHtml(title)}</h2><div class="card accordion-body" style="display:none;grid-template-columns:1fr 1fr;gap:1rem;">`;
     for (const key of sectionKeys) {
       html += renderConfigItem(guildId, key, config.config[key], roles, channels, logEvents);
     }
@@ -167,7 +167,7 @@ function renderConfigSections(guildId, config, roles, channels, logEvents) {
   // General section for ungrouped keys
   const generalKeys = configKeys.filter((k) => !allGroupedKeys.includes(k));
   if (generalKeys.length > 0) {
-    html += `<h2>General</h2><div class="card" style="display:grid;gap:1rem;">`;
+    html += `<h2 class="accordion-header" style="cursor:pointer;">General</h2><div class="card accordion-body" style="display:none;grid-template-columns:1fr 1fr;gap:1rem;">`;
     for (const key of generalKeys) {
       html += renderConfigItem(guildId, key, config.config[key], roles, channels, logEvents);
     }
@@ -413,6 +413,8 @@ canvas#starfield{ width:100%; height:100%; display:block; }
   opacity: 0; transition: opacity 0.3s ease;
 }
 .popup.show { opacity: 1; }
+.accordion-header { cursor: pointer; }
+.accordion-body { display: none; grid-template-columns: 1fr 1fr; gap: 1rem; }
 </style>
 </head>
 <body>
@@ -439,7 +441,7 @@ canvas#starfield{ width:100%; height:100%; display:block; }
     </div>
   </header>
   <div class="canvas-wrap"><canvas id="starfield"></canvas></div>
-  <main class="page">
+  <main class="page" data-guild-id="${contentHtml.includes('No access') || contentHtml.includes('Error') ? '' : contentHtml.match(/\/dashboard\/(\d+)/)?.[1] || ''}">
     ${contentHtml}
     <div id="popup" class="popup">Saved changes</div>
   </main>
@@ -571,7 +573,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
       try {
-        const res = await fetch(`/dashboard/${guildId}/config`, {
+        const res = await fetch(\`/dashboard/\${guildId}/config\`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ key, value })
@@ -614,10 +616,13 @@ document.addEventListener('DOMContentLoaded', () => {
     page.insertBefore(search, page.querySelector('h2 + div'));
     search.addEventListener('input', () => {
       const query = search.value.toLowerCase();
-      document.querySelectorAll('.server').forEach(server => {
+      const servers = document.querySelectorAll('.server');
+      servers.forEach(server => {
         const name = server.querySelector('.server-name').textContent.toLowerCase();
         server.style.display = name.includes(query) ? '' : 'none';
       });
+      const arrows = document.querySelectorAll('.servers span');
+      arrows.forEach(arrow => arrow.style.display = '');
     });
   } else if (document.querySelector('.config-item')) {
     const search = document.createElement('input');
@@ -641,6 +646,14 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     });
   }
+
+  /* Accordion for sections */
+  document.querySelectorAll('.accordion-header').forEach(header => {
+    header.addEventListener('click', () => {
+      const body = header.nextElementSibling;
+      body.style.display = body.style.display === 'none' ? 'grid' : 'none';
+    });
+  });
 });
 </script>
 </body>
@@ -748,7 +761,7 @@ app.get("/dashboard", async (req, res) => {
           : `<div class="server-icon">${escapeHtml(name.charAt(0))}</div>`
       }<div class="server-name">${escapeHtml(name)}</div></a></div>`;
     })
-    .join(' <span style="color:var(--muted);">-></span> ');
+    .join('<span style="color:var(--muted);padding:0 0.5rem;">-></span>');
 
   res.send(renderLayout(user, `<h2>Your Servers</h2><div class="servers">${serversHtml}</div>`));
 });
