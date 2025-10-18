@@ -129,11 +129,12 @@ const multiKeys = [
 
 async function fetchGuildData(guildId, jwt, extra = {}) {
   const headers = { Authorization: `Bearer ${jwt}` };
-  const [configRes, shopRes, rolesRes, channelsRes] = await Promise.all([
+  const [configRes, shopRes, rolesRes, channelsRes, logEventsRes] = await Promise.all([
     fetch(`${API_BASE}/dashboard/${guildId}`, { headers }),
     fetch(`${API_BASE}/dashboard/${guildId}/shop`, { headers }),
     fetch(`${API_BASE}/dashboard/${guildId}/roles`, { headers }),
     fetch(`${API_BASE}/dashboard/${guildId}/channels`, { headers }),
+    fetch(`${API_BASE}/dashboard/log_events`, { headers }),
   ]);
 
   const data = {
@@ -141,12 +142,13 @@ async function fetchGuildData(guildId, jwt, extra = {}) {
     shop: shopRes.ok ? await shopRes.json() : { success: false, items: [] },
     roles: rolesRes.ok ? await rolesRes.json() : { success: false, roles: [] },
     channels: channelsRes.ok ? await channelsRes.json() : { success: false, channels: [] },
+    logEvents: logEventsRes.ok ? await logEventsRes.json() : { success: false, events: [] },
     ...extra,
   };
   return data;
 }
 
-function renderConfigSections(guildId, config, roles, channels) {
+function renderConfigSections(guildId, config, roles, channels, logEvents) {
   let html = "";
   const allGroupedKeys = Object.values(sectionGroups).flat();
   const configKeys = Object.keys(config.config || {});
@@ -157,7 +159,7 @@ function renderConfigSections(guildId, config, roles, channels) {
 
     html += `<h2>${escapeHtml(title)}</h2><div class="card" style="display:grid;gap:1rem;">`;
     for (const key of sectionKeys) {
-      html += renderConfigItem(guildId, key, config.config[key], roles, channels);
+      html += renderConfigItem(guildId, key, config.config[key], roles, channels, logEvents);
     }
     html += `</div>`;
   }
@@ -167,7 +169,7 @@ function renderConfigSections(guildId, config, roles, channels) {
   if (generalKeys.length > 0) {
     html += `<h2>General</h2><div class="card" style="display:grid;gap:1rem;">`;
     for (const key of generalKeys) {
-      html += renderConfigItem(guildId, key, config.config[key], roles, channels);
+      html += renderConfigItem(guildId, key, config.config[key], roles, channels, logEvents);
     }
     html += `</div>`;
   }
@@ -175,7 +177,7 @@ function renderConfigSections(guildId, config, roles, channels) {
   return html;
 }
 
-function renderConfigItem(guildId, key, value, roles, channels) {
+function renderConfigItem(guildId, key, value, roles, channels, logEvents) {
   const isMulti = multiKeys.includes(key);
   const values = isMulti && typeof value === "string" ? value.split(",").filter(v => v) : [value];
   const pretty = getPrettyName(key);
@@ -184,14 +186,14 @@ function renderConfigItem(guildId, key, value, roles, channels) {
   let inputHtml = "";
   if (isRoleKey(key) && isMulti) {
     inputHtml = `
-      <div class="tag-input-wrapper" style="flex:1;">
-        <div class="tags" data-key="${escapeHtml(key)}" style="display:flex;gap:0.5rem;flex-wrap:wrap;padding:0.5rem;border:1px solid rgba(255,255,255,0.1);border-radius:4px;background:var(--panel);min-height:2.5rem;">
+      <div class="tag-input-wrapper" style="flex:1;position:relative;">
+        <div class="tags" data-key="${escapeHtml(key)}" style="display:flex;gap:0.5rem;flex-wrap:wrap;padding:0.5rem;border:1px solid rgba(255,255,255,0.1);border-radius:4px;background:var(--panel);min-height:2.5rem;align-items:center;">
           ${values.filter(v => v).map(v => {
             const role = (roles.roles || []).find(r => r.id === v);
             return role ? `<span class="tag" data-id="${escapeHtml(v)}">${escapeHtml(role.name)} <button type="button" class="remove-tag" style="margin-left:0.3rem;color:#f55;border:none;background:none;cursor:pointer;">x</button></span>` : "";
           }).join("")}
+          <input type="text" class="tag-input" placeholder="Type role name..." style="flex:1;border:none;background:none;color:var(--fg);outline:none;">
         </div>
-        <input type="text" class="tag-input" placeholder="Type role name..." style="width:100%;padding:0.5rem;border:none;border-top:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);">
         <div class="dropdown" style="display:none;position:absolute;background:var(--panel);border:1px solid rgba(255,255,255,0.1);border-radius:4px;max-height:150px;overflow-y:auto;width:100%;z-index:1000;">
           <div class="dropdown-options"></div>
         </div>
@@ -214,19 +216,10 @@ function renderConfigItem(guildId, key, value, roles, channels) {
     });
     inputHtml += `</select>`;
   } else if (key === "log_events") {
-    const logEventOptions = [
-      { id: "member_join", name: "Member Join" },
-      { id: "member_leave", name: "Member Leave" },
-      { id: "message_delete", name: "Message Delete" },
-      { id: "ban_add", name: "Ban Add" },
-      { id: "ban_remove", name: "Ban Remove" },
-      { id: "channel_create", name: "Channel Create" },
-      { id: "channel_delete", name: "Channel Delete" },
-    ];
     inputHtml = `<select name="value[]" multiple size="5" style="flex:1;padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);">`;
-    logEventOptions.forEach((e) => {
+    (logEvents.events || []).forEach((e) => {
       const selected = values.includes(e.id) ? "selected" : "";
-      inputHtml += `<option value="${escapeHtml(e.id)}" ${selected}>${escapeHtml(e.name)}</option>`;
+      inputHtml += `<option value="${escapeHtml(e.id)}" ${selected}>${escapeHtml(e.name || '')}</option>`;
     });
     inputHtml += `</select>`;
   } else if (isMessageKey(key)) {
@@ -244,7 +237,7 @@ function renderConfigItem(guildId, key, value, roles, channels) {
   html += `<form class="config-form" style="display:flex;gap:0.5rem;flex:1;">`;
   html += `<input type="hidden" name="key" value="${escapeHtml(key)}">`;
   html += inputHtml;
-  html += `<button type="submit" style="padding:0.5rem 1rem;background:var(--accent);color:white;border:none;border-radius:4px;cursor:pointer;">Update</button>`;
+  html += `<button type="submit" style="padding:0.5rem 1rem;background:var(--accent);color:white;border:none;border-radius:4px;cursor:pointer;">Save</button>`;
   html += `<span class="status" style="color:#0f0;font-size:0.9rem;display:none;"></span>`;
   html += `</form></div>`;
   return html;
@@ -383,11 +376,11 @@ h1,h2{ margin-bottom:12px; }
 h3{ margin-bottom:8px; }
 .servers{
   display:grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap:1rem;
   justify-content:start;
   align-items:start;
-  margin-top: 12px;
+  margin-top:12px;
 }
 .server{
   background:var(--card);
@@ -400,20 +393,30 @@ h3{ margin-bottom:8px; }
 .server:hover{ transform: translateY(-6px); box-shadow: 0 18px 40px rgba(0,0,0,0.6); }
 .server img, .server-icon{ width:80px; height:80px; border-radius:16px; margin-bottom:0.5rem; object-fit:cover; }
 .server-icon{ display:flex; align-items:center; justify-content:center; background: rgba(255,255,255,0.06); font-weight:700; font-size:1.5rem; }
-.server-name{ font-size:0.95rem; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:140px; margin:0 auto; }
+.server-name{ font-size:0.95rem; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:180px; margin:0 auto; }
 .card{ background:var(--card); padding:16px; border-radius:12px; border:1px solid rgba(255,255,255,0.04); margin-bottom:2rem; }
 table th, table td { padding: 0.5rem; border-bottom: 1px solid rgba(255,255,255,0.05); text-align: left; }
 table th { font-weight: 600; }
 .canvas-wrap{ position:fixed; inset:0; z-index:0; pointer-events:none; }
 canvas#starfield{ width:100%; height:100%; display:block; }
 .tag-input-wrapper { position: relative; }
-.tags { min-height: 2.5rem; }
+.tags { min-height: 2.5rem; display: flex; align-items: center; flex-wrap: wrap; }
 .tag { background: rgba(255,255,255,0.1); padding: 0.3rem 0.6rem; border-radius: 4px; display: flex; align-items: center; }
+.tag-input { min-width: 100px; }
 .dropdown { z-index: 1000; }
 .dropdown-options div { padding: 0.5rem; cursor: pointer; }
 .dropdown-options div:hover { background: rgba(255,255,255,0.1); }
 .status.success { color: #0f0; }
 .status.error { color: #f55; }
+.popup {
+  position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+  background: var(--panel); color: var(--fg); padding: 0.8rem 1.5rem;
+  border-radius: 8px; border: 1px solid transparent;
+  border-image: linear-gradient(90deg, var(--accent), var(--accent2)) 1;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5); z-index: 2000;
+  opacity: 0; transition: opacity 0.3s ease;
+}
+.popup.show { opacity: 1; }
 </style>
 </head>
 <body>
@@ -442,6 +445,7 @@ canvas#starfield{ width:100%; height:100%; display:block; }
   <div class="canvas-wrap"><canvas id="starfield"></canvas></div>
   <main class="page" data-guild-id="${contentHtml.includes('No access') || contentHtml.includes('Error') ? '' : contentHtml.match(/\/dashboard\/(\d+)/)?.[1] || ''}">
     ${contentHtml}
+    <div id="popup" class="popup">Saved changes</div>
   </main>
 <script>
 /* client-side escapeHtml */
@@ -491,6 +495,25 @@ document.addEventListener('DOMContentLoaded', () => {
       dropdown.style.display = filtered.length > 0 ? 'block' : 'none';
     });
 
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && dropdown.querySelector('.dropdown-options div')) {
+        e.preventDefault();
+        const firstOption = dropdown.querySelector('.dropdown-options div');
+        const id = firstOption.dataset.id;
+        const name = firstOption.textContent;
+        if (!tagsContainer.querySelector('.tag[data-id="' + escapeHtml(id) + '"]')) {
+          const tag = document.createElement('span');
+          tag.className = 'tag';
+          tag.dataset.id = id;
+          tag.innerHTML = escapeHtml(name) + ' <button type="button" class="remove-tag" style="margin-left:0.3rem;color:#f55;border:none;background:none;cursor:pointer;">x</button>';
+          tagsContainer.insertBefore(tag, input);
+          updateHiddenInput(tagsContainer, hiddenInput);
+        }
+        input.value = '';
+        dropdown.style.display = 'none';
+      }
+    });
+
     dropdownOptions.addEventListener('click', (e) => {
       const option = e.target.closest('div[data-id]');
       if (!option) return;
@@ -501,7 +524,7 @@ document.addEventListener('DOMContentLoaded', () => {
         tag.className = 'tag';
         tag.dataset.id = id;
         tag.innerHTML = escapeHtml(name) + ' <button type="button" class="remove-tag" style="margin-left:0.3rem;color:#f55;border:none;background:none;cursor:pointer;">x</button>';
-        tagsContainer.appendChild(tag);
+        tagsContainer.insertBefore(tag, input);
         updateHiddenInput(tagsContainer, hiddenInput);
       }
       input.value = '';
@@ -525,7 +548,7 @@ document.addEventListener('DOMContentLoaded', () => {
     hiddenInput.value = ids.join(',');
   }
 
-  /* Seamless form submission */
+  /* Seamless form submission with popup */
   document.querySelectorAll('.config-form').forEach(form => {
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -552,15 +575,20 @@ document.addEventListener('DOMContentLoaded', () => {
           body: JSON.stringify({ key, value })
         });
         if (res.ok) {
-          status.textContent = 'Updated!';
+          status.textContent = 'Saved!';
           status.className = 'status success';
           status.style.display = 'inline';
-          setTimeout(() => status.style.display = 'none', 2000);
+          const popup = document.getElementById('popup');
+          popup.classList.add('show');
+          setTimeout(() => {
+            popup.classList.remove('show');
+            status.style.display = 'none';
+          }, 2000);
         } else {
-          throw new Error('Update failed');
+          throw new Error('Save failed');
         }
       } catch (err) {
-        status.textContent = 'Error updating';
+        status.textContent = 'Error saving';
         status.className = 'status error';
         status.style.display = 'inline';
         setTimeout(() => status.style.display = 'none', 2000);
@@ -637,12 +665,34 @@ app.get("/callback", async (req, res) => {
 
 /* ---------------- Dashboard ---------------- */
 
-app.get("/dashboard", (req, res) => {
+app.get("/dashboard", async (req, res) => {
   if (!req.session.user) return res.redirect("/login");
   const user = req.session.user;
-  const guilds = req.session.guilds || [];
+  const jwt = req.session.jwt;
+  let guilds = req.session.guilds || [];
 
-  const serversHtml = guilds
+  // Filter guilds where bot is present
+  const filteredGuilds = [];
+  for (const guild of guilds) {
+    try {
+      const botCheckRes = await fetch(`${API_BASE}/checkPerms`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${jwt}`,
+        },
+        body: JSON.stringify({ guildId: guild.id }),
+      });
+      if (botCheckRes.ok) {
+        const botCheck = await botCheckRes.json();
+        if (botCheck.allowed) filteredGuilds.push(guild);
+      }
+    } catch (err) {
+      console.error(`Error checking bot perms for guild ${guild.id}:`, err);
+    }
+  }
+
+  const serversHtml = filteredGuilds
     .map((g) => {
       const name = truncateName(g.name || "");
       const icon = guildIconUrl(g);
@@ -694,7 +744,7 @@ app.get("/dashboard/:id", async (req, res) => {
     const data = await fetchGuildData(guildId, jwt);
 
     let contentHtml = `<h1>${escapeHtml(guild.name || '')}</h1>`;
-    contentHtml += renderConfigSections(guildId, data.config, data.roles, data.channels);
+    contentHtml += renderConfigSections(guildId, data.config, data.roles, data.channels, data.logEvents);
     contentHtml += renderShopSection(guildId, data.shop, data.roles);
     contentHtml += renderMemberSearchSection(guildId);
 
@@ -720,7 +770,7 @@ app.get("/dashboard/:id/members", async (req, res) => {
 
     const guild = (req.session.guilds || []).find((g) => g.id === guildId);
     let contentHtml = `<h1>${escapeHtml(guild.name || '')}</h1>`;
-    contentHtml += renderConfigSections(guildId, data.config, data.roles, data.channels);
+    contentHtml += renderConfigSections(guildId, data.config, data.roles, data.channels, data.logEvents);
     contentHtml += renderShopSection(guildId, data.shop, data.roles);
     contentHtml += renderMemberSearchSection(guildId, data.member);
 
@@ -756,7 +806,7 @@ app.post("/dashboard/:id/config", async (req, res) => {
     if (updateRes.ok) {
       res.json({ success: true });
     } else {
-      res.status(400).json({ error: "Error updating config" });
+      res.status(400).json({ error: "Error saving config" });
     }
   } catch (err) {
     console.error(err);
