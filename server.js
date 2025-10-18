@@ -68,6 +68,64 @@ function isChannelKey(key) {
   return key.endsWith("_channel_id") || /channel/i.test(key);
 }
 
+function isMessageKey(key) {
+  return /message/i.test(key);
+}
+
+function isNumberKey(key) {
+  return /threshold/i.test(key);
+}
+
+function isUrlKey(key) {
+  return /url/i.test(key);
+}
+
+const prettyNames = {
+  bot_admin_role_id: "Bot Admin",
+  ticket_admin_1_role_id: "Ticket Admin",
+  bot_profile_nick: "Bot Profile Name",
+  bot_profile_bio: "Bot's profile bio",
+  bot_profile_avatar_url: "Bot Profile avatar url",
+  bot_profile_banner_url: "Bot Profile Banner url",
+  warn_role_id: "Warn Role Permission",
+  mute_role_id: "Mute Role Permission",
+  unmute_role_id: "Unmute Role Permission",
+  unwarn_role_id: "Unwarn Role Permission",
+  ban_role_id: "Ban Role Permission",
+  unban_role_id: "Unban Role Permission",
+  kick_role_id: "Kick Role Permission",
+  minigames_staff_role_id: "Minigame Staff Role Permission",
+  ticket_staff_1_role_id: "Ticket Staff Role Permission",
+  invite_manager_role_id: "Invite Manager Role Permission",
+  welcome_message: "Welcome Message",
+  goodbye_message: "Goodbye Message",
+  welcome_channel: "Welcome/Goodbye Channel",
+  greeting_channel: "Greeting's Channel",
+  modlog_channel_id: "Modlogs",
+  logs_channel_id: "Action Log",
+  log_events: "Event Log",
+  ban_threshold: "Ban threshold",
+  ticket_log_1_channel_id: "Ticket Logging / Ticket Transcripts",
+};
+
+function getPrettyName(key) {
+  return prettyNames[key] || key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+const sectionGroups = {
+  "Bot Administrator Permissions": ["bot_admin_role_id", "ticket_admin_1_role_id"],
+  "Bot Customization": ["bot_profile_nick", "bot_profile_bio", "bot_profile_avatar_url", "bot_profile_banner_url"],
+  "Moderation Roles": ["warn_role_id", "mute_role_id", "unmute_role_id", "unwarn_role_id", "ban_role_id", "unban_role_id", "kick_role_id", "minigames_staff_role_id", "ticket_staff_1_role_id", "invite_manager_role_id"],
+  "Join / Leaves": ["welcome_message", "goodbye_message", "welcome_channel", "greeting_channel"],
+  "Logging": ["modlog_channel_id", "logs_channel_id", "log_events", "ban_threshold", "ticket_log_1_channel_id"],
+};
+
+const multiKeys = [
+  "bot_admin_role_id", "ticket_admin_1_role_id",
+  "warn_role_id", "mute_role_id", "unmute_role_id", "unwarn_role_id", "ban_role_id", "unban_role_id", "kick_role_id", "minigames_staff_role_id", "ticket_staff_1_role_id", "invite_manager_role_id",
+  "greeting_channel", "log_events"
+];
+
 async function fetchGuildData(guildId, jwt, extra = {}) {
   const headers = { Authorization: `Bearer ${jwt}` };
   const [configRes, shopRes, rolesRes, channelsRes] = await Promise.all([
@@ -87,38 +145,77 @@ async function fetchGuildData(guildId, jwt, extra = {}) {
   return data;
 }
 
-function renderConfigSection(guildId, config, roles, channels) {
-  let html = '<h2>Config</h2><div class="card" style="display:grid;gap:1rem;">';
-  for (const [key, value] of Object.entries(config.config || {})) {
-    html += `<div style="display:flex;align-items:center;gap:0.5rem;justify-content:space-between;">`;
-    html += `<label style="font-weight:600;min-width:150px;">${escapeHtml(key)}</label>`;
-    html += `<form action="/dashboard/${guildId}/config" method="POST" style="display:flex;gap:0.5rem;flex:1;">`;
-    html += `<input type="hidden" name="key" value="${escapeHtml(key)}">`;
+function renderConfigSections(guildId, config, roles, channels) {
+  let html = "";
+  const allGroupedKeys = Object.values(sectionGroups).flat();
+  const configKeys = Object.keys(config.config || {});
 
-    if (isRoleKey(key)) {
-      html += `<select name="value" style="flex:1;padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);">`;
-      html += `<option value="">None</option>`;
-      (roles.roles || []).forEach((r) => {
-        const selected = r.id === value ? "selected" : "";
-        html += `<option value="${escapeHtml(r.id)}" ${selected}>${escapeHtml(r.name)}</option>`;
-      });
-      html += `</select>`;
-    } else if (isChannelKey(key)) {
-      html += `<select name="value" style="flex:1;padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);">`;
-      html += `<option value="">None</option>`;
-      (channels.channels || []).forEach((c) => {
-        const selected = c.id === value ? "selected" : "";
-        html += `<option value="${escapeHtml(c.id)}" ${selected}>${escapeHtml(c.name)} (${escapeHtml(c.type)})</option>`;
-      });
-      html += `</select>`;
-    } else {
-      html += `<input name="value" value="${escapeHtml(value)}" style="flex:1;padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);">`;
+  for (const [title, keys] of Object.entries(sectionGroups)) {
+    const sectionKeys = keys.filter((k) => configKeys.includes(k));
+    if (sectionKeys.length === 0) continue;
+
+    html += `<h2>${escapeHtml(title)}</h2><div class="card" style="display:grid;gap:1rem;">`;
+    for (const key of sectionKeys) {
+      html += renderConfigItem(guildId, key, config.config[key], roles, channels);
     }
-
-    html += `<button type="submit" style="padding:0.5rem 1rem;background:var(--accent);color:white;border:none;border-radius:4px;cursor:pointer;">Update</button>`;
-    html += `</form></div>`;
+    html += `</div>`;
   }
-  html += `</div>`;
+
+  // General section for ungrouped keys
+  const generalKeys = configKeys.filter((k) => !allGroupedKeys.includes(k));
+  if (generalKeys.length > 0) {
+    html += `<h2>General</h2><div class="card" style="display:grid;gap:1rem;">`;
+    for (const key of generalKeys) {
+      html += renderConfigItem(guildId, key, config.config[key], roles, channels);
+    }
+    html += `</div>`;
+  }
+
+  return html;
+}
+
+function renderConfigItem(guildId, key, value, roles, channels) {
+  const isMulti = multiKeys.includes(key);
+  const values = isMulti && typeof value === "string" ? value.split(",") : [value];
+  const nameAttr = isMulti && (isRoleKey(key) || isChannelKey(key)) ? "value[]" : "value";
+  const pretty = getPrettyName(key);
+
+  let inputHtml = "";
+  if (isRoleKey(key)) {
+    inputHtml = `<select name="${nameAttr}" style="flex:1;padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);" ${isMulti ? "multiple" : ""}>`;
+    inputHtml += `<option value="">None</option>`;
+    (roles.roles || []).forEach((r) => {
+      const selected = isMulti ? values.includes(r.id) ? "selected" : "" : r.id === value ? "selected" : "";
+      inputHtml += `<option value="${escapeHtml(r.id)}" ${selected}>${escapeHtml(r.name)}</option>`;
+    });
+    inputHtml += `</select>`;
+  } else if (isChannelKey(key)) {
+    inputHtml = `<select name="${nameAttr}" style="flex:1;padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);" ${isMulti ? "multiple" : ""}>`;
+    inputHtml += `<option value="">None</option>`;
+    (channels.channels || []).forEach((c) => {
+      const selected = isMulti ? values.includes(c.id) ? "selected" : "" : c.id === value ? "selected" : "";
+      inputHtml += `<option value="${escapeHtml(c.id)}" ${selected}>${escapeHtml(c.name)} (${escapeHtml(c.type)})</option>`;
+    });
+    inputHtml += `</select>`;
+  } else if (isMessageKey(key)) {
+    inputHtml = `<textarea name="value" style="flex:1;padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);">${escapeHtml(value || "")}</textarea>`;
+  } else if (isNumberKey(key)) {
+    inputHtml = `<input type="number" name="value" value="${escapeHtml(value || "")}" style="flex:1;padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);">`;
+  } else if (isUrlKey(key)) {
+    inputHtml = `<input type="url" name="value" value="${escapeHtml(value || "")}" style="flex:1;padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);">`;
+  } else if (isMulti) {
+    inputHtml = `<input type="text" name="value" value="${escapeHtml(value || "")}" style="flex:1;padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);" placeholder="Comma separated values">`;
+  } else {
+    inputHtml = `<input type="text" name="value" value="${escapeHtml(value || "")}" style="flex:1;padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);">`;
+  }
+
+  let html = `<div style="display:flex;align-items:center;gap:0.5rem;justify-content:space-between;">`;
+  html += `<label style="font-weight:600;min-width:150px;">${escapeHtml(pretty)}</label>`;
+  html += `<form action="/dashboard/${guildId}/config" method="POST" style="display:flex;gap:0.5rem;flex:1;">`;
+  html += `<input type="hidden" name="key" value="${escapeHtml(key)}">`;
+  html += inputHtml;
+  html += `<button type="submit" style="padding:0.5rem 1rem;background:var(--accent);color:white;border:none;border-radius:4px;cursor:pointer;">Update</button>`;
+  html += `</form></div>`;
   return html;
 }
 
@@ -473,7 +570,7 @@ app.get("/dashboard/:id", async (req, res) => {
     const data = await fetchGuildData(guildId, jwt);
 
     let contentHtml = `<h1>${escapeHtml(guild.name)}</h1>`;
-    contentHtml += renderConfigSection(guildId, data.config, data.roles, data.channels);
+    contentHtml += renderConfigSections(guildId, data.config, data.roles, data.channels);
     contentHtml += renderShopSection(guildId, data.shop, data.roles);
     contentHtml += renderMemberSearchSection(guildId);
 
@@ -500,7 +597,7 @@ app.get("/dashboard/:id/members", async (req, res) => {
 
     const guild = (req.session.guilds || []).find((g) => g.id === guildId);
     let contentHtml = `<h1>${escapeHtml(guild.name)}</h1>`;
-    contentHtml += renderConfigSection(guildId, data.config, data.roles, data.channels);
+    contentHtml += renderConfigSections(guildId, data.config, data.roles, data.channels);
     contentHtml += renderShopSection(guildId, data.shop, data.roles);
     contentHtml += renderMemberSearchSection(guildId, data.member);
 
@@ -516,7 +613,11 @@ app.get("/dashboard/:id/members", async (req, res) => {
 app.post("/dashboard/:id/config", async (req, res) => {
   if (!req.session.user) return res.redirect("/login");
   const guildId = req.params.id;
-  const { key, value } = req.body;
+  let { key, value } = req.body;
+
+  if (Array.isArray(value)) {
+    value = value.join(",");
+  }
 
   try {
     const headers = {
