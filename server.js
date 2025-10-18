@@ -3,6 +3,7 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const session = require("express-session");
 const path = require("path");
+const fs = require("fs");
 const jwtLib = require("jsonwebtoken");
 
 // node-fetch wrapper for CommonJS dynamic import
@@ -129,23 +130,28 @@ const multiKeys = [
 
 async function fetchGuildData(guildId, jwt, extra = {}) {
   const headers = { Authorization: `Bearer ${jwt}` };
-  const [configRes, shopRes, rolesRes, channelsRes, logEventsRes] = await Promise.all([
-    fetch(`${API_BASE}/dashboard/${guildId}`, { headers }),
-    fetch(`${API_BASE}/dashboard/${guildId}/shop`, { headers }),
-    fetch(`${API_BASE}/dashboard/${guildId}/roles`, { headers }),
-    fetch(`${API_BASE}/dashboard/${guildId}/channels`, { headers }),
-    fetch(`${API_BASE}/dashboard/${guildId}/log_events`, { headers }),
-  ]);
+  try {
+    const [configRes, shopRes, rolesRes, channelsRes, logEventsRes] = await Promise.all([
+      fetch(`${API_BASE}/dashboard/${guildId}`, { headers }).catch(() => ({ ok: false })),
+      fetch(`${API_BASE}/dashboard/${guildId}/shop`, { headers }).catch(() => ({ ok: false })),
+      fetch(`${API_BASE}/dashboard/${guildId}/roles`, { headers }).catch(() => ({ ok: false })),
+      fetch(`${API_BASE}/dashboard/${guildId}/channels`, { headers }).catch(() => ({ ok: false })),
+      fetch(`${API_BASE}/dashboard/${guildId}/log_events`, { headers }).catch(() => ({ ok: false })),
+    ]);
 
-  const data = {
-    config: configRes.ok ? await configRes.json() : { allowed: false, config: {} },
-    shop: shopRes.ok ? await shopRes.json() : { success: false, items: [] },
-    roles: rolesRes.ok ? await rolesRes.json() : { success: false, roles: [] },
-    channels: channelsRes.ok ? await channelsRes.json() : { success: false, channels: [] },
-    logEvents: logEventsRes.ok ? await logEventsRes.json() : { success: false, events: [] },
-    ...extra,
-  };
-  return data;
+    const data = {
+      config: configRes.ok ? await configRes.json() : { allowed: false, config: {} },
+      shop: shopRes.ok ? await shopRes.json() : { success: false, items: [] },
+      roles: rolesRes.ok ? await rolesRes.json() : { success: false, roles: [] },
+      channels: channelsRes.ok ? await channelsRes.json() : { success: false, channels: [] },
+      logEvents: logEventsRes.ok ? await logEventsRes.json() : { success: false, events: [] },
+      ...extra,
+    };
+    return data;
+  } catch (err) {
+    console.error("Error fetching guild data:", err);
+    return { error: true };
+  }
 }
 
 function renderConfigSections(guildId, config, roles, channels, logEvents) {
@@ -164,7 +170,6 @@ function renderConfigSections(guildId, config, roles, channels, logEvents) {
     html += `</div>`;
   }
 
-  // General section for ungrouped keys
   const generalKeys = configKeys.filter((k) => !allGroupedKeys.includes(k));
   if (generalKeys.length > 0) {
     html += `<h2 class="accordion-header" style="cursor:pointer;">General</h2><div class="card accordion-body" style="display:none;grid-template-columns:1fr 1fr;gap:1rem;">`;
@@ -614,7 +619,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (loadingScreen) {
     setTimeout(() => {
       loadingScreen.style.display = 'none';
-    }, 1000); // Adjust timing as needed
+    }, 1000);
   }
 
   document.querySelectorAll('.tag-input-wrapper').forEach(wrapper => {
@@ -870,13 +875,14 @@ app.get("/callback", async (req, res) => {
     const tokenData = await tokenResponse.json();
     if (!tokenData.access_token) return res.status(500).send("Token error");
 
-    // fetch user
+    // Fetch user
     const userResp = await fetch("https://discord.com/api/users/@me", {
       headers: { Authorization: `Bearer ${tokenData.access_token}` },
     });
     const userData = await userResp.json();
+    if (!userData.id) throw new Error("Failed to fetch user data");
 
-    // mint our own JWT for Utilix API
+    // Mint JWT
     const myJwt = jwtLib.sign({ sub: userData.id }, JWT_SECRET, {
       algorithm: "HS256",
       expiresIn: "1h",
@@ -886,7 +892,7 @@ app.get("/callback", async (req, res) => {
     req.session.discordAccessToken = tokenData.access_token;
     req.session.user = userData;
 
-    // guilds
+    // Fetch guilds
     const guildResp = await fetch("https://discord.com/api/users/@me/guilds", {
       headers: { Authorization: `Bearer ${tokenData.access_token}` },
     });
@@ -894,16 +900,22 @@ app.get("/callback", async (req, res) => {
     if (!Array.isArray(guilds)) guilds = [];
     req.session.guilds = guilds;
 
-    // Render dashboard with loading screen
-    const user = req.session.user;
+    // Load bot guilds with fallback
     let botGuildIds = [];
     try {
-      botGuildIds = require(path.join(__dirname, "bot_guilds.json")).guild_ids;
+      const botGuildsPath = path.join(__dirname, "bot_guilds.json");
+      if (fs.existsSync(botGuildsPath)) {
+        botGuildIds = JSON.parse(fs.readFileSync(botGuildsPath)).guild_ids || [];
+      }
     } catch (err) {
       console.error("Failed to load bot_guilds.json:", err);
     }
     const botGuildSet = new Set(botGuildIds);
-    const candidateGuilds = guilds.filter(g => botGuildSet.has(String(g.id)));
+
+    // Filter guilds
+    const candidateGuilds = guilds.filter(g => botGuildSet.has(String(g.id)) && (parseInt(g.permissions || "0", 10) & 0x20) === 0x20);
+
+    // Single permission check
     let results = {};
     if (candidateGuilds.length > 0) {
       try {
@@ -923,10 +935,9 @@ app.get("/callback", async (req, res) => {
         console.error("Error calling /checkPermsBatch:", err);
       }
     }
-    const filteredGuilds = candidateGuilds.filter(g => {
-      const entry = results[g.id];
-      return entry?.allowed;
-    });
+    req.session.perms = results;
+
+    const filteredGuilds = candidateGuilds.filter(g => results[g.id]?.allowed);
     const serversHtml = filteredGuilds
       .map((g) => {
         const name = truncateName(g.name || "");
@@ -939,7 +950,7 @@ app.get("/callback", async (req, res) => {
       })
       .join('');
 
-    res.send(renderLayout(user, `<h2>Your Servers</h2><div class="servers">${serversHtml}</div>`));
+    res.send(renderLayout(userData, `<h2>Your Servers</h2><div class="servers">${serversHtml}</div>`));
   } catch (err) {
     console.error("Callback error:", err);
     res.status(500).send("Internal Error");
@@ -952,43 +963,23 @@ app.get("/dashboard", async (req, res) => {
   if (!req.session.user) return res.redirect("/login");
 
   const user = req.session.user;
-  const jwt = req.session.jwt;
+  const perms = req.session.perms || {};
   const guilds = req.session.guilds || [];
 
   let botGuildIds = [];
   try {
-    botGuildIds = require(path.join(__dirname, "bot_guilds.json")).guild_ids;
+    const botGuildsPath = path.join(__dirname, "bot_guilds.json");
+    if (fs.existsSync(botGuildsPath)) {
+      botGuildIds = JSON.parse(fs.readFileSync(botGuildsPath)).guild_ids || [];
+    }
   } catch (err) {
     console.error("Failed to load bot_guilds.json:", err);
   }
   const botGuildSet = new Set(botGuildIds);
 
-  const candidateGuilds = guilds.filter(g => botGuildSet.has(String(g.id)));
+  const candidateGuilds = guilds.filter(g => botGuildSet.has(String(g.id)) && (parseInt(g.permissions || "0", 10) & 0x20) === 0x20);
+  const filteredGuilds = candidateGuilds.filter(g => perms[g.id]?.allowed);
 
-  let results = {};
-  if (candidateGuilds.length > 0) {
-    try {
-      const batchRes = await fetch(`${API_BASE}/checkPermsBatch`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${jwt}`,
-        },
-        body: JSON.stringify({ guildIds: candidateGuilds.map(g => g.id) }),
-      });
-
-      if (batchRes.ok) {
-        const data = await batchRes.json();
-        results = data.results || {};
-      }
-    } catch (err) {
-      console.error("Error calling /checkPermsBatch:", err);
-    }
-  }
-  const filteredGuilds = candidateGuilds.filter(g => {
-    const entry = results[g.id];
-    return entry?.allowed;
-  });
   const serversHtml = filteredGuilds
     .map((g) => {
       const name = truncateName(g.name || "");
@@ -1012,33 +1003,24 @@ app.get("/dashboard/:id", async (req, res) => {
   const jwt = req.session.jwt;
   const guildId = req.params.id;
   const guild = (req.session.guilds || []).find((g) => g.id === guildId);
+  const perms = req.session.perms || {};
 
   if (!guild) {
     return res.send(renderLayout(user, `<div class="card"><h2>No access</h2></div>`));
   }
 
+  const MANAGE_GUILD = 0x20;
+  const hasManage = (parseInt(guild.permissions || "0", 10) & MANAGE_GUILD) === MANAGE_GUILD;
+
+  if (!hasManage || !perms[guildId]?.allowed) {
+    return res.send(
+      renderLayout(user, `<div class="card"><h2>${escapeHtml(guild.name || '')}</h2><p>No permission</p></div>`)
+    );
+  }
+
   try {
-    const MANAGE_GUILD = 0x20;
-    const hasManage = (parseInt(guild.permissions || "0", 10) & MANAGE_GUILD) === MANAGE_GUILD;
-
-    let botCheck = { allowed: false };
-    const botCheckRes = await fetch(`${API_BASE}/checkPerms`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${jwt}`,
-      },
-      body: JSON.stringify({ guildId }),
-    });
-    if (botCheckRes.ok) botCheck = await botCheckRes.json();
-
-    if (!hasManage || !botCheck.allowed) {
-      return res.send(
-        renderLayout(user, `<div class="card"><h2>${escapeHtml(guild.name || '')}</h2><p>No permission</p></div>`)
-      );
-    }
-
     const data = await fetchGuildData(guildId, jwt);
+    if (data.error) throw new Error("Failed to fetch guild data");
 
     let contentHtml = `<h1>${escapeHtml(guild.name || '')}</h1>`;
     contentHtml += renderConfigSections(guildId, data.config, data.roles, data.channels, data.logEvents);
@@ -1047,7 +1029,7 @@ app.get("/dashboard/:id", async (req, res) => {
 
     res.send(renderLayout(user, contentHtml));
   } catch (err) {
-    console.error(err);
+    console.error("Error in /dashboard/:id:", err);
     res.send(renderLayout(user, `<div class="card"><h2>Error</h2></div>`));
   }
 });
@@ -1073,7 +1055,7 @@ app.get("/dashboard/:id/members", async (req, res) => {
 
     res.send(renderLayout(req.session.user, contentHtml));
   } catch (err) {
-    console.error(err);
+    console.error("Error in /dashboard/:id/members:", err);
     res.redirect(`/dashboard/${guildId}`);
   }
 });
@@ -1089,7 +1071,7 @@ app.post("/dashboard/:id/config", async (req, res) => {
     value = value.join(",");
   }
 
-  value = String(value); // Ensure string for IDs
+  value = String(value);
 
   try {
     const headers = {
@@ -1108,7 +1090,7 @@ app.post("/dashboard/:id/config", async (req, res) => {
       res.status(400).json({ error: "Error saving config" });
     }
   } catch (err) {
-    console.error(err);
+    console.error("Error in /dashboard/:id/config:", err);
     res.status(500).json({ error: "Internal error" });
   }
 });
@@ -1137,7 +1119,7 @@ app.post("/dashboard/:id/shop", async (req, res) => {
       res.status(400).send("Error adding item");
     }
   } catch (err) {
-    console.error(err);
+    console.error("Error in /dashboard/:id/shop:", err);
     res.status(500).send("Internal error");
   }
 });
@@ -1165,7 +1147,7 @@ app.post("/dashboard/:id/shop/:item_id/update", async (req, res) => {
       res.status(400).send("Error updating item");
     }
   } catch (err) {
-    console.error(err);
+    console.error("Error in /dashboard/:id/shop/:item_id/update:", err);
     res.status(500).send("Internal error");
   }
 });
@@ -1188,7 +1170,7 @@ app.post("/dashboard/:id/shop/:item_id/toggle", async (req, res) => {
       res.status(400).send("Error toggling item");
     }
   } catch (err) {
-    console.error(err);
+    console.error("Error in /dashboard/:id/shop/:item_id/toggle:", err);
     res.status(500).send("Internal error");
   }
 });
@@ -1211,7 +1193,7 @@ app.post("/dashboard/:id/shop/:item_id/delete", async (req, res) => {
       res.status(400).send("Error deleting item");
     }
   } catch (err) {
-    console.error(err);
+    console.error("Error in /dashboard/:id/shop/:item_id/delete:", err);
     res.status(500).send("Internal error");
   }
 });
