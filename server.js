@@ -1,4 +1,3 @@
-// server.js
 require("dotenv").config();
 const express = require("express");
 const bodyParser = require("body-parser");
@@ -27,6 +26,7 @@ const CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET;
 const REDIRECT_URI = process.env.DISCORD_REDIRECT_URI;
 const JWT_SECRET = process.env.JWT_SECRET;
 const PORT = process.env.PORT || 3000;
+const API_BASE = "https://api.utilix.support";
 
 /* ---------------- helpers ---------------- */
 
@@ -58,6 +58,124 @@ function guildIconUrl(g) {
 
 function truncateName(name = "", max = 20) {
   return name.length > max ? name.slice(0, max) + "…" : name;
+}
+
+function isRoleKey(key) {
+  return key.endsWith("_role_id") || /role/i.test(key);
+}
+
+function isChannelKey(key) {
+  return key.endsWith("_channel_id") || /channel/i.test(key);
+}
+
+async function fetchGuildData(guildId, jwt, extra = {}) {
+  const headers = { Authorization: `Bearer ${jwt}` };
+  const [configRes, shopRes, rolesRes, channelsRes] = await Promise.all([
+    fetch(`${API_BASE}/dashboard/${guildId}`, { headers }),
+    fetch(`${API_BASE}/dashboard/${guildId}/shop`, { headers }),
+    fetch(`${API_BASE}/dashboard/${guildId}/roles`, { headers }),
+    fetch(`${API_BASE}/dashboard/${guildId}/channels`, { headers }),
+  ]);
+
+  const data = {
+    config: configRes.ok ? await configRes.json() : { allowed: false, config: {} },
+    shop: shopRes.ok ? await shopRes.json() : { success: false, items: [] },
+    roles: rolesRes.ok ? await rolesRes.json() : { success: false, roles: [] },
+    channels: channelsRes.ok ? await channelsRes.json() : { success: false, channels: [] },
+    ...extra,
+  };
+  return data;
+}
+
+function renderConfigSection(guildId, config, roles, channels) {
+  let html = '<h2>Config</h2><div class="card" style="display:grid;gap:1rem;">';
+  for (const [key, value] of Object.entries(config.config || {})) {
+    html += `<div style="display:flex;align-items:center;gap:0.5rem;justify-content:space-between;">`;
+    html += `<label style="font-weight:600;min-width:150px;">${escapeHtml(key)}</label>`;
+    html += `<form action="/dashboard/${guildId}/config" method="POST" style="display:flex;gap:0.5rem;flex:1;">`;
+    html += `<input type="hidden" name="key" value="${escapeHtml(key)}">`;
+
+    if (isRoleKey(key)) {
+      html += `<select name="value" style="flex:1;padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);">`;
+      html += `<option value="">None</option>`;
+      (roles.roles || []).forEach((r) => {
+        const selected = r.id === value ? "selected" : "";
+        html += `<option value="${escapeHtml(r.id)}" ${selected}>${escapeHtml(r.name)}</option>`;
+      });
+      html += `</select>`;
+    } else if (isChannelKey(key)) {
+      html += `<select name="value" style="flex:1;padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);">`;
+      html += `<option value="">None</option>`;
+      (channels.channels || []).forEach((c) => {
+        const selected = c.id === value ? "selected" : "";
+        html += `<option value="${escapeHtml(c.id)}" ${selected}>${escapeHtml(c.name)} (${escapeHtml(c.type)})</option>`;
+      });
+      html += `</select>`;
+    } else {
+      html += `<input name="value" value="${escapeHtml(value)}" style="flex:1;padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);">`;
+    }
+
+    html += `<button type="submit" style="padding:0.5rem 1rem;background:var(--accent);color:white;border:none;border-radius:4px;cursor:pointer;">Update</button>`;
+    html += `</form></div>`;
+  }
+  html += `</div>`;
+  return html;
+}
+
+function renderShopSection(guildId, shop, roles) {
+  let html = '<h2>Shop</h2><div class="card">';
+  html += '<h3>Add Item</h3>';
+  html += `<form action="/dashboard/${guildId}/shop" method="POST" style="display:grid;gap:0.5rem;margin-bottom:1rem;">`;
+  html += `<label>Role:</label><select name="role_id" required style="padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);">`;
+  (roles.roles || []).forEach((r) => {
+    html += `<option value="${escapeHtml(r.id)}">${escapeHtml(r.name)}</option>`;
+  });
+  html += `</select>`;
+  html += `<label>Name:</label><input name="name" required style="padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);">`;
+  html += `<label>Price:</label><input name="price" type="number" required style="padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);">`;
+  html += `<button type="submit" style="padding:0.5rem 1rem;background:var(--accent);color:white;border:none;border-radius:4px;cursor:pointer;">Add</button>`;
+  html += `</form>`;
+
+  html += '<h3>Items</h3>';
+  if (shop.items && shop.items.length > 0) {
+    html += '<table style="width:100%;border-collapse:collapse;">';
+    html += '<thead><tr><th>Name</th><th>Role</th><th>Price</th><th>Active</th><th>Actions</th></tr></thead>';
+    html += '<tbody>';
+    shop.items.forEach((item) => {
+      const role = (roles.roles || []).find((r) => r.id == item.role_id) || { name: 'Unknown' };
+      html += `<tr><td>${escapeHtml(item.name)}</td><td>${escapeHtml(role.name)}</td><td>${escapeHtml(item.price)}</td><td>${item.active ? 'Yes' : 'No'}</td><td style="display:flex;gap:0.5rem;">`;
+      html += `<form action="/dashboard/${guildId}/shop/${item.id}/update" method="POST" style="display:flex;gap:0.5rem;">`;
+      html += `<input name="name" value="${escapeHtml(item.name)}" style="padding:0.3rem;width:100px;">`;
+      html += `<input name="price" value="${escapeHtml(item.price)}" type="number" style="padding:0.3rem;width:80px;">`;
+      html += `<button type="submit" style="padding:0.3rem 0.6rem;background:var(--accent);color:white;border:none;border-radius:4px;cursor:pointer;">Update</button>`;
+      html += `</form>`;
+      html += `<form action="/dashboard/${guildId}/shop/${item.id}/toggle" method="POST"><button type="submit" style="padding:0.3rem 0.6rem;background:#6c34cc;color:white;border:none;border-radius:4px;cursor:pointer;">Toggle</button></form>`;
+      html += `<form action="/dashboard/${guildId}/shop/${item.id}/delete" method="POST"><button type="submit" style="padding:0.3rem 0.6rem;background:#f55;color:white;border:none;border-radius:4px;cursor:pointer;">Delete</button></form>`;
+      html += `</td></tr>`;
+    });
+    html += '</tbody></table>';
+  } else {
+    html += '<p>No items yet.</p>';
+  }
+  html += '</div>';
+  return html;
+}
+
+function renderMemberSearchSection(guildId, member = null) {
+  let html = '<h2>Member Lookup</h2><div class="card">';
+  html += `<form action="/dashboard/${guildId}/members" method="GET" style="display:flex;gap:0.5rem;margin-bottom:1rem;">`;
+  html += `<input name="query" placeholder="ID or username" required style="flex:1;padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);">`;
+  html += `<button type="submit" style="padding:0.5rem 1rem;background:var(--accent);color:white;border:none;border-radius:4px;cursor:pointer;">Search</button>`;
+  html += `</form>`;
+  if (member) {
+    if (member.in_guild) {
+      html += `<pre>${escapeHtml(JSON.stringify(member.member, null, 2))}</pre>`;
+    } else {
+      html += '<p>Member not found in guild.</p>';
+    }
+  }
+  html += '</div>';
+  return html;
 }
 
 /* --------------- render layout --------------- */
@@ -139,6 +257,7 @@ nav.header-nav a.active{
 /* Page layout */
 .page{ flex:1; max-width:1200px; margin:0 auto; padding:96px 20px 56px; position:relative; z-index:1; }
 h1,h2{ margin-bottom:12px; }
+h3{ margin-bottom:8px; }
 
 /* Servers grid - responsive, left-to-right wrapping */
 .servers{
@@ -163,7 +282,11 @@ h1,h2{ margin-bottom:12px; }
 .server-name{ font-size:0.95rem; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:140px; margin:0 auto; }
 
 /* cards */
-.card{ background:var(--card); padding:16px; border-radius:12px; border:1px solid rgba(255,255,255,0.04); }
+.card{ background:var(--card); padding:16px; border-radius:12px; border:1px solid rgba(255,255,255,0.04); margin-bottom:2rem; }
+
+/* tables */
+table th, table td { padding: 0.5rem; border-bottom: 1px solid rgba(255,255,255,0.05); text-align: left; }
+table th { font-weight: 600; }
 
 /* starfield */
 .canvas-wrap{ position:fixed; inset:0; z-index:0; pointer-events:none; }
@@ -328,7 +451,7 @@ app.get("/dashboard/:id", async (req, res) => {
     const hasManage = (parseInt(guild.permissions || "0", 10) & MANAGE_GUILD) === MANAGE_GUILD;
 
     let botCheck = { allowed: false };
-    const botCheckRes = await fetch("https://api.utilix.support/checkPerms", {
+    const botCheckRes = await fetch(`${API_BASE}/checkPerms`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -340,33 +463,180 @@ app.get("/dashboard/:id", async (req, res) => {
 
     if (!hasManage || !botCheck.allowed) {
       return res.send(
-        renderLayout(user, `<div class="card"><h2>${guild.name}</h2><p>No permission</p></div>`)
+        renderLayout(user, `<div class="card"><h2>${escapeHtml(guild.name)}</h2><p>No permission</p></div>`)
       );
     }
 
-    // fetch Utilix API config/shop
-    const [configRes, shopRes] = await Promise.all([
-      fetch(`https://api.utilix.support/dashboard/${guildId}`, {
-        headers: { Authorization: `Bearer ${jwt}` },
-      }),
-      fetch(`https://api.utilix.support/dashboard/${guildId}/shop`, {
-        headers: { Authorization: `Bearer ${jwt}` },
-      }),
-    ]);
-    const config = configRes.ok ? await configRes.json() : { error: true };
-    const shop = shopRes.ok ? await shopRes.json() : { error: true };
+    const data = await fetchGuildData(guildId, jwt);
 
-    res.send(
-      renderLayout(
-        user,
-        `<div class="card"><h2>${guild.name}</h2><pre>${escapeHtml(
-          JSON.stringify(config, null, 2)
-        )}</pre><pre>${escapeHtml(JSON.stringify(shop, null, 2))}</pre></div>`
-      )
-    );
+    let contentHtml = `<h1>${escapeHtml(guild.name)}</h1>`;
+    contentHtml += renderConfigSection(guildId, data.config, data.roles, data.channels);
+    contentHtml += renderShopSection(guildId, data.shop, data.roles);
+    contentHtml += renderMemberSearchSection(guildId);
+
+    res.send(renderLayout(user, contentHtml));
   } catch (err) {
     console.error(err);
     res.send(renderLayout(user, `<div class="card"><h2>Error</h2></div>`));
+  }
+});
+
+app.get("/dashboard/:id/members", async (req, res) => {
+  if (!req.session.user) return res.redirect("/login");
+  const guildId = req.params.id;
+  const query = req.query.query;
+  if (!query) return res.redirect(`/dashboard/${guildId}`);
+
+  try {
+    // Assume permission checks passed since we redirect from protected page
+    const headers = { Authorization: `Bearer ${req.session.jwt}` };
+    const memberRes = await fetch(`${API_BASE}/dashboard/${guildId}/members?query=${encodeURIComponent(query)}`, { headers });
+    const member = memberRes.ok ? await memberRes.json() : { success: false };
+
+    const data = await fetchGuildData(guildId, req.session.jwt, { member: member.success ? member : null });
+
+    const guild = (req.session.guilds || []).find((g) => g.id === guildId);
+    let contentHtml = `<h1>${escapeHtml(guild.name)}</h1>`;
+    contentHtml += renderConfigSection(guildId, data.config, data.roles, data.channels);
+    contentHtml += renderShopSection(guildId, data.shop, data.roles);
+    contentHtml += renderMemberSearchSection(guildId, data.member);
+
+    res.send(renderLayout(req.session.user, contentHtml));
+  } catch (err) {
+    console.error(err);
+    res.redirect(`/dashboard/${guildId}`);
+  }
+});
+
+/* ---------------- Config Updates ---------------- */
+
+app.post("/dashboard/:id/config", async (req, res) => {
+  if (!req.session.user) return res.redirect("/login");
+  const guildId = req.params.id;
+  const { key, value } = req.body;
+
+  try {
+    const headers = {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${req.session.jwt}`,
+    };
+    const updateRes = await fetch(`${API_BASE}/dashboard/${guildId}/config`, {
+      method: "PUT",
+      headers,
+      body: JSON.stringify({ key, value }),
+    });
+
+    if (updateRes.ok) {
+      res.redirect(`/dashboard/${guildId}`);
+    } else {
+      res.status(400).send("Error updating config");
+    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Internal error");
+  }
+});
+
+/* ---------------- Shop Actions ---------------- */
+
+app.post("/dashboard/:id/shop", async (req, res) => {
+  if (!req.session.user) return res.redirect("/login");
+  const guildId = req.params.id;
+  const { role_id, name, price } = req.body;
+
+  try {
+    const headers = {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${req.session.jwt}`,
+    };
+    const addRes = await fetch(`${API_BASE}/dashboard/${guildId}/shop`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ role_id, name, price }),
+    });
+
+    if (addRes.ok) {
+      res.redirect(`/dashboard/${guildId}`);
+    } else {
+      res.status(400).send("Error adding item");
+    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Internal error");
+  }
+});
+
+app.post("/dashboard/:id/shop/:item_id/update", async (req, res) => {
+  if (!req.session.user) return res.redirect("/login");
+  const guildId = req.params.id;
+  const itemId = req.params.item_id;
+  const { name, price } = req.body;
+
+  try {
+    const headers = {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${req.session.jwt}`,
+    };
+    const updateRes = await fetch(`${API_BASE}/dashboard/${guildId}/shop/${itemId}`, {
+      method: "PUT",
+      headers,
+      body: JSON.stringify({ name, price }),
+    });
+
+    if (updateRes.ok) {
+      res.redirect(`/dashboard/${guildId}`);
+    } else {
+      res.status(400).send("Error updating item");
+    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Internal error");
+  }
+});
+
+app.post("/dashboard/:id/shop/:item_id/toggle", async (req, res) => {
+  if (!req.session.user) return res.redirect("/login");
+  const guildId = req.params.id;
+  const itemId = req.params.item_id;
+
+  try {
+    const headers = { Authorization: `Bearer ${req.session.jwt}` };
+    const toggleRes = await fetch(`${API_BASE}/dashboard/${guildId}/shop/${itemId}/toggle`, {
+      method: "POST",
+      headers,
+    });
+
+    if (toggleRes.ok) {
+      res.redirect(`/dashboard/${guildId}`);
+    } else {
+      res.status(400).send("Error toggling item");
+    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Internal error");
+  }
+});
+
+app.post("/dashboard/:id/shop/:item_id/delete", async (req, res) => {
+  if (!req.session.user) return res.redirect("/login");
+  const guildId = req.params.id;
+  const itemId = req.params.item_id;
+
+  try {
+    const headers = { Authorization: `Bearer ${req.session.jwt}` };
+    const deleteRes = await fetch(`${API_BASE}/dashboard/${guildId}/shop/${itemId}`, {
+      method: "DELETE",
+      headers,
+    });
+
+    if (deleteRes.ok) {
+      res.redirect(`/dashboard/${guildId}`);
+    } else {
+      res.status(400).send("Error deleting item");
+    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Internal error");
   }
 });
 
