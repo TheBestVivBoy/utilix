@@ -396,13 +396,16 @@ app.get("/callback", async (req, res) => {
     if (!Array.isArray(guilds)) guilds = [];
 
     // filter
-    let botGuilds = [];
+    let botGuildData;
     try {
       const raw = fs.readFileSync(path.join(__dirname, "bot_guilds.json"), "utf8");
-      botGuilds = JSON.parse(raw);
+      botGuildData = JSON.parse(raw);
     } catch {}
+
+    const guildIds = botGuildData?.guild_ids || [];
+
     req.session.guilds =
-      botGuilds.length > 0 ? guilds.filter((g) => botGuilds.includes(g.id)) : guilds;
+      guildIds.length > 0 ? guilds.filter((g) => guildIds.includes(g.id)) : guilds;
 
     res.redirect("/dashboard");
   } catch (err) {
