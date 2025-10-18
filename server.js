@@ -61,7 +61,7 @@ function truncateName(name = "", max = 20) {
 }
 
 function isRoleKey(key) {
-  return key.endsWith("_role_id") || /role/i.test(key);
+  return key.endsWith("_role_id") || /role/i.test(key) || key === "auto_roles_on_join";
 }
 
 function isChannelKey(key) {
@@ -81,12 +81,13 @@ function isUrlKey(key) {
 }
 
 const prettyNames = {
+  prefix: "Command Prefix",
   bot_admin_role_id: "Bot Admin",
   ticket_admin_1_role_id: "Ticket Admin",
   bot_profile_nick: "Bot Profile Name",
-  bot_profile_bio: "Bot's profile bio",
-  bot_profile_avatar_url: "Bot Profile avatar url",
-  bot_profile_banner_url: "Bot Profile Banner url",
+  bot_profile_bio: "Bot's Profile Bio",
+  bot_profile_avatar_url: "Bot Profile Avatar URL",
+  bot_profile_banner_url: "Bot Profile Banner URL",
   warn_role_id: "Warn Role Permission",
   mute_role_id: "Mute Role Permission",
   unmute_role_id: "Unmute Role Permission",
@@ -99,13 +100,14 @@ const prettyNames = {
   invite_manager_role_id: "Invite Manager Role Permission",
   welcome_message: "Welcome Message",
   goodbye_message: "Goodbye Message",
-  welcome_channel: "Welcome/Goodbye Channel",
-  greeting_channel: "Greeting's Channel",
+  welcome_channel_id: "Welcome/Goodbye Channel",
+  greeting_channel_id: "Greeting's Channel",
+  auto_roles_on_join: "Auto Roles on Join",
   modlog_channel_id: "Modlogs",
   logs_channel_id: "Action Log",
   log_events: "Event Log",
-  ban_threshold: "Ban threshold",
-  ticket_log_1_channel_id: "Ticket Logging / Ticket Transcripts",
+  ban_threshold: "Ban Threshold",
+  ticket_log_1_channel_id: "Ticket Logging / Transcripts",
 };
 
 function getPrettyName(key) {
@@ -113,17 +115,17 @@ function getPrettyName(key) {
 }
 
 const sectionGroups = {
-  "Bot Administrator Permissions": ["bot_admin_role_id", "ticket_admin_1_role_id"],
+  "Bot Administrator Permissions": ["prefix", "bot_admin_role_id", "ticket_admin_1_role_id"],
   "Bot Customization": ["bot_profile_nick", "bot_profile_bio", "bot_profile_avatar_url", "bot_profile_banner_url"],
   "Moderation Roles": ["warn_role_id", "mute_role_id", "unmute_role_id", "unwarn_role_id", "ban_role_id", "unban_role_id", "kick_role_id", "minigames_staff_role_id", "ticket_staff_1_role_id", "invite_manager_role_id"],
-  "Join / Leaves": ["welcome_message", "goodbye_message", "welcome_channel", "greeting_channel"],
+  "Join / Leaves": ["welcome_message", "goodbye_message", "welcome_channel_id", "greeting_channel_id", "auto_roles_on_join"],
   "Logging": ["modlog_channel_id", "logs_channel_id", "log_events", "ban_threshold", "ticket_log_1_channel_id"],
 };
 
 const multiKeys = [
   "bot_admin_role_id", "ticket_admin_1_role_id",
   "warn_role_id", "mute_role_id", "unmute_role_id", "unwarn_role_id", "ban_role_id", "unban_role_id", "kick_role_id", "minigames_staff_role_id", "ticket_staff_1_role_id", "invite_manager_role_id",
-  "greeting_channel", "log_events"
+  "greeting_channel_id", "auto_roles_on_join", "log_events",
 ];
 
 async function fetchGuildData(guildId, jwt, extra = {}) {
@@ -177,24 +179,55 @@ function renderConfigSections(guildId, config, roles, channels) {
 function renderConfigItem(guildId, key, value, roles, channels) {
   const isMulti = multiKeys.includes(key);
   const values = isMulti && typeof value === "string" ? value.split(",") : [value];
-  const nameAttr = isMulti && (isRoleKey(key) || isChannelKey(key)) ? "value[]" : "value";
   const pretty = getPrettyName(key);
+  const roleData = JSON.stringify((roles.roles || []).map(r => ({ id: r.id, name: r.name })));
 
   let inputHtml = "";
-  if (isRoleKey(key)) {
-    inputHtml = `<select name="${nameAttr}" style="flex:1;padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);" ${isMulti ? "multiple" : ""}>`;
+  if (isRoleKey(key) && isMulti) {
+    inputHtml = `
+      <div class="tag-input-wrapper" style="flex:1;">
+        <div class="tags" data-key="${escapeHtml(key)}" style="display:flex;gap:0.5rem;flex-wrap:wrap;padding:0.5rem;border:1px solid rgba(255,255,255,0.1);border-radius:4px;background:var(--panel);">
+          ${values.filter(v => v).map(v => {
+            const role = (roles.roles || []).find(r => r.id === v);
+            return role ? `<span class="tag" data-id="${escapeHtml(v)}">${escapeHtml(role.name)} <button type="button" class="remove-tag" style="margin-left:0.3rem;color:#f55;border:none;background:none;cursor:pointer;">x</button></span>` : "";
+          }).join("")}
+        </div>
+        <input type="text" class="tag-input" placeholder="Type role name..." style="width:100%;padding:0.5rem;border:none;border-top:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);">
+        <div class="dropdown" style="display:none;position:absolute;background:var(--panel);border:1px solid rgba(255,255,255,0.1);border-radius:4px;max-height:150px;overflow-y:auto;width:100%;">
+          <div class="dropdown-options"></div>
+        </div>
+        <input type="hidden" name="value" value="${escapeHtml(values.join(","))}">
+      </div>`;
+  } else if (isRoleKey(key)) {
+    inputHtml = `<select name="value" style="flex:1;padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);">`;
     inputHtml += `<option value="">None</option>`;
     (roles.roles || []).forEach((r) => {
-      const selected = isMulti ? values.includes(r.id) ? "selected" : "" : r.id === value ? "selected" : "";
+      const selected = r.id === value ? "selected" : "";
       inputHtml += `<option value="${escapeHtml(r.id)}" ${selected}>${escapeHtml(r.name)}</option>`;
     });
     inputHtml += `</select>`;
   } else if (isChannelKey(key)) {
-    inputHtml = `<select name="${nameAttr}" style="flex:1;padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);" ${isMulti ? "multiple" : ""}>`;
+    inputHtml = `<select name="value" style="flex:1;padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);" ${key === "greeting_channel_id" ? "multiple size='3'" : ""}>`;
     inputHtml += `<option value="">None</option>`;
     (channels.channels || []).forEach((c) => {
-      const selected = isMulti ? values.includes(c.id) ? "selected" : "" : c.id === value ? "selected" : "";
+      const selected = key === "greeting_channel_id" ? values.includes(c.id) ? "selected" : "" : c.id === value ? "selected" : "";
       inputHtml += `<option value="${escapeHtml(c.id)}" ${selected}>${escapeHtml(c.name)} (${escapeHtml(c.type)})</option>`;
+    });
+    inputHtml += `</select>`;
+  } else if (key === "log_events") {
+    const logEventOptions = [
+      { id: "member_join", name: "Member Join" },
+      { id: "member_leave", name: "Member Leave" },
+      { id: "message_delete", name: "Message Delete" },
+      { id: "ban_add", name: "Ban Add" },
+      { id: "ban_remove", name: "Ban Remove" },
+      { id: "channel_create", name: "Channel Create" },
+      { id: "channel_delete", name: "Channel Delete" },
+    ];
+    inputHtml = `<select name="value[]" multiple size="5" style="flex:1;padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);">`;
+    logEventOptions.forEach((e) => {
+      const selected = values.includes(e.id) ? "selected" : "";
+      inputHtml += `<option value="${escapeHtml(e.id)}" ${selected}>${escapeHtml(e.name)}</option>`;
     });
     inputHtml += `</select>`;
   } else if (isMessageKey(key)) {
@@ -203,18 +236,17 @@ function renderConfigItem(guildId, key, value, roles, channels) {
     inputHtml = `<input type="number" name="value" value="${escapeHtml(value || "")}" style="flex:1;padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);">`;
   } else if (isUrlKey(key)) {
     inputHtml = `<input type="url" name="value" value="${escapeHtml(value || "")}" style="flex:1;padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);">`;
-  } else if (isMulti) {
-    inputHtml = `<input type="text" name="value" value="${escapeHtml(value || "")}" style="flex:1;padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);" placeholder="Comma separated values">`;
   } else {
     inputHtml = `<input type="text" name="value" value="${escapeHtml(value || "")}" style="flex:1;padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);">`;
   }
 
-  let html = `<div style="display:flex;align-items:center;gap:0.5rem;justify-content:space-between;">`;
+  let html = `<div class="config-item" style="display:flex;align-items:center;gap:0.5rem;justify-content:space-between;" data-key="${escapeHtml(key)}" data-roles='${roleData}'>`;
   html += `<label style="font-weight:600;min-width:150px;">${escapeHtml(pretty)}</label>`;
-  html += `<form action="/dashboard/${guildId}/config" method="POST" style="display:flex;gap:0.5rem;flex:1;">`;
+  html += `<form class="config-form" style="display:flex;gap:0.5rem;flex:1;">`;
   html += `<input type="hidden" name="key" value="${escapeHtml(key)}">`;
   html += inputHtml;
   html += `<button type="submit" style="padding:0.5rem 1rem;background:var(--accent);color:white;border:none;border-radius:4px;cursor:pointer;">Update</button>`;
+  html += `<span class="status" style="color:#0f0;font-size:0.9rem;display:none;"></span>`;
   html += `</form></div>`;
   return html;
 }
@@ -305,7 +337,6 @@ body{
   min-height:100vh; display:flex; flex-direction:column; overflow-x:hidden;
   position:relative;
 }
-/* Header */
 header{
   position:fixed; top:0; left:0; width:100%; height:72px; z-index:1100;
   display:flex; justify-content:space-between; align-items:center;
@@ -341,8 +372,6 @@ nav.header-nav a.active{
   color: white;
   box-shadow: 0 0 12px rgba(166,76,166,0.12);
 }
-
-/* Auth area */
 .auth-wrapper{ display:flex; align-items:center; gap:12px; }
 .auth-wrapper img{ width:36px; height:36px; border-radius:50%; object-fit:cover; }
 .discord-btn{
@@ -350,13 +379,9 @@ nav.header-nav a.active{
   padding:0.6rem 1.2rem; border-radius:999px; text-decoration:none;
 }
 .logout-btn{ font-size:1.1rem; color:#f55; text-decoration:none; }
-
-/* Page layout */
 .page{ flex:1; max-width:1200px; margin:0 auto; padding:96px 20px 56px; position:relative; z-index:1; }
 h1,h2{ margin-bottom:12px; }
 h3{ margin-bottom:8px; }
-
-/* Servers grid - responsive, left-to-right wrapping */
 .servers{
   display:grid;
   grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
@@ -377,17 +402,19 @@ h3{ margin-bottom:8px; }
 .server img, .server-icon{ width:80px; height:80px; border-radius:16px; margin-bottom:0.5rem; object-fit:cover; }
 .server-icon{ display:flex; align-items:center; justify-content:center; background: rgba(255,255,255,0.06); font-weight:700; font-size:1.5rem; }
 .server-name{ font-size:0.95rem; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:140px; margin:0 auto; }
-
-/* cards */
 .card{ background:var(--card); padding:16px; border-radius:12px; border:1px solid rgba(255,255,255,0.04); margin-bottom:2rem; }
-
-/* tables */
 table th, table td { padding: 0.5rem; border-bottom: 1px solid rgba(255,255,255,0.05); text-align: left; }
 table th { font-weight: 600; }
-
-/* starfield */
 .canvas-wrap{ position:fixed; inset:0; z-index:0; pointer-events:none; }
 canvas#starfield{ width:100%; height:100%; display:block; }
+.tag-input-wrapper { position: relative; }
+.tags { min-height: 2.5rem; }
+.tag { background: rgba(255,255,255,0.1); padding: 0.3rem 0.6rem; border-radius: 4px; display: flex; align-items: center; }
+.dropdown { z-index: 1000; }
+.dropdown-options div { padding: 0.5rem; cursor: pointer; }
+.dropdown-options div:hover { background: rgba(255,255,255,0.1); }
+.status.success { color: #0f0; }
+.status.error { color: #f55; }
 </style>
 </head>
 <body>
@@ -403,11 +430,9 @@ canvas#starfield{ width:100%; height:100%; display:block; }
         </ul>
       </nav>
     </div>
-
     <div style="display:flex;align-items:center;gap:12px">
       <a class="discord-btn" href="/dashboard">Manage Servers</a>
       <a class="discord-btn" href="${escapeHtml(addBotUrl)}" target="_blank" rel="noopener">Add to Server</a>
-
       <div class="auth-wrapper">
         <img src="${av}" alt="avatar"/>
         <div style="font-weight:600">${userDisplay}</div>
@@ -415,13 +440,10 @@ canvas#starfield{ width:100%; height:100%; display:block; }
       </div>
     </div>
   </header>
-
   <div class="canvas-wrap"><canvas id="starfield"></canvas></div>
-
   <main class="page">
     ${contentHtml}
   </main>
-
 <script>
 /* starfield animation */
 const canvas = document.getElementById('starfield');
@@ -433,6 +455,98 @@ let stars = [];
 function createStars(){ stars=[]; for(let i=0;i<200;i++){ stars.push({x:Math.random()*canvas.width,y:Math.random()*canvas.height,r:Math.random()*1.5,s:Math.random()*0.5+0.1,c:'hsl('+Math.random()*360+',70%,80%)'});} }
 function animate(){ ctx.fillStyle='rgba(11,10,30,0.3)'; ctx.fillRect(0,0,canvas.width,canvas.height); for(const s of stars){ s.y-=s.s; if(s.y<0) s.y=canvas.height; ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,Math.PI*2); ctx.fillStyle=s.c; ctx.fill(); } requestAnimationFrame(animate); }
 createStars(); animate();
+
+/* Tag input handling for roles */
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.tag-input-wrapper').forEach(wrapper => {
+    const input = wrapper.querySelector('.tag-input');
+    const tagsContainer = wrapper.querySelector('.tags');
+    const dropdown = wrapper.querySelector('.dropdown');
+    const dropdownOptions = dropdown.querySelector('.dropdown-options');
+    const hiddenInput = wrapper.querySelector('input[name="value"]');
+    const roles = JSON.parse(wrapper.closest('.config-item').dataset.roles || '[]');
+    
+    input.addEventListener('input', () => {
+      const query = input.value.toLowerCase();
+      if (query.length < 1) {
+        dropdown.style.display = 'none';
+        return;
+      }
+      const filtered = roles.filter(r => r.name.toLowerCase().includes(query));
+      dropdownOptions.innerHTML = filtered.map(r => `<div data-id="${r.id}">${r.name}</div>`).join('');
+      dropdown.style.display = filtered.length > 0 ? 'block' : 'none';
+    });
+    
+    dropdownOptions.addEventListener('click', (e) => {
+      const option = e.target.closest('div[data-id]');
+      if (!option) return;
+      const id = option.dataset.id;
+      const name = option.textContent;
+      if (!tagsContainer.querySelector(`.tag[data-id="${id}"]`)) {
+        const tag = document.createElement('span');
+        tag.className = 'tag';
+        tag.dataset.id = id;
+        tag.innerHTML = \`${name} <button type="button" class="remove-tag" style="margin-left:0.3rem;color:#f55;border:none;background:none;cursor:pointer;">x</button>\`;
+        tagsContainer.appendChild(tag);
+        updateHiddenInput(tagsContainer, hiddenInput);
+      }
+      input.value = '';
+      dropdown.style.display = 'none';
+    });
+    
+    tagsContainer.addEventListener('click', (e) => {
+      if (e.target.classList.contains('remove-tag')) {
+        e.target.parentElement.remove();
+        updateHiddenInput(tagsContainer, hiddenInput);
+      }
+    });
+    
+    input.addEventListener('blur', () => {
+      setTimeout(() => dropdown.style.display = 'none', 200);
+    });
+  });
+
+  function updateHiddenInput(tagsContainer, hiddenInput) {
+    const ids = Array.from(tagsContainer.querySelectorAll('.tag')).map(tag => tag.dataset.id);
+    hiddenInput.value = ids.join(',');
+  }
+
+  /* Seamless form submission */
+  document.querySelectorAll('.config-form').forEach(form => {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const status = form.querySelector('.status');
+      status.style.display = 'none';
+      const formData = new FormData(form);
+      const key = formData.get('key');
+      let value = formData.get('value');
+      if (!value && formData.getAll('value[]').length > 0) {
+        value = formData.getAll('value[]').join(',');
+      }
+      const guildId = form.closest('main').dataset.guildId;
+      try {
+        const res = await fetch(\`/dashboard/\${guildId}/config\`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key, value })
+        });
+        if (res.ok) {
+          status.textContent = 'Updated!';
+          status.className = 'status success';
+          status.style.display = 'inline';
+          setTimeout(() => status.style.display = 'none', 2000);
+        } else {
+          throw new Error('Update failed');
+        }
+      } catch (err) {
+        status.textContent = 'Error updating';
+        status.className = 'status error';
+        status.style.display = 'inline';
+        setTimeout(() => status.style.display = 'none', 2000);
+      }
+    });
+  });
+});
 </script>
 </body>
 </html>`;
@@ -491,18 +605,7 @@ app.get("/callback", async (req, res) => {
     });
     let guilds = await guildResp.json();
     if (!Array.isArray(guilds)) guilds = [];
-
-    // filter
-    let botGuildData;
-    try {
-      const raw = fs.readFileSync(path.join(__dirname, "bot_guilds.json"), "utf8");
-      botGuildData = JSON.parse(raw);
-    } catch {}
-
-    const guildIds = botGuildData?.guild_ids || [];
-
-    req.session.guilds =
-      guildIds.length > 0 ? guilds.filter((g) => guildIds.includes(g.id)) : guilds;
+    req.session.guilds = guilds;
 
     res.redirect("/dashboard");
   } catch (err) {
@@ -574,7 +677,7 @@ app.get("/dashboard/:id", async (req, res) => {
     contentHtml += renderShopSection(guildId, data.shop, data.roles);
     contentHtml += renderMemberSearchSection(guildId);
 
-    res.send(renderLayout(user, contentHtml));
+    res.send(renderLayout(user, contentHtml.replace('<main class="page">', `<main class="page" data-guild-id="${guildId}">`)));
   } catch (err) {
     console.error(err);
     res.send(renderLayout(user, `<div class="card"><h2>Error</h2></div>`));
@@ -588,7 +691,6 @@ app.get("/dashboard/:id/members", async (req, res) => {
   if (!query) return res.redirect(`/dashboard/${guildId}`);
 
   try {
-    // Assume permission checks passed since we redirect from protected page
     const headers = { Authorization: `Bearer ${req.session.jwt}` };
     const memberRes = await fetch(`${API_BASE}/dashboard/${guildId}/members?query=${encodeURIComponent(query)}`, { headers });
     const member = memberRes.ok ? await memberRes.json() : { success: false };
@@ -601,7 +703,7 @@ app.get("/dashboard/:id/members", async (req, res) => {
     contentHtml += renderShopSection(guildId, data.shop, data.roles);
     contentHtml += renderMemberSearchSection(guildId, data.member);
 
-    res.send(renderLayout(req.session.user, contentHtml));
+    res.send(renderLayout(req.session.user, contentHtml.replace('<main class="page">', `<main class="page" data-guild-id="${guildId}">`)));
   } catch (err) {
     console.error(err);
     res.redirect(`/dashboard/${guildId}`);
@@ -611,7 +713,7 @@ app.get("/dashboard/:id/members", async (req, res) => {
 /* ---------------- Config Updates ---------------- */
 
 app.post("/dashboard/:id/config", async (req, res) => {
-  if (!req.session.user) return res.redirect("/login");
+  if (!req.session.user) return res.status(401).json({ error: "Unauthorized" });
   const guildId = req.params.id;
   let { key, value } = req.body;
 
@@ -631,13 +733,13 @@ app.post("/dashboard/:id/config", async (req, res) => {
     });
 
     if (updateRes.ok) {
-      res.redirect(`/dashboard/${guildId}`);
+      res.json({ success: true });
     } else {
-      res.status(400).send("Error updating config");
+      res.status(400).json({ error: "Error updating config" });
     }
   } catch (err) {
     console.error(err);
-    res.status(500).send("Internal error");
+    res.status(500).json({ error: "Internal error" });
   }
 });
 
