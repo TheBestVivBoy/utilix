@@ -605,7 +605,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
       try {
-        const res = await fetch(`/dashboard/${guildId}/config`, {
+        const res = await fetch(`${window.location.origin}/dashboard/${guildId}/config`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ key, value })
