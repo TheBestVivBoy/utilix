@@ -27,6 +27,10 @@ const JWT_SECRET = process.env.JWT_SECRET;
 const PORT = process.env.PORT || 3000;
 const API_BASE = "https://api.utilix.support";
 
+// Simple in-memory cache
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const guildDataCache = new Map();
+
 /* ---------------- helpers ---------------- */
 
 function escapeHtml(str = "") {
@@ -128,6 +132,12 @@ const multiKeys = [
 ];
 
 async function fetchGuildData(guildId, jwt, extra = {}) {
+  const cacheKey = `${guildId}:${jwt}`;
+  const cached = guildDataCache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return { ...cached.data, ...extra };
+  }
+
   const headers = { Authorization: `Bearer ${jwt}` };
   const [configRes, shopRes, rolesRes, channelsRes, logEventsRes] = await Promise.all([
     fetch(`${API_BASE}/dashboard/${guildId}`, { headers }),
@@ -145,19 +155,23 @@ async function fetchGuildData(guildId, jwt, extra = {}) {
     logEvents: logEventsRes.ok ? await logEventsRes.json() : { success: false, events: [] },
     ...extra,
   };
+
+  guildDataCache.set(cacheKey, { data, timestamp: Date.now() });
   return data;
 }
 
 function renderConfigSections(guildId, config, roles, channels, logEvents) {
-  let html = "";
+  let html = `<div class="sections">`;
   const allGroupedKeys = Object.values(sectionGroups).flat();
   const configKeys = Object.keys(config.config || {});
+  const defaultSection = "Bot Administrator Permissions";
 
   for (const [title, keys] of Object.entries(sectionGroups)) {
     const sectionKeys = keys.filter((k) => configKeys.includes(k));
     if (sectionKeys.length === 0) continue;
 
-    html += `<h2 class="accordion-header" style="cursor:pointer;">${escapeHtml(title)}</h2><div class="card accordion-body" style="display:none;grid-template-columns:1fr 1fr;gap:1rem;">`;
+    const isDefault = title === defaultSection;
+    html += `<div class="section" id="section-${escapeHtml(title.replace(/\s+/g, '-').toLowerCase())}" style="display:${isDefault ? 'grid' : 'none'};grid-template-columns:1fr 1fr;gap:1rem;">`;
     for (const key of sectionKeys) {
       html += renderConfigItem(guildId, key, config.config[key], roles, channels, logEvents);
     }
@@ -167,13 +181,14 @@ function renderConfigSections(guildId, config, roles, channels, logEvents) {
   // General section for ungrouped keys
   const generalKeys = configKeys.filter((k) => !allGroupedKeys.includes(k));
   if (generalKeys.length > 0) {
-    html += `<h2 class="accordion-header" style="cursor:pointer;">General</h2><div class="card accordion-body" style="display:none;grid-template-columns:1fr 1fr;gap:1rem;">`;
+    html += `<div class="section" id="section-general" style="display:none;grid-template-columns:1fr 1fr;gap:1rem;">`;
     for (const key of generalKeys) {
       html += renderConfigItem(guildId, key, config.config[key], roles, channels, logEvents);
     }
     html += `</div>`;
   }
 
+  html += `</div>`;
   return html;
 }
 
@@ -243,7 +258,7 @@ function renderConfigItem(guildId, key, value, roles, channels, logEvents) {
 }
 
 function renderShopSection(guildId, shop, roles) {
-  let html = '<h2>Shop</h2><div class="card">';
+  let html = `<div class="section" id="section-shop" style="display:none;grid-template-columns:1fr 1fr;gap:1rem;">`;
   html += '<h3>Add Item</h3>';
   html += `<form action="/dashboard/${guildId}/shop" method="POST" style="display:grid;gap:0.5rem;margin-bottom:1rem;">`;
   html += `<label>Role:</label><select name="role_id" required style="padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);">`;
@@ -282,9 +297,9 @@ function renderShopSection(guildId, shop, roles) {
 }
 
 function renderMemberSearchSection(guildId, member = null) {
-  let html = '<h2>Member Lookup</h2><div class="card">';
+  let html = `<div class="section" id="section-member-lookup" style="display:none;grid-template-columns:1fr 1fr;gap:1rem;">`;
   html += `<form action="/dashboard/${guildId}/members" method="GET" style="display:flex;gap:0.5rem;margin-bottom:1rem;">`;
-  html += `<input name="query" placeholder="ID or username" required style="flex:1;padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);">`;
+  html += `<input name="query" placeholder="ID or username" required style="width:300px;padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);">`;
   html += `<button type="submit" style="padding:0.5rem 1rem;background:var(--accent);color:white;border:none;border-radius:4px;cursor:pointer;">Search</button>`;
   html += `</form>`;
   if (member) {
@@ -298,9 +313,28 @@ function renderMemberSearchSection(guildId, member = null) {
   return html;
 }
 
+function renderSidebar(guildId, config) {
+  const allGroupedKeys = Object.values(sectionGroups).flat();
+  const configKeys = Object.keys(config.config || {});
+  let html = `<div class="sidebar" style="position:sticky;top:96px;width:200px;padding:1rem;background:var(--card);border-radius:12px;border:1px solid rgba(255,255,255,0.04);display:flex;flex-direction:column;gap:0.5rem;">`;
+  for (const title of Object.keys(sectionGroups)) {
+    if (sectionGroups[title].some((k) => configKeys.includes(k))) {
+      const sectionId = `section-${title.replace(/\s+/g, '-').toLowerCase()}`;
+      html += `<button class="section-btn" data-section="${sectionId}" style="padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:${title === 'Bot Administrator Permissions' ? 'var(--accent)' : 'var(--panel)'};color:white;cursor:pointer;">${escapeHtml(title)}</button>`;
+    }
+  }
+  if (configKeys.some((k) => !allGroupedKeys.includes(k))) {
+    html += `<button class="section-btn" data-section="section-general" style="padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:white;cursor:pointer;">General</button>`;
+  }
+  html += `<button class="section-btn" data-section="section-shop" style="padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:white;cursor:pointer;">Shop</button>`;
+  html += `<button class="section-btn" data-section="section-member-lookup" style="padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:white;cursor:pointer;">Member Lookup</button>`;
+  html += `</div>`;
+  return html;
+}
+
 /* --------------- render layout --------------- */
 
-function renderLayout(user, contentHtml) {
+function renderLayout(user, contentHtml, guildId = '') {
   const av = escapeHtml(avatarUrl(user || {}));
   const userDisplay = user ? `${escapeHtml(user.username || '')}#${escapeHtml(user.discriminator || '')}` : "";
   const addBotUrl = `https://discord.com/oauth2/authorize?client_id=${encodeURIComponent(
@@ -370,15 +404,11 @@ nav.header-nav a.active{
   padding:0.6rem 1.2rem; border-radius:999px; text-decoration:none;
 }
 .logout-btn{ font-size:1.1rem; color:#f55; text-decoration:none; }
-.page{ flex:1; max-width:1200px; margin:0 auto; padding:96px 20px 56px; position:relative; z-index:1; }
+.page{ flex:1; max-width:1200px; margin:0 auto; padding:96px 20px 56px; position:relative; z-index:1; display:flex; gap:1rem; }
 h1,h2{ margin-bottom:12px; }
 h3{ margin-bottom:8px; }
 .servers{
-  display:flex;
-  flex-wrap:wrap;
-  align-items:center;
-  gap:1rem;
-  margin-top:12px;
+  display:flex; flex-wrap:wrap; align-items:center; gap:1rem; margin-top:12px;
 }
 .server{
   background:var(--card);
@@ -413,8 +443,7 @@ canvas#starfield{ width:100%; height:100%; display:block; }
   opacity: 0; transition: opacity 0.3s ease;
 }
 .popup.show { opacity: 1; }
-.accordion-header { cursor: pointer; }
-.accordion-body { display: none; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.section-btn.active { background: var(--accent); }
 </style>
 </head>
 <body>
@@ -423,7 +452,7 @@ canvas#starfield{ width:100%; height:100%; display:block; }
       <div class="logo">Utilix</div>
       <nav class="header-nav" aria-label="Primary navigation">
         <ul>
-          <li><a href="/index" class="active">Home</a></li>
+          <li><a href="/index" class="${guildId ? '' : 'active'}">Home</a></li>
           <li><a href="/setup">Setup</a></li>
           <li><a href="/faq">FAQ</a></li>
           <li><a href="/changelog">Changelog</a></li>
@@ -441,9 +470,12 @@ canvas#starfield{ width:100%; height:100%; display:block; }
     </div>
   </header>
   <div class="canvas-wrap"><canvas id="starfield"></canvas></div>
-  <main class="page" data-guild-id="${contentHtml.includes('No access') || contentHtml.includes('Error') ? '' : contentHtml.match(/\/dashboard\/(\d+)/)?.[1] || ''}">
-    ${contentHtml}
-    <div id="popup" class="popup">Saved changes</div>
+  <main class="page" data-guild-id="${guildId}">
+    ${guildId ? renderSidebar(guildId, { config: {} }) : ''}
+    <div style="flex:1">
+      ${contentHtml}
+      <div id="popup" class="popup">Saved changes</div>
+    </div>
   </main>
 <script>
 /* client-side escapeHtml */
@@ -573,7 +605,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
       try {
-        const res = await fetch(\`/dashboard/\${guildId}/config\`, {
+        const res = await fetch(`/dashboard/${guildId}/config`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ key, value })
@@ -612,46 +644,49 @@ document.addEventListener('DOMContentLoaded', () => {
     search.type = 'text';
     search.id = 'search';
     search.placeholder = 'Search servers...';
-    search.style = 'width:100%;padding:0.5rem;margin-bottom:1rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);';
+    search.style = 'width:300px;padding:0.5rem;margin-bottom:1rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);';
     page.insertBefore(search, page.querySelector('h2 + div'));
     search.addEventListener('input', () => {
       const query = search.value.toLowerCase();
-      const servers = document.querySelectorAll('.server');
-      servers.forEach(server => {
+      document.querySelectorAll('.server').forEach(server => {
         const name = server.querySelector('.server-name').textContent.toLowerCase();
         server.style.display = name.includes(query) ? '' : 'none';
       });
-      const arrows = document.querySelectorAll('.servers span');
-      arrows.forEach(arrow => arrow.style.display = '');
     });
   } else if (document.querySelector('.config-item')) {
     const search = document.createElement('input');
     search.type = 'text';
     search.id = 'search';
     search.placeholder = 'Search config...';
-    search.style = 'width:100%;padding:0.5rem;margin-bottom:1rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);';
-    page.insertBefore(search, page.querySelector('h1 + h2'));
+    search.style = 'width:300px;padding:0.5rem;margin-bottom:1rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);';
+    page.insertBefore(search, page.querySelector('h1 + div'));
     search.addEventListener('input', () => {
       const query = search.value.toLowerCase();
       document.querySelectorAll('.config-item').forEach(item => {
         const label = item.querySelector('label').textContent.toLowerCase();
         item.style.display = label.includes(query) ? 'flex' : 'none';
       });
-      // Hide sections if all items hidden
-      document.querySelectorAll('.card').forEach(card => {
-        const items = card.querySelectorAll('.config-item');
+      // Show only relevant items in the active section
+      document.querySelectorAll('.section').forEach(section => {
+        const items = section.querySelectorAll('.config-item');
         const visible = Array.from(items).some(i => i.style.display !== 'none');
-        card.style.display = visible ? 'grid' : 'none';
-        card.previousElementSibling.style.display = visible ? 'block' : 'none';
+        section.style.display = visible && section.style.display !== 'none' ? 'grid' : 'none';
       });
     });
   }
 
-  /* Accordion for sections */
-  document.querySelectorAll('.accordion-header').forEach(header => {
-    header.addEventListener('click', () => {
-      const body = header.nextElementSibling;
-      body.style.display = body.style.display === 'none' ? 'grid' : 'none';
+  /* Sidebar navigation */
+  document.querySelectorAll('.section-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.section').forEach(section => {
+        section.style.display = 'none';
+      });
+      document.querySelectorAll('.section-btn').forEach(b => {
+        b.classList.remove('active');
+      });
+      const sectionId = btn.dataset.section;
+      document.getElementById(sectionId).style.display = 'grid';
+      btn.classList.add('active');
     });
   });
 });
@@ -761,7 +796,7 @@ app.get("/dashboard", async (req, res) => {
           : `<div class="server-icon">${escapeHtml(name.charAt(0))}</div>`
       }<div class="server-name">${escapeHtml(name)}</div></a></div>`;
     })
-    .join('<span style="color:var(--muted);padding:0 0.5rem;">-></span>');
+    .join('');
 
   res.send(renderLayout(user, `<h2>Your Servers</h2><div class="servers">${serversHtml}</div>`));
 });
@@ -807,7 +842,7 @@ app.get("/dashboard/:id", async (req, res) => {
     contentHtml += renderShopSection(guildId, data.shop, data.roles);
     contentHtml += renderMemberSearchSection(guildId);
 
-    res.send(renderLayout(user, contentHtml));
+    res.send(renderLayout(user, contentHtml, guildId));
   } catch (err) {
     console.error(err);
     res.send(renderLayout(user, `<div class="card"><h2>Error</h2></div>`));
@@ -833,7 +868,7 @@ app.get("/dashboard/:id/members", async (req, res) => {
     contentHtml += renderShopSection(guildId, data.shop, data.roles);
     contentHtml += renderMemberSearchSection(guildId, data.member);
 
-    res.send(renderLayout(req.session.user, contentHtml));
+    res.send(renderLayout(req.session.user, contentHtml, guildId));
   } catch (err) {
     console.error(err);
     res.redirect(`/dashboard/${guildId}`);
@@ -865,6 +900,9 @@ app.post("/dashboard/:id/config", async (req, res) => {
     });
 
     if (updateRes.ok) {
+      // Invalidate cache for this guild
+      const cacheKey = `${guildId}:${req.session.jwt}`;
+      guildDataCache.delete(cacheKey);
       res.json({ success: true });
     } else {
       res.status(400).json({ error: "Error saving config" });
@@ -894,6 +932,9 @@ app.post("/dashboard/:id/shop", async (req, res) => {
     });
 
     if (addRes.ok) {
+      // Invalidate cache
+      const cacheKey = `${guildId}:${req.session.jwt}`;
+      guildDataCache.delete(cacheKey);
       res.redirect(`/dashboard/${guildId}`);
     } else {
       res.status(400).send("Error adding item");
@@ -922,6 +963,9 @@ app.post("/dashboard/:id/shop/:item_id/update", async (req, res) => {
     });
 
     if (updateRes.ok) {
+      // Invalidate cache
+      const cacheKey = `${guildId}:${req.session.jwt}`;
+      guildDataCache.delete(cacheKey);
       res.redirect(`/dashboard/${guildId}`);
     } else {
       res.status(400).send("Error updating item");
@@ -945,6 +989,9 @@ app.post("/dashboard/:id/shop/:item_id/toggle", async (req, res) => {
     });
 
     if (toggleRes.ok) {
+      // Invalidate cache
+      const cacheKey = `${guildId}:${req.session.jwt}`;
+      guildDataCache.delete(cacheKey);
       res.redirect(`/dashboard/${guildId}`);
     } else {
       res.status(400).send("Error toggling item");
@@ -968,6 +1015,9 @@ app.post("/dashboard/:id/shop/:item_id/delete", async (req, res) => {
     });
 
     if (deleteRes.ok) {
+      // Invalidate cache
+      const cacheKey = `${guildId}:${req.session.jwt}`;
+      guildDataCache.delete(cacheKey);
       res.redirect(`/dashboard/${guildId}`);
     } else {
       res.status(400).send("Error deleting item");
