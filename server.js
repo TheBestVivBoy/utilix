@@ -928,8 +928,8 @@ app.get("/callback", async (req, res) => {
           body: JSON.stringify({ guildIds: candidateGuilds.map(g => g.id) }),
         });
         if (batchRes.ok) {
-          const data = await batchRes.json();
-          results = data.results || {};
+          results = await batchRes.json();
+          results = results.results || {};
         }
       } catch (err) {
         console.error("Error calling /checkPermsBatch:", err);
@@ -974,6 +974,7 @@ app.get("/dashboard", async (req, res) => {
     }
   } catch (err) {
     console.error("Failed to load bot_guilds.json:", err);
+    botGuildIds = [];
   }
   const botGuildSet = new Set(botGuildIds);
 
