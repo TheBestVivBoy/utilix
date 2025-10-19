@@ -814,7 +814,7 @@ document.addEventListener('DOMContentLoaded', () => {
       { id: 'members-section', label: 'Member Lookup' }
     ];
     navSidebar.innerHTML = sections.map(section => 
-      `<button data-section="${section.id}" style="${section.id === 'settings-section' ? 'background:linear-gradient(90deg, var(--accent), var(--accent2));color:white;' : ''}">${section.label}</button>`
+      `<button data-section="${section.id}" style="${section.id === 'settings-section' ? 'background:linear-gradient(90deg, var(--accent), var(--accent2));color:white' : ''}">${section.label}</button>`
     ).join('');
     
     document.querySelectorAll('.nav-sidebar button').forEach(button => {
