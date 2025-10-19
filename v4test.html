@@ -428,23 +428,39 @@
   </script>
   <script>
 document.addEventListener('DOMContentLoaded', async () => {
-  try {
-    const resp = await fetch(new URL('/footer.html', location.origin).href, { cache: 'no-store' });
-    if (!resp.ok) throw new Error(`Failed to fetch footer: ${resp.status} ${resp.statusText}`);
-    const html = await resp.text();
+  const paths = ['/footer.html', '/public/footer.html', './footer.html'];
+  for (const p of paths) {
+    try {
+      console.log('[footer] trying', p);
+      const resp = await fetch(new URL(p, location.origin).href, { cache: 'no-store' });
+      console.log('[footer] response', p, resp.status);
+      if (!resp.ok) {
+        console.warn('[footer] not ok, skipping', p);
+        continue;
+      }
+      const html = await resp.text();
+      console.log('[footer] fetched length', html.length, 'from', p);
 
-    // if footer already present, skip
-    if (document.querySelector('.site-footer')) return;
+      if (document.querySelector('.site-footer')) {
+        console.log('[footer] already present - skipping insertion');
+        return;
+      }
 
-    // create a container, extract first element (the footer) and append it
-    const tmp = document.createElement('div');
-    tmp.innerHTML = html.trim();
-    const footerEl = tmp.querySelector('.site-footer') || tmp.firstElementChild;
-    if (footerEl) document.body.appendChild(footerEl);
-    else console.warn('Footer loaded but no .site-footer element found');
-  } catch (err) {
-    console.error('Failed to load footer:', err);
+      const tmp = document.createElement('div');
+      tmp.innerHTML = html.trim();
+      const footerEl = tmp.querySelector('.site-footer') || tmp.firstElementChild;
+      if (footerEl) {
+        document.body.appendChild(footerEl);
+        console.log('[footer] appended footer from', p);
+        return;
+      } else {
+        console.warn('[footer] fetched HTML did not contain .site-footer', p);
+      }
+    } catch (err) {
+      console.warn('[footer] fetch failed for', p, err);
+    }
   }
+  console.error('[footer] could not load footer from any tested path. Open /footer.html directly to verify it is being served.');
 });
 </script>
 </body>
