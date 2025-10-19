@@ -154,26 +154,23 @@ async function fetchGuildData(guildId, jwt, extra = {}) {
   }
 }
 
-function renderConfigSections(guildId, config, roles, channels, logEvents) {
-  let html = `<div class="section" id="settings-section">`;
+function renderConfigSections(guildId, config, roles, channels, logEvents, sectionType = 'settings') {
+  let html = `<div class="section" id="${sectionType}-section">`;
   const allGroupedKeys = Object.values(sectionGroups).flat();
   const configKeys = Object.keys(config.config || {});
 
-  for (const [title, keys] of Object.entries(sectionGroups)) {
-    const sectionKeys = keys.filter((k) => configKeys.includes(k));
+  const targetGroups = sectionType === 'moderation' 
+    ? ["Moderation Roles"]
+    : ["Bot Administrator Permissions", "Bot Customization", "Join / Leaves", "Logging", "General"];
+
+  for (const title of targetGroups) {
+    let sectionKeys = title === "General" 
+      ? configKeys.filter((k) => !allGroupedKeys.includes(k))
+      : sectionGroups[title]?.filter((k) => configKeys.includes(k)) || [];
     if (sectionKeys.length === 0) continue;
 
-    html += `<h2 class="accordion-header" style="cursor:pointer;">${escapeHtml(title)}</h2><div class="card accordion-body" style="display:none;grid-template-columns:1fr 1fr;gap:1rem;">`;
+    html += `<h2>${escapeHtml(title)}</h2><div class="card" style="grid-template-columns:1fr 1fr;gap:1rem;">`;
     for (const key of sectionKeys) {
-      html += renderConfigItem(guildId, key, config.config[key], roles, channels, logEvents);
-    }
-    html += `</div>`;
-  }
-
-  const generalKeys = configKeys.filter((k) => !allGroupedKeys.includes(k));
-  if (generalKeys.length > 0) {
-    html += `<h2 class="accordion-header" style="cursor:pointer;">General</h2><div class="card accordion-body" style="display:none;grid-template-columns:1fr 1fr;gap:1rem;">`;
-    for (const key of generalKeys) {
       html += renderConfigItem(guildId, key, config.config[key], roles, channels, logEvents);
     }
     html += `</div>`;
@@ -305,12 +302,17 @@ function renderMemberSearchSection(guildId, member = null) {
   return html;
 }
 
-function renderLayout(user, contentHtml) {
+function renderLayout(user, contentHtml, isServerDashboard = false) {
   const av = escapeHtml(avatarUrl(user || {}));
   const userDisplay = user ? `${escapeHtml(user.username || '')}#${escapeHtml(user.discriminator || '')}` : "";
   const addBotUrl = `https://discord.com/oauth2/authorize?client_id=${encodeURIComponent(
     CLIENT_ID || ""
   )}&permissions=8&scope=bot%20applications.commands`;
+
+  const searchBarHtml = `
+    <input type="text" id="search" placeholder="${isServerDashboard ? 'Search config...' : 'Search servers...'}"
+      style="width:300px;padding:0.5rem;margin-bottom:1rem;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);">
+  `;
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -422,6 +424,7 @@ nav.header-nav a.active {
   position: relative;
   z-index: 1;
   display: flex;
+  flex-direction: row-reverse;
   gap: 2rem;
 }
 .content-area {
@@ -478,8 +481,6 @@ canvas#starfield { width: 100%; height: 100%; display: block; }
   transition: opacity 0.3s ease;
 }
 .popup.show { opacity: 1; }
-.accordion-header { cursor: pointer; }
-.accordion-body { display: none; grid-template-columns: 1fr 1fr; gap: 1rem; }
 .nav-sidebar {
   width: 200px;
   display: flex;
@@ -563,8 +564,8 @@ canvas#starfield { width: 100%; height: 100%; display: block; }
   </header>
   <div class="canvas-wrap"><canvas id="starfield"></canvas></div>
   <main class="page" data-guild-id="${contentHtml.includes('No access') || contentHtml.includes('Error') ? '' : contentHtml.match(/\/dashboard\/(\d+)/)?.[1] || ''}">
-    <div class="content-area" id="content-area">${contentHtml}</div>
     <nav class="nav-sidebar" id="nav-sidebar"></nav>
+    <div class="content-area" id="content-area">${searchBarHtml}${contentHtml}</div>
     <div id="popup" class="popup">Saved changes</div>
   </main>
 <script>
@@ -760,13 +761,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   /* Search bars */
   const page = document.querySelector('.page');
-  if (document.querySelector('.servers')) {
-    const search = document.createElement('input');
-    search.type = 'text';
-    search.id = 'search';
-    search.placeholder = 'Search servers...';
-    search.style = 'width:300px;padding:0.5rem;margin-bottom:1rem;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);';
-    page.insertBefore(search, page.querySelector('h2 + div'));
+  const search = document.getElementById('search');
+  if (search && document.querySelector('.servers')) {
     search.addEventListener('input', () => {
       const query = search.value.toLowerCase();
       const servers = document.querySelectorAll('.server');
@@ -775,13 +771,7 @@ document.addEventListener('DOMContentLoaded', () => {
         server.style.display = name.includes(query) ? '' : 'none';
       });
     });
-  } else if (document.querySelector('.config-item')) {
-    const search = document.createElement('input');
-    search.type = 'text';
-    search.id = 'search';
-    search.placeholder = 'Search config...';
-    search.style = 'width:300px;padding:0.5rem;margin-bottom:1rem;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);';
-    page.insertBefore(search, page.querySelector('h1 + h2'));
+  } else if (search && document.querySelector('.config-item')) {
     search.addEventListener('input', () => {
       const query = search.value.toLowerCase();
       document.querySelectorAll('.config-item').forEach(item => {
@@ -797,30 +787,19 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  /* Accordion for sections */
-  document.querySelectorAll('.accordion-header').forEach(header => {
-    header.addEventListener('click', () => {
-      const body = header.nextElementSibling;
-      body.style.display = body.style.display === 'none' ? 'grid' : 'none';
-    });
-  });
-
   /* Sidebar navigation */
   const navSidebar = document.getElementById('nav-sidebar');
   if (navSidebar && page.dataset.guildId) {
     const sections = [
       { id: 'settings-section', label: 'Settings' },
+      { id: 'moderation-section', label: 'Moderation' },
       { id: 'shop-section', label: 'Shop' },
       { id: 'members-section', label: 'Member Lookup' }
     ];
-    navSidebar.innerHTML = sections.map((section) => {
-      const activeStyle =
-        section.id === "settings-section"
-          ? "background:linear-gradient(90deg, var(--accent), var(--accent2));color:white"
-          : "";
-      return '<button data-section="' + section.id + '" style="' + activeStyle + '">' + section.label + '</button>';
-    }).join("");
-
+    navSidebar.innerHTML = sections.map(section => 
+      `<button data-section="${section.id}" style="${section.id === 'settings-section' ? 'background:linear-gradient(90deg, var(--accent), var(--accent2));color:white' : ''}">${section.label}</button>`
+    ).join('');
+    
     document.querySelectorAll('.nav-sidebar button').forEach(button => {
       button.addEventListener('click', () => {
         const sectionId = button.dataset.section;
@@ -1011,7 +990,7 @@ app.get("/dashboard/:id", async (req, res) => {
   const perms = req.session.perms || {};
 
   if (!guild) {
-    return res.send(renderLayout(user, `<div class="card"><h2>No access</h2></div>`));
+    return res.send(renderLayout(user, `<div class="card"><h2>No access</h2></div>`, false));
   }
 
   const MANAGE_GUILD = 0x20;
@@ -1019,7 +998,7 @@ app.get("/dashboard/:id", async (req, res) => {
 
   if (!hasManage || !perms[guildId]?.allowed) {
     return res.send(
-      renderLayout(user, `<div class="card"><h2>${escapeHtml(guild.name || '')}</h2><p>No permission</p></div>`)
+      renderLayout(user, `<div class="card"><h2>${escapeHtml(guild.name || '')}</h2><p>No permission</p></div>`, false)
     );
   }
 
@@ -1028,14 +1007,15 @@ app.get("/dashboard/:id", async (req, res) => {
     if (data.error) throw new Error("Failed to fetch guild data");
 
     let contentHtml = `<h1>${escapeHtml(guild.name || '')}</h1>`;
-    contentHtml += renderConfigSections(guildId, data.config, data.roles, data.channels, data.logEvents);
+    contentHtml += renderConfigSections(guildId, data.config, data.roles, data.channels, data.logEvents, 'settings');
+    contentHtml += renderConfigSections(guildId, data.config, data.roles, data.channels, data.logEvents, 'moderation');
     contentHtml += renderShopSection(guildId, data.shop, data.roles);
     contentHtml += renderMemberSearchSection(guildId);
 
-    res.send(renderLayout(user, contentHtml));
+    res.send(renderLayout(user, contentHtml, true));
   } catch (err) {
     console.error("Error in /dashboard/:id:", err);
-    res.send(renderLayout(user, `<div class="card"><h2>Error</h2></div>`));
+    res.send(renderLayout(user, `<div class="card"><h2>Error</h2></div>`, false));
   }
 });
 
@@ -1054,11 +1034,12 @@ app.get("/dashboard/:id/members", async (req, res) => {
 
     const guild = (req.session.guilds || []).find((g) => g.id === guildId);
     let contentHtml = `<h1>${escapeHtml(guild.name || '')}</h1>`;
-    contentHtml += renderConfigSections(guildId, data.config, data.roles, data.channels, data.logEvents);
+    contentHtml += renderConfigSections(guildId, data.config, data.roles, data.channels, data.logEvents, 'settings');
+    contentHtml += renderConfigSections(guildId, data.config, data.roles, data.channels, data.logEvents, 'moderation');
     contentHtml += renderShopSection(guildId, data.shop, data.roles);
     contentHtml += renderMemberSearchSection(guildId, data.member);
 
-    res.send(renderLayout(req.session.user, contentHtml));
+    res.send(renderLayout(req.session.user, contentHtml, true));
   } catch (err) {
     console.error("Error in /dashboard/:id/members:", err);
     res.redirect(`/dashboard/${guildId}`);
