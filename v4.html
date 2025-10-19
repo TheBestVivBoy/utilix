@@ -3,19 +3,40 @@
   <!-- announcement loader: fetches from /announcements.html (with fallbacks) and prepends to body -->
   <script>
   (function(){
-    const paths = ['/announcements.html','/public/announcements.html','./announcements.html'];
+    // try public path first (common static setup), then root, then relative
+    const paths = ['/public/announcements.html', '/announcements.html', './announcements.html'];
     async function loadAnnouncements() {
       for (const p of paths) {
         try {
           console.log('[announce] trying', p);
           const resp = await fetch(new URL(p, location.origin).href, { cache: 'no-store' });
           console.log('[announce] response', p, resp.status);
-          if (!resp.ok) continue;
+          if (!resp.ok) {
+            console.warn('[announce] not ok', p, resp.status);
+            continue;
+          }
+
           const html = await resp.text();
+          if (!html || !html.trim()) {
+            console.log('[announce] fetched file empty', p);
+            continue;
+          }
+
           const tmp = document.createElement('div');
           tmp.innerHTML = html.trim();
+          // prefer explicit container, otherwise take the first top-level element
           const annEl = tmp.querySelector('.site-announcements') || tmp.firstElementChild;
-          if (!annEl) { console.warn('[announce] no .site-announcements in', p); continue; }
+          if (!annEl) {
+            console.warn('[announce] no .site-announcements and no usable root element in', p);
+            continue;
+          }
+
+          // ensure element has meaningful content (text or children)
+          const hasContent = (annEl.textContent && annEl.textContent.trim().length > 0) || annEl.querySelector('*');
+          if (!hasContent) {
+            console.log('[announce] announcements element empty in', p);
+            continue;
+          }
 
           const prepend = () => {
             if (document.querySelector('.site-announcements')) {
@@ -34,11 +55,17 @@
           console.warn('[announce] fetch failed for', p, err);
         }
       }
-      console.error('[announce] could not load announcements from any tested path');
+      console.log('[announce] no announcements found - announcement tab will not appear');
     }
-    loadAnnouncements();
-  })();
-  </script>
+
+    // Ensure we run after DOM is ready so we can safely prepend to body
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => loadAnnouncements(), { once: true });
+    } else {
+      loadAnnouncements();
+    }
+   })();
+   </script>
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
