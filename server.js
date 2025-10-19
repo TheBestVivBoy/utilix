@@ -169,7 +169,7 @@ function renderConfigSections(guildId, config, roles, channels, logEvents, secti
       : sectionGroups[title]?.filter((k) => configKeys.includes(k)) || [];
     if (sectionKeys.length === 0) continue;
 
-    html += `<h2>${escapeHtml(title)}</h2><div class="card" style="grid-template-columns:1fr 1fr;gap:1rem;">`;
+    html += `<h2 style="font-size:1.5rem;margin-bottom:1rem;border-bottom:1px solid rgba(255,255,255,0.1);padding-bottom:0.5rem;">${escapeHtml(title)}</h2><div class="card" style="grid-template-columns:1fr 1fr;gap:1.5rem;padding:1.5rem;margin-bottom:2rem;">`;
     for (const key of sectionKeys) {
       html += renderConfigItem(guildId, key, config.config[key], roles, channels, logEvents);
     }
@@ -246,7 +246,7 @@ function renderConfigItem(guildId, key, value, roles, channels, logEvents) {
 
 function renderShopSection(guildId, shop, roles) {
   let html = `<div class="section" id="shop-section" style="display:none;">`;
-  html += '<h2>Shop</h2><div class="card">';
+  html += '<h2 style="font-size:1.5rem;margin-bottom:1rem;border-bottom:1px solid rgba(255,255,255,0.1);padding-bottom:0.5rem;">Shop</h2><div class="card" style="padding:1.5rem;margin-bottom:2rem;">';
   html += '<h3>Add Item</h3>';
   html += `<form action="/dashboard/${guildId}/shop" method="POST" style="display:grid;gap:0.5rem;margin-bottom:1rem;">`;
   html += `<label>Role:</label><select name="role_id" required style="padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);">`;
@@ -259,7 +259,7 @@ function renderShopSection(guildId, shop, roles) {
   html += `<button type="submit" style="padding:0.5rem 1rem;background:linear-gradient(90deg,var(--accent),var(--accent2));color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600;box-shadow:0 2px 8px rgba(0,0,0,0.3);transition:transform 0.2s ease,box-shadow 0.2s ease;">Add</button>`;
   html += `</form>`;
 
-  html += '<h3>Items</h3>';
+  html += '<h3 style="margin-top:1.5rem;">Items</h3>';
   if (shop.items && shop.items.length > 0) {
     html += '<table style="width:100%;border-collapse:collapse;">';
     html += '<thead><tr><th>Name</th><th>Role</th><th>Price</th><th>Active</th><th>Actions</th></tr></thead>';
@@ -286,7 +286,7 @@ function renderShopSection(guildId, shop, roles) {
 
 function renderMemberSearchSection(guildId, member = null) {
   let html = `<div class="section" id="members-section" style="display:none;">`;
-  html += '<h2>Member Lookup</h2><div class="card">';
+  html += '<h2 style="font-size:1.5rem;margin-bottom:1rem;border-bottom:1px solid rgba(255,255,255,0.1);padding-bottom:0.5rem;">Member Lookup</h2><div class="card" style="padding:1.5rem;margin-bottom:2rem;">';
   html += `<form action="/dashboard/${guildId}/members" method="GET" style="display:flex;gap:0.5rem;margin-bottom:1rem;">`;
   html += `<input name="query" placeholder="ID or username" required style="flex:1;padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);">`;
   html += `<button type="submit" style="padding:0.5rem 1rem;background:linear-gradient(90deg,var(--accent),var(--accent2));color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600;box-shadow:0 2px 8px rgba(0,0,0,0.3);transition:transform 0.2s ease,box-shadow 0.2s ease;">Search</button>`;
@@ -310,9 +310,16 @@ function renderLayout(user, contentHtml, isServerDashboard = false) {
   )}&permissions=8&scope=bot%20applications.commands`;
 
   const searchBarHtml = `
-    <input type="text" id="search" placeholder="${isServerDashboard ? 'Search config...' : 'Search servers...'}"
-      style="width:300px;padding:0.5rem;margin-bottom:1rem;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);">
+    <div class="search-wrapper" style="position:fixed;top:80px;left:50%;transform:translateX(-50%);width:300px;display:flex;gap:0.5rem;z-index:1000;">
+      <input type="text" id="search" placeholder="${isServerDashboard ? 'Search config...' : 'Search servers...'}"
+        style="flex:1;padding:0.5rem;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);">
+      <button id="clear-search" style="padding:0.5rem;background:#f55;color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600;box-shadow:0 2px 8px rgba(0,0,0,0.3);">X</button>
+    </div>
   `;
+
+  const sidebarHtml = isServerDashboard ? `
+    <nav class="nav-sidebar" id="nav-sidebar" style="position:fixed;top:80px;left:20px;width:220px;padding:1rem;background:var(--card);border-radius:12px;border:1px solid rgba(255,255,255,0.04);z-index:1000;"></nav>
+  ` : '';
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -420,7 +427,7 @@ nav.header-nav a.active {
   flex: 1;
   max-width: 1200px;
   margin: 0 auto;
-  padding: 96px 20px 56px;
+  padding: ${isServerDashboard ? '140px 20px 56px 260px' : '140px 20px 56px'};
   position: relative;
   z-index: 1;
   display: flex;
@@ -482,30 +489,43 @@ canvas#starfield { width: 100%; height: 100%; display: block; }
 }
 .popup.show { opacity: 1; }
 .nav-sidebar {
-  width: 200px;
+  width: 220px;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  position: sticky;
-  top: 96px;
-  align-self: flex-start;
 }
 .nav-sidebar button {
-  padding: 0.8rem;
+  padding: 1rem;
   background: linear-gradient(90deg, rgba(178,102,178,0.2), rgba(122,68,212,0.2));
   color: var(--fg);
   border: none;
   border-radius: 8px;
   cursor: pointer;
   font-weight: 600;
-  font-size: 0.95rem;
+  font-size: 1rem;
   text-align: left;
   transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+  position: relative;
 }
 .nav-sidebar button:hover {
   background: linear-gradient(90deg, var(--accent), var(--accent2));
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+.nav-sidebar button:hover::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  background: var(--panel);
+  color: var(--fg);
+  padding: 0.5rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  z-index: 1000;
+  margin-left: 0.5rem;
 }
 .nav-sidebar button.active {
   background: linear-gradient(90deg, var(--accent), var(--accent2));
@@ -532,6 +552,43 @@ canvas#starfield { width: 100%; height: 100%; display: block; }
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
+}
+@media (max-width: 768px) {
+  .page {
+    flex-direction: column;
+    padding: ${isServerDashboard ? '140px 20px 56px' : '140px 20px 56px'};
+  }
+  .nav-sidebar {
+    position: relative;
+    width: 100%;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    top: 0;
+    left: 0;
+    padding: 0.5rem;
+    margin-bottom: 1rem;
+  }
+  .nav-sidebar button {
+    flex: 1 1 45%;
+    text-align: center;
+  }
+  .nav-sidebar button:hover::after {
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    margin-left: 0;
+    margin-top: 0.5rem;
+  }
+  .search-wrapper {
+    width: 100%;
+    max-width: 300px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  .card {
+    grid-template-columns: 1fr;
+  }
 }
 </style>
 </head>
@@ -564,7 +621,7 @@ canvas#starfield { width: 100%; height: 100%; display: block; }
   </header>
   <div class="canvas-wrap"><canvas id="starfield"></canvas></div>
   <main class="page" data-guild-id="${contentHtml.includes('No access') || contentHtml.includes('Error') ? '' : contentHtml.match(/\/dashboard\/(\d+)/)?.[1] || ''}">
-    <nav class="nav-sidebar" id="nav-sidebar"></nav>
+    ${sidebarHtml}
     <div class="content-area" id="content-area">${searchBarHtml}${contentHtml}</div>
     <div id="popup" class="popup">Saved changes</div>
   </main>
@@ -759,47 +816,59 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  /* Search bars */
+  /* Search bars with clear button */
   const page = document.querySelector('.page');
   const search = document.getElementById('search');
-  if (search && document.querySelector('.servers')) {
-    search.addEventListener('input', () => {
-      const query = search.value.toLowerCase();
-      const servers = document.querySelectorAll('.server');
-      servers.forEach(server => {
-        const name = server.querySelector('.server-name').textContent.toLowerCase();
-        server.style.display = name.includes(query) ? '' : 'none';
+  const clearSearch = document.getElementById('clear-search');
+  if (search && clearSearch) {
+    if (document.querySelector('.servers')) {
+      search.addEventListener('input', () => {
+        const query = search.value.toLowerCase();
+        const servers = document.querySelectorAll('.server');
+        servers.forEach(server => {
+          const name = server.querySelector('.server-name').textContent.toLowerCase();
+          server.style.display = name.includes(query) ? '' : 'none';
+        });
       });
-    });
-  } else if (search && document.querySelector('.config-item')) {
-    search.addEventListener('input', () => {
-      const query = search.value.toLowerCase();
-      document.querySelectorAll('.config-item').forEach(item => {
-        const label = item.querySelector('label').textContent.toLowerCase();
-        item.style.display = label.includes(query) ? 'flex' : 'none';
+      clearSearch.addEventListener('click', () => {
+        search.value = '';
+        const servers = document.querySelectorAll('.server');
+        servers.forEach(server => server.style.display = '');
       });
-      document.querySelectorAll('.card').forEach(card => {
-        const items = card.querySelectorAll('.config-item');
-        const visible = Array.from(items).some(i => i.style.display !== 'none');
-        card.style.display = visible ? 'grid' : 'none';
-        card.previousElementSibling.style.display = visible ? 'block' : 'none';
+    } else if (document.querySelector('.config-item')) {
+      search.addEventListener('input', () => {
+        const query = search.value.toLowerCase();
+        document.querySelectorAll('.config-item').forEach(item => {
+          const label = item.querySelector('label').textContent.toLowerCase();
+          item.style.display = label.includes(query) ? 'flex' : 'none';
+        });
+        document.querySelectorAll('.card').forEach(card => {
+          const items = card.querySelectorAll('.config-item');
+          const visible = Array.from(items).some(i => i.style.display !== 'none');
+          card.style.display = visible ? 'grid' : 'none';
+          card.previousElementSibling.style.display = visible ? 'block' : 'none';
+        });
       });
-    });
+      clearSearch.addEventListener('click', () => {
+        search.value = '';
+        document.querySelectorAll('.config-item').forEach(item => item.style.display = 'flex');
+        document.querySelectorAll('.card').forEach(card => card.style.display = 'grid');
+        document.querySelectorAll('.section h2').forEach(h2 => h2.style.display = 'block');
+      });
+    }
   }
 
-  /* Sidebar navigation */
+  /* Sidebar navigation (only for server dashboard) */
   const navSidebar = document.getElementById('nav-sidebar');
   if (navSidebar && page.dataset.guildId) {
     const sections = [
-      { id: 'settings-section', label: 'Settings' },
-      { id: 'moderation-section', label: 'Moderation' },
-      { id: 'shop-section', label: 'Shop' },
-      { id: 'members-section', label: 'Member Lookup' }
+      { id: 'settings-section', label: 'Settings', tooltip: 'Manage bot and server settings' },
+      { id: 'moderation-section', label: 'Moderation', tooltip: 'Configure moderation roles' },
+      { id: 'shop-section', label: 'Shop', tooltip: 'Manage shop items' },
+      { id: 'members-section', label: 'Member Lookup', tooltip: 'Search for server members' }
     ];
     navSidebar.innerHTML = sections.map(section => 
-      '<button data-section="' + section.id + '"' +
-      (section.id === 'settings-section' ? ' style="background:linear-gradient(90deg, var(--accent), var(--accent2));color:white"' : '') +
-      '>' + section.label + '</button>'
+      `<button data-section="${section.id}" data-tooltip="${section.tooltip}" style="${section.id === 'settings-section' ? 'background:linear-gradient(90deg, var(--accent), var(--accent2));color:white' : ''}">${section.label}</button>`
     ).join('');
     
     document.querySelectorAll('.nav-sidebar button').forEach(button => {
