@@ -1,94 +1,5 @@
 <!DOCTYPE html>
 <html lang="en">
-  <!-- announcement loader: fetches from /announcements.html (with fallbacks) and prepends to body -->
-  <script>
-  (function(){
-    // try a set of candidate paths / forms (order: root, relative, public)
-    const candidates = [
-      '/announcements.html',
-      './announcements.html',
-      '/public/announcements.html'
-    ];
-
-    // produce multiple URL forms for each candidate to handle different servers
-    function urlVariants(p) {
-      return [
-        p,
-        new URL(p, location.origin).href,
-        location.origin + p,
-        location.href.replace(/\/[^/]*$/, '/') + p.replace(/^\.\//, '')
-      ].filter(Boolean);
-    }
-
-    async function tryFetch(url) {
-      try {
-        console.log('[announce] fetch ->', url);
-        // prefer plain fetch first (allows relative paths)
-        const resp = await fetch(url, { cache: 'no-store', credentials: 'same-origin' });
-        console.log('[announce] response', resp.status, 'from', resp.url);
-        if (!resp.ok) return { ok: false, resp };
-        const html = await resp.text();
-        console.log('[announce] fetched length', html.length);
-        return { ok: true, html, resp };
-      } catch (err) {
-        console.warn('[announce] fetch error for', url, err);
-        return { ok: false, err };
-      }
-    }
-
-    async function loadAnnouncements() {
-      for (const p of candidates) {
-        for (const u of urlVariants(p)) {
-          const result = await tryFetch(u);
-          if (!result.ok) continue;
-
-          const html = result.html || '';
-          if (!html.trim()) {
-            console.log('[announce] empty HTML at', u);
-            continue;
-          }
-
-          const tmp = document.createElement('div');
-          tmp.innerHTML = html.trim();
-          const annEl = tmp.querySelector('.site-announcements') || tmp.firstElementChild;
-          if (!annEl) {
-            console.warn('[announce] no .site-announcements nor root element in fetched HTML from', u);
-            // log a short preview to help debugging
-            console.log('[announce] preview:', html.slice(0, 300));
-            continue;
-          }
-
-          const hasContent = (annEl.textContent && annEl.textContent.trim().length > 0) || annEl.querySelector('*');
-          if (!hasContent) {
-            console.log('[announce] element present but empty in', u);
-            continue;
-          }
-
-          const prepend = () => {
-            if (document.querySelector('.site-announcements')) {
-              console.log('[announce] already present - skipping');
-              return;
-            }
-            document.body.prepend(annEl);
-            console.log('[announce] prepended announcements from', u);
-          };
-
-          if (document.body) prepend();
-          else document.addEventListener('DOMContentLoaded', prepend, { once: true });
-          return;
-        }
-      }
-      console.log('[announce] no announcements found - announcement will not appear');
-    }
-
-    // Ensure we run after DOM is ready so we can safely prepend to body
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', () => loadAnnouncements(), { once: true });
-    } else {
-      loadAnnouncements();
-    }
-   })();
-   </script>
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
@@ -121,7 +32,7 @@
 
     header {
       position: fixed;
-      top: 0;
+      top: 0; /* Default: no banner, no offset */
       left: 0;
       width: 100%;
       height: 72px;
@@ -382,6 +293,24 @@
   </style>
 </head>
 <body>
+  <script>
+    fetch('/announcements.html')
+      .then(response => {
+        if (!response.ok) {
+          console.log('[announce] No announcements found (status: ' + response.status + '), keeping header at top');
+          return null;
+        }
+        return response.text();
+      })
+      .then(data => {
+        if (data) {
+          document.body.insertAdjacentHTML('afterbegin', data);
+          document.querySelector('header').style.top = '48px';
+          console.log('[announce] Loaded announcements and adjusted header');
+        }
+      })
+      .catch(err => console.error('[announce] Failed to load announcements:', err));
+  </script>
   <header>
     <div style="display:flex;align-items:center;gap:16px">
       <div class="logo">Utilix</div>
@@ -516,41 +445,12 @@
     updateAuthUI();
   </script>
   <script>
-document.addEventListener('DOMContentLoaded', async () => {
-  const paths = ['/footer.html', '/public/footer.html', './footer.html'];
-  for (const p of paths) {
-    try {
-      console.log('[footer] trying', p);
-      const resp = await fetch(new URL(p, location.origin).href, { cache: 'no-store' });
-      console.log('[footer] response', p, resp.status);
-      if (!resp.ok) {
-        console.warn('[footer] not ok, skipping', p);
-        continue;
-      }
-      const html = await resp.text();
-      console.log('[footer] fetched length', html.length, 'from', p);
-
-      if (document.querySelector('.site-footer')) {
-        console.log('[footer] already present - skipping insertion');
-        return;
-      }
-
-      const tmp = document.createElement('div');
-      tmp.innerHTML = html.trim();
-      const footerEl = tmp.querySelector('.site-footer') || tmp.firstElementChild;
-      if (footerEl) {
-        document.body.appendChild(footerEl);
-        console.log('[footer] appended footer from', p);
-        return;
-      } else {
-        console.warn('[footer] fetched HTML did not contain .site-footer', p);
-      }
-    } catch (err) {
-      console.warn('[footer] fetch failed for', p, err);
-    }
-  }
-  console.error('[footer] could not load footer from any tested path. Open /footer.html directly to verify it is being served.');
-});
-</script>
+    fetch('/footer.html')
+      .then(response => response.text())
+      .then(data => {
+        document.body.insertAdjacentHTML('beforeend', data);
+      })
+      .catch(err => console.error('Failed to load footer:', err));
+  </script>
 </body>
 </html>
