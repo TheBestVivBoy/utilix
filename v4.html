@@ -3,38 +3,64 @@
   <!-- announcement loader: fetches from /announcements.html (with fallbacks) and prepends to body -->
   <script>
   (function(){
-    // try public path first (common static setup), then root, then relative
-    const paths = ['/public/announcements.html', '/announcements.html', './announcements.html'];
-    async function loadAnnouncements() {
-      for (const p of paths) {
-        try {
-          console.log('[announce] trying', p);
-          const resp = await fetch(new URL(p, location.origin).href, { cache: 'no-store' });
-          console.log('[announce] response', p, resp.status);
-          if (!resp.ok) {
-            console.warn('[announce] not ok', p, resp.status);
-            continue;
-          }
+    // try a set of candidate paths / forms (order: root, relative, public)
+    const candidates = [
+      '/announcements.html',
+      './announcements.html',
+      '/public/announcements.html'
+    ];
 
-          const html = await resp.text();
-          if (!html || !html.trim()) {
-            console.log('[announce] fetched file empty', p);
+    // produce multiple URL forms for each candidate to handle different servers
+    function urlVariants(p) {
+      return [
+        p,
+        new URL(p, location.origin).href,
+        location.origin + p,
+        location.href.replace(/\/[^/]*$/, '/') + p.replace(/^\.\//, '')
+      ].filter(Boolean);
+    }
+
+    async function tryFetch(url) {
+      try {
+        console.log('[announce] fetch ->', url);
+        // prefer plain fetch first (allows relative paths)
+        const resp = await fetch(url, { cache: 'no-store', credentials: 'same-origin' });
+        console.log('[announce] response', resp.status, 'from', resp.url);
+        if (!resp.ok) return { ok: false, resp };
+        const html = await resp.text();
+        console.log('[announce] fetched length', html.length);
+        return { ok: true, html, resp };
+      } catch (err) {
+        console.warn('[announce] fetch error for', url, err);
+        return { ok: false, err };
+      }
+    }
+
+    async function loadAnnouncements() {
+      for (const p of candidates) {
+        for (const u of urlVariants(p)) {
+          const result = await tryFetch(u);
+          if (!result.ok) continue;
+
+          const html = result.html || '';
+          if (!html.trim()) {
+            console.log('[announce] empty HTML at', u);
             continue;
           }
 
           const tmp = document.createElement('div');
           tmp.innerHTML = html.trim();
-          // prefer explicit container, otherwise take the first top-level element
           const annEl = tmp.querySelector('.site-announcements') || tmp.firstElementChild;
           if (!annEl) {
-            console.warn('[announce] no .site-announcements and no usable root element in', p);
+            console.warn('[announce] no .site-announcements nor root element in fetched HTML from', u);
+            // log a short preview to help debugging
+            console.log('[announce] preview:', html.slice(0, 300));
             continue;
           }
 
-          // ensure element has meaningful content (text or children)
           const hasContent = (annEl.textContent && annEl.textContent.trim().length > 0) || annEl.querySelector('*');
           if (!hasContent) {
-            console.log('[announce] announcements element empty in', p);
+            console.log('[announce] element present but empty in', u);
             continue;
           }
 
@@ -44,18 +70,15 @@
               return;
             }
             document.body.prepend(annEl);
-            console.log('[announce] prepended announcements from', p);
+            console.log('[announce] prepended announcements from', u);
           };
 
           if (document.body) prepend();
           else document.addEventListener('DOMContentLoaded', prepend, { once: true });
-
           return;
-        } catch (err) {
-          console.warn('[announce] fetch failed for', p, err);
         }
       }
-      console.log('[announce] no announcements found - announcement tab will not appear');
+      console.log('[announce] no announcements found - announcement will not appear');
     }
 
     // Ensure we run after DOM is ready so we can safely prepend to body
