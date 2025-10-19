@@ -812,13 +812,14 @@ document.addEventListener('DOMContentLoaded', () => {
       { id: 'settings-section', label: 'Settings' },
       { id: 'shop-section', label: 'Shop' },
       { id: 'members-section', label: 'Member Lookup' }
+    ];
     navSidebar.innerHTML = sections.map((section) => {
-  const activeStyle =
-    section.id === "settings-section"
-      ? "background:linear-gradient(90deg, var(--accent), var(--accent2));color:white"
-      : "";
-  return `<button data-section="${section.id}" style="${activeStyle}">${section.label}</button>`;
-}).join("");
+      const activeStyle =
+        section.id === "settings-section"
+          ? "background:linear-gradient(90deg, var(--accent), var(--accent2));color:white"
+          : "";
+      return '<button data-section="' + section.id + '" style="' + activeStyle + '">' + section.label + '</button>';
+    }).join("");
 
     document.querySelectorAll('.nav-sidebar button').forEach(button => {
       button.addEventListener('click', () => {
