@@ -427,12 +427,25 @@
     updateAuthUI();
   </script>
   <script>
-  fetch('/footer.html')
-    .then(response => response.text())
-    .then(data => {
-      document.body.insertAdjacentHTML('beforeend', data);
-    })
-    .catch(err => console.error('Failed to load footer:', err));
+document.addEventListener('DOMContentLoaded', async () => {
+  try {
+    const resp = await fetch(new URL('/footer.html', location.origin).href, { cache: 'no-store' });
+    if (!resp.ok) throw new Error(`Failed to fetch footer: ${resp.status} ${resp.statusText}`);
+    const html = await resp.text();
+
+    // if footer already present, skip
+    if (document.querySelector('.site-footer')) return;
+
+    // create a container, extract first element (the footer) and append it
+    const tmp = document.createElement('div');
+    tmp.innerHTML = html.trim();
+    const footerEl = tmp.querySelector('.site-footer') || tmp.firstElementChild;
+    if (footerEl) document.body.appendChild(footerEl);
+    else console.warn('Footer loaded but no .site-footer element found');
+  } catch (err) {
+    console.error('Failed to load footer:', err);
+  }
+});
 </script>
 </body>
 </html>
