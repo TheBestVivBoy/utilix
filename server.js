@@ -867,9 +867,11 @@ document.addEventListener('DOMContentLoaded', () => {
       { id: 'shop-section', label: 'Shop', tooltip: 'Manage shop items' },
       { id: 'members-section', label: 'Member Lookup', tooltip: 'Search for server members' }
     ];
-    navSidebar.innerHTML = sections.map(section => 
-      `<button data-section="${section.id}" data-tooltip="${section.tooltip}" style="${section.id === 'settings-section' ? 'background:linear-gradient(90deg, var(--accent), var(--accent2));color:white' : ''}">${section.label}</button>`
-    ).join('');
+    navSidebar.innerHTML = sections.map(function(section) {
+      return '<button data-section="' + section.id + '" data-tooltip="' + section.tooltip + '"' +
+        (section.id === 'settings-section' ? ' style="background:linear-gradient(90deg, var(--accent), var(--accent2));color:white"' : '') +
+        '>' + section.label + '</button>';
+    }).join('');
     
     document.querySelectorAll('.nav-sidebar button').forEach(button => {
       button.addEventListener('click', () => {
