@@ -156,14 +156,23 @@
     }
 
     .sidebar {
-      position: sticky;
-      top: 100px;
       width: 200px;
       flex-shrink: 0;
       background: var(--panel);
       border-radius: 12px;
       padding: 1rem;
       border: 1px solid rgba(255, 255, 255, 0.05);
+      max-height: calc(100vh - 120px);
+      overflow-y: auto;
+    }
+
+    @media (min-width: 769px) {
+      .sidebar {
+        position: fixed;
+        top: 100px;
+        left: calc((100% - 1200px) / 2 + 20px);
+        width: 200px;
+      }
     }
 
     .sidebar ul {
@@ -203,6 +212,12 @@
       border-radius: 12px;
       padding: 1.5rem;
       border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    @media (min-width: 769px) {
+      .content {
+        margin-left: 230px;
+      }
     }
 
     .search-bar {
@@ -324,6 +339,7 @@
       }
 
       .content {
+        margin-left: 0;
         margin-top: 2rem;
       }
 
