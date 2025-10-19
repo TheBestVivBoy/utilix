@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Utilix — Setup</title>
+  <title>Utilix — Assets</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet" />
   <style>
     :root {
@@ -144,80 +144,30 @@
       margin-left: 8px;
     }
 
-    .page {
+    main.page {
       flex: 1;
       max-width: 1200px;
       margin: 0 auto;
       padding: 100px 20px 56px;
       position: relative;
       z-index: 1;
-      display: flex;
-      gap: 1.5rem;
     }
 
-    .sidebar {
-      width: 200px;
-      flex-shrink: 0;
-      background: var(--panel);
-      border-radius: 12px;
-      padding: 1rem;
-      border: 1px solid rgba(255, 255, 255, 0.05);
-      max-height: calc(100vh - 120px);
-      overflow-y: auto;
+    h1 {
+      font-size: 2.4rem;
+      font-weight: 800;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-align: center;
+      margin-bottom: 1rem;
     }
 
-    @media (min-width: 769px) {
-      .sidebar {
-        position: fixed;
-        top: 100px;
-        left: calc((100% - 1200px) / 2 + 20px);
-        width: 200px;
-      }
-    }
-
-    .sidebar ul {
-      list-style: none;
-    }
-
-    .sidebar li {
-      margin-bottom: 0.5rem;
-    }
-
-    .sidebar a {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      color: var(--fg);
-      text-decoration: none;
-      font-weight: 600;
-      font-size: 0.95rem;
-      padding: 0.5rem;
-      border-radius: 8px;
-      transition: background 0.2s ease, transform 0.2s ease;
-    }
-
-    .sidebar a:hover {
-      background: var(--card);
-      transform: translateX(4px);
-    }
-
-    .sidebar a.active {
-      background: linear-gradient(90deg, rgba(178, 102, 178, 0.16), rgba(122, 68, 212, 0.12));
-      color: white;
-    }
-
-    .content {
-      flex: 1;
-      background: var(--panel);
-      border-radius: 12px;
-      padding: 1.5rem;
-      border: 1px solid rgba(255, 255, 255, 0.05);
-    }
-
-    @media (min-width: 769px) {
-      .content {
-        margin-left: 230px;
-      }
+    .credit-notice {
+      text-align: center;
+      color: var(--muted);
+      font-size: 1rem;
+      margin-bottom: 2rem;
     }
 
     .search-bar {
@@ -251,127 +201,100 @@
       fill: var(--muted);
     }
 
-    .category-section {
-      margin-bottom: 2rem;
-    }
-
-    .category-section h2 {
-      font-size: 1.5rem;
-      font-weight: 600;
-      background: linear-gradient(90deg, var(--accent), var(--accent2));
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      margin-bottom: 1rem;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-
-    .commands-list {
+    .assets-grid {
       display: grid;
-      gap: 1rem;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 1.5rem;
     }
 
-    .command-card {
+    .asset-card {
       background: var(--card);
-      border-radius: 8px;
+      border-radius: 12px;
       padding: 1rem;
       border: 1px solid rgba(255, 255, 255, 0.05);
       transition: transform 0.18s ease, box-shadow 0.18s ease;
     }
 
-    .command-card:hover {
+    .asset-card:hover {
       transform: translateY(-3px);
       box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
     }
 
-    .command-card h3 {
-      font-size: 1rem;
-      font-weight: 600;
-      color: var(--fg);
-      margin-bottom: 0.4rem;
-    }
-
-    .command-card p {
-      color: var(--muted);
-      font-size: 0.9rem;
-      line-height: 1.4;
-    }
-
-    .mobile-nav-toggle {
-      display: none;
-      background: var(--card);
-      border: none;
-      color: var(--fg);
-      font-size: 1.2rem;
-      padding: 0.5rem;
+    .asset-thumb {
+      width: 100%;
+      height: 120px;
+      object-fit: cover;
       border-radius: 8px;
+      margin-bottom: 0.8rem;
+      background: #0f0f12;
+    }
+
+    .asset-info {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .asset-title {
+      font-weight: 700;
+      font-size: 1.1rem;
+      color: var(--fg);
+      margin-bottom: 0.3rem;
+    }
+
+    .asset-id {
+      font-family: monospace;
+      font-size: 0.9rem;
+      color: var(--accent);
+      margin-bottom: 0.8rem;
+      word-break: break-all;
+    }
+
+    .asset-actions {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .copy-btn, .download-btn {
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      border: none;
+      border-radius: 6px;
+      padding: 0.5rem 1rem;
+      font-weight: 600;
+      color: #fff;
       cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
     }
 
-    @media (max-width: 768px) {
-      .page {
-        flex-direction: column;
-        padding: 100px 15px 56px;
-      }
-
-      .sidebar {
-        position: fixed;
-        top: 72px;
-        left: -100%;
-        width: 200px;
-        height: calc(100vh - 72px);
-        z-index: 1200;
-        transition: left 0.3s ease;
-        padding: 1rem;
-      }
-
-      .sidebar.active {
-        left: 0;
-      }
-
-      .mobile-nav-toggle {
-        display: block;
-        position: fixed;
-        top: 80px;
-        left: 15px;
-        z-index: 1300;
-      }
-
-      .content {
-        margin-left: 0;
-        margin-top: 2rem;
-      }
-
-      .category-section h2 {
-        font-size: 1.3rem;
-      }
-
-      .command-card h3 {
-        font-size: 0.95rem;
-      }
-
-      .command-card p {
-        font-size: 0.85rem;
-      }
+    .copy-btn:hover, .download-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
     }
 
-    @media (max-width: 640px) {
-      header {
-        flex-direction: column;
-        gap: 0.8rem;
-        align-items: flex-start;
-      }
+    .no-results {
+      font-size: 1.2rem;
+      color: var(--muted);
+      text-align: center;
+      padding: 2rem;
+    }
 
-      nav.header-nav ul {
-        gap: 0.5rem;
-        padding: 0.3rem 0.7rem;
-      }
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: var(--card);
+      color: var(--fg);
+      padding: 0.8rem 1.5rem;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      opacity: 0;
+      transform: translateY(20px);
+      transition: opacity 0.3s ease, transform 0.3s ease;
+      z-index: 1200;
+    }
 
-      nav.header-nav a {
-        font-size: 0.9rem;
-        padding: 0.4rem 0.8rem;
-      }
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
     }
 
     canvas#starfield {
@@ -383,6 +306,153 @@
       z-index: 0;
       pointer-events: none;
     }
+
+    .utilix-footer {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      gap: 1rem;
+      padding: 1rem;
+      font-size: 0.9rem;
+      color: var(--muted);
+      background: rgba(15, 5, 35, 0.95);
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .utilix-footer .brand {
+      justify-self: start;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      text-decoration: none;
+      color: var(--fg);
+    }
+
+    .utilix-footer .brand img {
+      width: 28px;
+      height: 28px;
+      display: block;
+    }
+
+    .utilix-footer .brand .brand-text {
+      font-weight: 700;
+      line-height: 1;
+      white-space: nowrap;
+    }
+
+    .utilix-footer .center {
+      justify-self: center;
+      text-align: center;
+    }
+
+    .utilix-footer strong {
+      color: var(--fg);
+    }
+
+    .utilix-footer .links a {
+      margin: 0 0.5rem;
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    .utilix-footer .links a:hover {
+      text-decoration: underline;
+    }
+
+    .utilix-footer .email {
+      margin-top: 6px;
+    }
+
+    .utilix-footer .email a {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      color: var(--muted);
+      text-decoration: none;
+      transition: color 0.2s ease;
+    }
+
+    .utilix-footer .email a svg {
+      width: 18px;
+      height: 18px;
+      fill: currentColor;
+    }
+
+    .utilix-footer .email a:hover {
+      color: var(--accent);
+      text-decoration: underline;
+    }
+
+    .utilix-footer .discord-link {
+      justify-self: end;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      text-decoration: none;
+      color: var(--accent);
+      transition: transform 0.15s ease;
+      outline: none;
+    }
+
+    .utilix-footer .discord-link:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    .utilix-footer .discord-link svg {
+      width: 28px;
+      height: 28px;
+      fill: currentColor;
+      transition: filter 0.2s ease, transform 0.2s ease;
+    }
+
+    .utilix-footer .discord-link:hover svg {
+      filter: brightness(1.2);
+      transform: translateY(-1px);
+    }
+
+    @media (max-width: 768px) {
+      .assets-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .asset-thumb {
+        height: 100px;
+      }
+    }
+
+    @media (max-width: 640px) {
+      header {
+        flex-direction: column;
+        gap: 0.8rem;
+        align-items: flex-start;
+      }
+
+      nav.header-nav ul {
+        gap: 0.75rem;
+        justify-content: center;
+      }
+
+      .utilix-footer {
+        display: flex;
+        flex-direction: column;
+        text-align: center;
+        gap: 0.5rem;
+      }
+
+      .utilix-footer .brand,
+      .utilix-footer .center,
+      .utilix-footer .discord-link {
+        justify-self: center;
+      }
+
+      .utilix-footer .brand { order: 1; }
+      .utilix-footer .center { order: 2; }
+      .utilix-footer .discord-link { order: 3; }
+    }
   </style>
 </head>
 <body>
@@ -392,7 +462,7 @@
       <nav class="header-nav" aria-label="Primary navigation">
         <ul>
           <li><a href="/index">Home</a></li>
-          <li><a href="/setup" class="active">Setup</a></li>
+          <li><a href="/setup">Setup</a></li>
           <li><a href="/faq">FAQ</a></li>
           <li><a href="/changelog">Changelog</a></li>
         </ul>
@@ -404,57 +474,22 @@
   <div class="canvas-wrap"><canvas id="starfield"></canvas></div>
 
   <main class="page">
-    <button class="mobile-nav-toggle">☰</button>
-    <nav class="sidebar" id="sidebar">
-      <ul>
-        <li><a href="#welcome">⚙️ Welcome</a></li>
-        <li><a href="#tickets">🎫 Tickets</a></li>
-        <li><a href="#moderation">🛡️ Moderation</a></li>
-        <li><a href="#scam">🚨 Scam Database</a></li>
-        <li><a href="#utilities">🛠️ Utilities</a></li>
-        <li><a href="#minigames">🎮 Minigames</a></li>
-        <li><a href="#economy">💵 Economy</a></li>
-      </ul>
-    </nav>
-    <div class="content">
-      <div class="search-bar">
-        <svg viewBox="0 0 24 24"><path d="M21.707 20.293l-5.388-5.388A7.944 7.944 0 0018 10a8 8 0 10-8 8c1.879 0 3.603-.648 4.986-1.734l5.396 5.396a1 1 0 001.414-1.414zM10 16a6 6 0 110-12 6 6 0 010 12z"/></svg>
-        <input type="text" id="command-search" placeholder="Search commands..." />
-      </div>
-      <div id="commands-content">
-        <section class="category-section" id="welcome">
-          <h2>⚙️ Welcome to Utilix</h2>
-          <div class="commands-list"></div>
-        </section>
-        <section class="category-section" id="tickets">
-          <h2>🎫 Ticket Commands</h2>
-          <div class="commands-list"></div>
-        </section>
-        <section class="category-section" id="moderation">
-          <h2>🛡️ Moderation Commands</h2>
-          <div class="commands-list"></div>
-        </section>
-        <section class="category-section" id="scam">
-          <h2>🚨 Scam Database</h2>
-          <div class="commands-list"></div>
-        </section>
-        <section class="category-section" id="utilities">
-          <h2>🛠️ Utilities & Tools</h2>
-          <div class="commands-list"></div>
-        </section>
-        <section class="category-section" id="minigames">
-          <h2>🎮 Minigames</h2>
-          <div class="commands-list"></div>
-        </section>
-        <section class="category-section" id="economy">
-          <h2>💵 Economy</h2>
-          <div class="commands-list"></div>
-        </section>
-      </div>
+    <h1>Asset Library</h1>
+    <div class="credit-notice">
+      When using these assets on third-party platforms, please provide credit and include a link back to this page.
     </div>
+    <div class="search-bar">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M21.707 20.293l-5.388-5.388A7.944 7.944 0 0018 10a8 8 0 10-8 8c1.879 0 3.603-.648 4.986-1.734l5.396 5.396a1 1 0 001.414-1.414zM10 16a6 6 0 110-12 6 6 0 010 12z"/>
+      </svg>
+      <input type="text" id="asset-search" placeholder="Search assets..." aria-label="Search assets" />
+    </div>
+    <div id="assets-content" class="assets-grid"></div>
   </main>
 
+
   <script>
+    // Starfield animation
     const canvas = document.getElementById('starfield');
     const ctx = canvas.getContext('2d');
     let stars = [];
@@ -497,7 +532,7 @@
     createStars();
     animate();
 
-    // --- AUTH UI LOGIC ---
+    // Auth UI logic
     async function updateAuthUI() {
       try {
         const res = await fetch("/me");
@@ -526,407 +561,191 @@
 
     updateAuthUI();
 
-    // --- COMMAND DATA ---
-    const commands = {
-      "setup": {
-        "title": "⚙️ /setup",
-        "description": "Use this to configure the bot for your server. It guides you through setting up roles, ticket configurations, and moderation options. Follow the interactive prompts to customize the server integration quickly. This is usually the first command to run after adding the bot.",
-        "category": "welcome"
+    // Asset data
+    const assets = [
+      {
+        title: "Logo",
+        id: "asset-10",
+        url: "https://utilix.support/assets/logo.png",
+        filename: "utilixlogo.png"
       },
-      "help": {
-        "title": "ℹ️ /help",
-        "description": "Displays the help pages or a specific command's details. Run `/help` for the first page, `/help 2` for another page, or `/help command` to view detailed info for a command. It provides quick summaries in the embed pages and longer instructions in command-specific embeds.",
-        "category": "welcome"
+      {
+        title: "Banner",
+        id: "asset-11",
+        url: "https://utilix.support/assets/utilixbanner.png",
+        filename: "utilixbanner.png"
       },
-      "createembed": {
-        "title": "🎫 /createembed",
-        "description": "Creates a ticket panel in the current channel. Users can press the button to open new ticket channels automatically. Use this when setting up ticketing in a support or help category. Only ticket admins can run this command.",
-        "category": "tickets"
+      {
+        title: "Number 1",
+        id: "asset-1",
+        url: "https://utilix.support/assets/1.png",
+        filename: "1.png"
       },
-      "editembed": {
-        "title": "🎫 /editembed",
-        "description": "Edits an existing ticket panel. You can update the title, description, button, or color without recreating it. Useful for changing panel details after setup.",
-        "category": "tickets"
+      {
+        title: "Number 2",
+        id: "asset-2",
+        url: "https://utilix.support/assets/2.png",
+        filename: "2.png"
       },
-      "removeembed": {
-        "title": "🎫 /removeembed",
-        "description": "Removes an existing ticket panel from the channel. Provide the panel or channel to remove if multiple exist. Useful when decommissioning old panels or updating your ticket system.",
-        "category": "tickets"
+      {
+        title: "Number 3",
+        id: "asset-3",
+        url: "https://utilix.support/assets/3.png",
+        filename: "3.png"
       },
-      "add": {
-        "title": "🎫 /add",
-        "description": "Adds a user to the current ticket channel, giving them access to view and respond. Use `/add @user` while inside the ticket. Only the ticket owner or staff can run it.",
-        "category": "tickets"
+      {
+        title: "Number 4",
+        id: "asset-4",
+        url: "https://utilix.support/assets/4.png",
+        filename: "4.png"
       },
-      "remove": {
-        "title": "🎫 /remove",
-        "description": "Removes a user from the current ticket channel. Mention the user you want to remove. You need ticket staff permissions to use this command, and the user immediately loses access.",
-        "category": "tickets"
+      {
+        title: "Number 5",
+        id: "asset-5",
+        url: "https://utilix.support/assets/5.png",
+        filename: "5.png"
       },
-      "removeall": {
-        "title": "🎫 /removeall",
-        "description": "Removes all extra users from the ticket, leaving only the owner and staff. Run this if a ticket has too many added participants or you want to reset access quickly.",
-        "category": "tickets"
+      {
+        title: "Number 6",
+        id: "asset-6",
+        url: "https://utilix.support/assets/6.png",
+        filename: "6.png"
       },
-      "rename": {
-        "title": "🎫 /rename",
-        "description": "Renames the current ticket channel. Provide the new name, and the bot will update the channel title. Ticket staff can run this, with a short cooldown to prevent spam.",
-        "category": "tickets"
+      {
+        title: "Number 7",
+        id: "asset-7",
+        url: "https://utilix.support/assets/7.png",
+        filename: "7.png"
       },
-      "close": {
-        "title": "🎫 /close",
-        "description": "Closes the current ticket channel. Optionally provide a reason to include in the closure. You must be the ticket owner, staff, or an admin to use this command.",
-        "category": "tickets"
+      {
+        title: "Number 8",
+        id: "asset-8",
+        url: "https://utilix.support/assets/8.png",
+        filename: "8.png"
       },
-      "closerequest": {
-        "title": "🎫 /closerequest",
-        "description": "Sends a close request to the ticket owner, asking for approval to close the ticket. This is often used by staff when the issue seems resolved but the owner has not closed it yet.",
-        "category": "tickets"
-      },
-      "blacklist": {
-        "title": "🎫 /blacklist",
-        "description": "Blocks a user from creating tickets. Provide the user to blacklist. This is useful for spam prevention or repeated abuse of ticket creation.",
-        "category": "tickets"
-      },
-      "unblacklist": {
-        "title": "🎫 /unblacklist",
-        "description": "Removes a user from the ticket blacklist, allowing them to create tickets again. Use this when a user has resolved prior issues or was blocked by mistake.",
-        "category": "tickets"
-      },
-      "listembeds": {
-        "title": "🎫 /listembeds",
-        "description": "Lists all active ticket panels in the server. Shows the channels and panel IDs for easy reference. Helps admins manage or remove old panels when needed.",
-        "category": "tickets"
-      },
-      "listtickets": {
-        "title": "🎫 /listtickets",
-        "description": "Shows all currently open ticket channels. It displays channel names and owners for quick navigation. This helps staff track and manage ongoing tickets efficiently.",
-        "category": "tickets"
-      },
-      "ticketspurge": {
-        "title": "🎫 /ticketspurge",
-        "description": "Deletes all active tickets or only those in a specified category. It asks for confirmation before removal. Requires ticket admin permissions.",
-        "category": "tickets"
-      },
-      "ticketstats": {
-        "title": "🎫 /ticketstats",
-        "description": "Displays stats about a ticket channel, like owner, message counts, and timestamps. Provide the ticket channel ID. Only staff can use this to audit activity.",
-        "category": "tickets"
-      },
-      "kick": {
-        "title": "🛡️ /kick",
-        "description": "Kicks a user from the server. Mention the user to remove. They can rejoin if they have an invite, unless banned afterward.",
-        "category": "moderation"
-      },
-      "ban": {
-        "title": "🛡️ /ban",
-        "description": "Bans a user from the server, preventing them from rejoining. Mention the user to ban. Optionally, provide a reason that will appear in audit logs.",
-        "category": "moderation"
-      },
-      "tempban": {
-        "title": "🛡️ /tempban",
-        "description": "Temporarily bans a user for a set duration. Specify the user and duration like `1d2h`. After the duration expires, the user is automatically unbanned.",
-        "category": "moderation"
-      },
-      "warn": {
-        "title": "🛡️ /warn",
-        "description": "Issues a warning to a user. Mention the user and optionally provide a reason. Warnings are stored in their moderation history for staff review.",
-        "category": "moderation"
-      },
-      "unwarn": {
-        "title": "🛡️ /unwarn",
-        "description": "Removes a previously issued warning from a user. Provide the user to clear their record. Helps correct accidental warnings or forgiven offenses.",
-        "category": "moderation"
-      },
-      "unban": {
-        "title": "🛡️ /unban",
-        "description": "Unbans a user by their ID or mention. This allows them to rejoin the server. Use when a prior ban was lifted or found unnecessary.",
-        "category": "moderation"
-      },
-      "unmute": {
-        "title": "🛡️ /unmute",
-        "description": "Removes a mute from a user, restoring their ability to speak. Mention the user. Useful for timed mutes or manual unmuting.",
-        "category": "moderation"
-      },
-      "history": {
-        "title": "🛡️ /history",
-        "description": "Shows the moderation history for a user, including warnings and punishments. Mention the user to see all recorded actions.",
-        "category": "moderation"
-      },
-      "resetwarnings": {
-        "title": "🛡️ /resetwarnings",
-        "description": "Resets all warnings across the server. This is a global reset and should be used cautiously. Often used after a server-wide amnesty.",
-        "category": "moderation"
-      },
-      "purgehistory": {
-        "title": "🛡️ /purgehistory",
-        "description": "Clears the warning history of a specific user. Mention the user to wipe their record. Helpful for case-by-case forgiveness.",
-        "category": "moderation"
-      },
-      "info": {
-        "title": "🛡️ /info",
-        "description": "Shows detailed information about a user, role or channel. Put a channel, user or role ID or mention. Optionally, send it privately with `ephemeral=true`.",
-        "category": "moderation"
-      },
-      "profile": {
-        "title": "🛡️ /profile",
-        "description": "Displays a user's profile information, including username, user ID and a large profile picture. Mention the user to view their profile.",
-        "category": "moderation"
-      },
-      "role": {
-        "title": "🛡️ /role",
-        "description": "Manages roles for users in the server. You can assign, remove to users with this command. Manage roles permission is required to use this command, and you can only assign roles lower than your highest role.",
-        "category": "moderation"
-      },
-      "check": {
-        "title": "🚨 /check",
-        "description": "Checks if a user or server is listed in the scam database. Provide the type (User or Server) and the ID or invite. It returns their status and any proof or reason available.",
-        "category": "scam"
-      },
-      "report": {
-        "title": "🚨 /report",
-        "description": "Reports a user or server as a scammer. Provide the target and optional reason, then follow the DM prompts to upload proof. The report will be sent to the bot's moderators for review.",
-        "category": "scam"
-      },
-      "list": {
-        "title": "🚨 /list",
-        "description": "Lists reported users or servers from the scam database. Choose type (User or Guild) and optionally a page number. It provides IDs and mentions to track reported entities.",
-        "category": "scam"
-      },
-      "timestamp": {
-        "title": "🕒 /timestamp",
-        "description": "Converts natural language date/time to a Discord timestamp. Provide phrases like 'next Friday 5pm' and choose a format. Returns a clickable timestamp and code for embedding in messages.",
-        "category": "utilities"
-      },
-      "settime": {
-        "title": "🌐 /settime",
-        "description": "Sets your or another user's timezone for local time tracking. Provide a code like `AEST` or an offset like `+10`. Owners can set unverified timezones for others, and verified users can change their own.",
-        "category": "utilities"
-      },
-      "time": {
-        "title": "🕐 /time",
-        "description": "Shows the local time for you or a specified user. It uses the timezone set with `/settime`. If no timezone is set, it tells you to configure one first.",
-        "category": "utilities"
-      },
-      "purgeinvites": {
-        "title": "🛠️ /purgeinvites",
-        "description": "Deletes all active invite links from the server to prevent unwanted joins. Use with caution, as it will remove even valid or trusted invites.",
-        "category": "utilities"
-      },
-      "timer": {
-        "title": "🛠️ /timer",
-        "description": "Use the timer command to schedule reminders for anything you want, like “take cookies out in 15 minutes” or “meeting in 2 hours.” You can create a timer by giving a time (like 5m, 2h, or a future timestamp) and an optional reason, and the bot will send you a message when it goes off. If you forget what timers you have running, type /timer list to see them along with links to their messages and how long is left. Timers work in both servers and DMs.",
-        "category": "utilities"
-      },
-      "reminder": {
-        "title": "🛠️ /reminder",
-        "description": "Lets you set personal or server reminders. Provide a time (like 10m, 3h, tomorrow 5pm) and a message. You can also list and cancel reminders later. Works in both DMs and servers.",
-        "category": "utilities"
-      },
-      "afk": {
-        "title": "🛠️ /afk",
-        "description": "Sets your AFK status with an optional message. Anyone who mentions you will be notified that you are away. Send a message to clear it when you return.",
-        "category": "utilities"
-      },
-      "hyperlink": {
-        "title": "🛠️ /hyperlink",
-        "description": "Creates a clickable hyperlink in an embed. Provide display text and a URL, and the bot will send it as a styled embed link.",
-        "category": "utilities"
-      },
-      "nuke": {
-        "title": "🛠️ /nuke",
-        "description": "Completely deletes and recreates the current channel. Useful for clearing spam or resetting a messy channel. Requires admin permissions.",
-        "category": "utilities"
-      },
-      "lock": {
-        "title": "🛠️ /lock",
-        "description": "Locks the current channel, stopping members from sending messages. Staff or admins can still post. Run `/unlock` to restore messaging.",
-        "category": "utilities"
-      },
-      "unlock": {
-        "title": "🛠️ /unlock",
-        "description": "Unlocks a previously locked channel, allowing everyone to send messages again. Restores normal permissions after using `/lock`.",
-        "category": "utilities"
-      },
-      "embed": {
-        "title": "🛠️ /embed",
-        "description": "An advanced embed creation tool. You can set title, description, color, fields, images, and more using interactive prompts. Great for making rich messages without coding.",
-        "category": "utilities"
-      },
-      "cloneemoji": {
-        "title": "🛠️ /cloneemoji",
-        "description": "Clones an emoji from any server (you just need its ID) and adds it to your current server, or get a link to download as a png, jpg or gif. Provide the emoji or its ID, and then you can download or clone however you would like!",
-        "category": "utilities"
-      },
-      "vanity": {
-        "title": "🛠️ /vanity",
-        "description": "Checks the availability of a custom Discord invite link. You can also input a server invite link or a server ID and the bot will attempt to find the vanity invite corresponding with the input, provided it's in the server.",
-        "category": "utilities"
-      },
-      "guess": {
-        "title": "🎮 /guess",
-        "description": "Starts a fun fake AI number guessing game. Pick a number between 1 and 10 and the bot will pretend to analyze your choice. This is just for entertainment and humor.",
-        "category": "minigames"
-      },
-      "spyfall": {
-        "title": "🎮 /spyfall",
-        "description": "Starts a game of Spyfall where everyone gets a secret word and one player gets a different one. Players take turns giving hints and then vote for the spy. It supports 3+ players and requires chat interaction for clues and voting.",
-        "category": "minigames"
-      },
-      "gtn": {
-        "title": "🎮 /gtn",
-        "description": "Lets you host a fully automated “Guess the Number” game in your Discord channel. You can start with a custom number range, prize, time limit, and slowmode. The bot manages guesses, countdowns, and ends when someone wins or the timer expires, posting full results.",
-        "category": "minigames"
-      },
-      "askdiscord": {
-        "title": "🎮 /askdiscord",
-        "description": "Asks a question to the server and lets everyone vote on the answers. Great for polls or fun debates. Results are shown in real-time as members respond.",
-        "category": "minigames"
-      },
-      "counting": {
-        "title": "🎮 /counting",
-        "description": "Manages a counting channel for your server. Players take turns counting numbers in order. Configure rules, reset on mistakes, and track stats with this command.",
-        "category": "minigames"
-      },
-      "trivia": {
-        "title": "🎮 /trivia",
-        "description": "Sends a trivia question with multiple choices. You can pick difficulty or category. Members answer in chat, and the bot shows who got it right after time is up.",
-        "category": "minigames"
-      },
-      "minesweeper": {
-        "title": "🎮 /minesweeper",
-        "description": "Play a game of Minesweeper directly in the channel. Specify the grid size and number of mines, then reveal cells by using the commands. Avoid the mines and clear the board to win!",
-        "category": "minigames"
-      },
-      "categories": {
-        "title": "🎮 /categories",
-        "description": "Starts a game of categories in the channel. The bot will give a category and two letters, and players must race to name something that fits. First to respond correctly wins the round!",
-        "category": "minigames"
-      },
-      "balance": {
-        "title": "💵 /balance",
-        "description": "Check your current balance in the economy system. Shows how much virtual currency you have to spend or save.",
-        "category": "economy"
-      },
-      "work": {
-        "title": "💵 /work",
-        "description": "Work a job to earn virtual currency. You can do this once every 30 seconds to get a random amount of money added to your balance.",
-        "category": "economy"
-      },
-      "highlow": {
-        "title": "💵 /highlow",
-        "description": "Play a high-low guessing game to win money. Bet an amount (or don't and have a way to earn money risk-free) and guess if the next number will be higher or lower than the hint. Win 1.5x your bet if correct, and 10x if you get the jackpot!",
-        "category": "economy"
-      },
-      "rps": {
-        "title": "💵 /rps",
-        "description": "Play Rock-Paper-Scissors against the bot or another player, either with money on the line or just for fun. Choose your move and see if you can get lucky!",
-        "category": "economy"
-      },
-      "shop": {
-        "title": "💵 /shop",
-        "description": "View the server's role shop. You can buy roles with your coins, which will then give you roles. Server admin? You can manage the shop in the setup page for economy.",
-        "category": "economy"
+      {
+        title: "Number 9",
+        id: "asset-9",
+        url: "https://utilix.support/assets/9.png",
+        filename: "9.png"
       }
-    };
+    ];
 
-    // --- COMMAND RENDERING AND SEARCH LOGIC ---
-    const searchInput = document.getElementById('command-search');
-    const commandsContent = document.getElementById('commands-content');
-    const sidebar = document.getElementById('sidebar');
-    const mobileNavToggle = document.querySelector('.mobile-nav-toggle');
+    // Asset rendering and search logic
+    const searchInput = document.getElementById('asset-search');
+    const assetsContent = document.getElementById('assets-content');
 
-    function renderCommands(filter = '') {
+    function renderAssets(filter = '') {
       const lowerFilter = filter.toLowerCase();
-      const categories = {
-        welcome: document.querySelector('#welcome .commands-list'),
-        tickets: document.querySelector('#tickets .commands-list'),
-        moderation: document.querySelector('#moderation .commands-list'),
-        scam: document.querySelector('#scam .commands-list'),
-        utilities: document.querySelector('#utilities .commands-list'),
-        minigames: document.querySelector('#minigames .commands-list'),
-        economy: document.querySelector('#economy .commands-list')
-      };
+      assetsContent.innerHTML = '';
 
-      // Clear all command lists
-      Object.values(categories).forEach(list => list.innerHTML = '');
+      const filteredAssets = assets.filter(asset =>
+        lowerFilter === '' ||
+        asset.title.toLowerCase().includes(lowerFilter) ||
+        asset.url.toLowerCase().includes(lowerFilter)
+      );
 
-      // Render commands if they match the filter
-      Object.entries(commands).forEach(([key, cmd]) => {
-        if (lowerFilter === '' || 
-            cmd.title.toLowerCase().includes(lowerFilter) || 
-            cmd.description.toLowerCase().includes(lowerFilter)) {
-          const card = document.createElement('div');
-          card.className = 'command-card';
-          card.innerHTML = `
-            <h3>${cmd.title}</h3>
-            <p>${cmd.description}</p>
-          `;
-          categories[cmd.category].appendChild(card);
-        }
-      });
+      if (filteredAssets.length === 0) {
+        assetsContent.innerHTML = '<div class="no-results">No results found</div>';
+        return;
+      }
 
-      // Hide empty sections
-      Object.keys(categories).forEach(category => {
-        const section = document.getElementById(category);
-        section.style.display = categories[category].children.length > 0 ? 'block' : 'none';
+      filteredAssets.forEach(asset => {
+        const card = document.createElement('div');
+        card.className = 'asset-card';
+        card.innerHTML = `
+          <img src="${asset.url}" alt="${asset.title} preview" class="asset-thumb">
+          <div class="asset-info">
+            <div class="asset-title">${asset.title}</div>
+            <div class="asset-id" id="${asset.id}">${asset.url}</div>
+            <div class="asset-actions">
+              <button class="copy-btn" onclick="copyId('${asset.id}')">Copy asset link</button>
+              <button class="download-btn" onclick="downloadAsset('${asset.url}', '${asset.filename}')">Download</button>
+            </div>
+          </div>
+        `;
+        assetsContent.appendChild(card);
       });
     }
 
     searchInput.addEventListener('input', (e) => {
-      renderCommands(e.target.value);
+      renderAssets(e.target.value);
     });
 
-    // Mobile sidebar toggle
-    mobileNavToggle.addEventListener('click', () => {
-      sidebar.classList.toggle('active');
-    });
-
-    // Close mobile sidebar when clicking a link
-    document.querySelectorAll('.sidebar a').forEach(link => {
-      link.addEventListener('click', () => {
-        sidebar.classList.remove('active');
+    function copyId(id) {
+      const text = document.getElementById(id).innerText;
+      navigator.clipboard.writeText(text).then(() => {
+        showToast(`Copied: ${text}`);
+      }).catch(err => {
+        console.error("Copy failed:", err);
       });
-    });
+    }
 
-    renderCommands();
+    function downloadAsset(url, filename) {
+      fetch(url)
+        .then(res => res.blob())
+        .then(blob => {
+          const link = document.createElement("a");
+          link.href = URL.createObjectURL(blob);
+          link.download = filename;
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          URL.revokeObjectURL(link.href);
+        })
+        .catch(err => console.error("Download failed:", err));
+    }
+
+    function showToast(message) {
+      const toast = document.createElement('div');
+      toast.className = 'toast';
+      toast.textContent = message;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.classList.add('show'), 100);
+      setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 300);
+      }, 3000);
+    }
+
+    renderAssets();
   </script>
   <script>
-document.addEventListener('DOMContentLoaded', async () => {
-  const paths = ['/footer.html', '/public/footer.html', './footer.html'];
-  for (const p of paths) {
-    try {
-      console.log('[footer] trying', p);
-      const resp = await fetch(new URL(p, location.origin).href, { cache: 'no-store' });
-      console.log('[footer] response', p, resp.status);
-      if (!resp.ok) {
-        console.warn('[footer] not ok, skipping', p);
-        continue;
-      }
-      const html = await resp.text();
-      console.log('[footer] fetched length', html.length, 'from', p);
+    document.addEventListener('DOMContentLoaded', async () => {
+      const paths = ['/footer.html', '/public/footer.html', './footer.html'];
+      for (const p of paths) {
+        try {
+          console.log('[footer] trying', p);
+          const resp = await fetch(new URL(p, location.origin).href, { cache: 'no-store' });
+          console.log('[footer] response', p, resp.status);
+          if (!resp.ok) {
+            console.warn('[footer] not ok, skipping', p);
+            continue;
+          }
+          const html = await resp.text();
+          console.log('[footer] fetched length', html.length, 'from', p);
 
-      if (document.querySelector('.site-footer')) {
-        console.log('[footer] already present - skipping insertion');
-        return;
-      }
+          if (document.querySelector('.utilix-footer')) {
+            console.log('[footer] already present - skipping insertion');
+            return;
+          }
 
-      const tmp = document.createElement('div');
-      tmp.innerHTML = html.trim();
-      const footerEl = tmp.querySelector('.site-footer') || tmp.firstElementChild;
-      if (footerEl) {
-        document.body.appendChild(footerEl);
-        console.log('[footer] appended footer from', p);
-        return;
-      } else {
-        console.warn('[footer] fetched HTML did not contain .site-footer', p);
+          const tmp = document.createElement('div');
+          tmp.innerHTML = html.trim();
+          const footerEl = tmp.querySelector('.utilix-footer') || tmp.firstElementChild;
+          if (footerEl) {
+            document.body.appendChild(footerEl);
+            console.log('[footer] appended footer from', p);
+            return;
+          } else {
+            console.warn('[footer] fetched HTML did not contain .utilix-footer', p);
+          }
+        } catch (err) {
+          console.warn('[footer] fetch failed for', p, err);
+        }
       }
-    } catch (err) {
-      console.warn('[footer] fetch failed for', p, err);
-    }
-  }
-  console.error('[footer] could not load footer from any tested path. Open /footer.html directly to verify it is being served.');
-});
-</script>
+      console.error('[footer] could not load footer from any tested path. Open /footer.html directly to verify it is being served.');
+    });
+  </script>
 </body>
 </html>
