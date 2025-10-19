@@ -124,26 +124,6 @@
       box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
     }
 
-    .auth-wrapper {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .auth-wrapper img {
-      width: 36px;
-      height: 36px;
-      border-radius: 50%;
-      object-fit: cover;
-    }
-
-    .logout-btn {
-      font-size: 1.1rem;
-      color: #f55;
-      text-decoration: none;
-      margin-left: 8px;
-    }
-
     .page {
       flex: 1;
       max-width: 1200px;
@@ -214,6 +194,109 @@
       margin-top: 1.5rem;
     }
 
+    .site-footer {
+      background: var(--panel);
+      backdrop-filter: blur(12px);
+      border-top: 2px solid transparent;
+      border-image: linear-gradient(90deg, var(--accent), var(--accent2)) 1;
+      padding: 1rem 1.5rem;
+      color: var(--fg);
+      font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      position: relative;
+      margin-top: auto;
+      z-index: 10;
+      box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.3);
+    }
+
+    .footer-content {
+      max-width: 1200px;
+      margin: 0 auto;
+      text-align: center;
+    }
+
+    .footer-links {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .footer-links a {
+      color: var(--fg);
+      text-decoration: none;
+      font-size: 0.9rem;
+      font-weight: 600;
+      position: relative;
+      transition: color 0.3s ease, transform 0.2s ease;
+    }
+
+    .footer-links a::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      bottom: -2px;
+      width: 0;
+      height: 2px;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      transition: width 0.3s ease;
+    }
+
+    .footer-links a:hover {
+      color: var(--accent);
+      transform: translateY(-1px);
+    }
+
+    .footer-links a:hover::after {
+      width: 100%;
+    }
+
+    .footer-links .separator {
+      color: var(--muted);
+      font-size: 0.9rem;
+      font-weight: 400;
+    }
+
+    .footer-email {
+      margin-bottom: 0.5rem;
+    }
+
+    .footer-email a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 0.9rem;
+      font-weight: 600;
+      position: relative;
+      transition: color 0.3s ease, transform 0.2s ease;
+    }
+
+    .footer-email a::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      bottom: -2px;
+      width: 0;
+      height: 2px;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      transition: width 0.3s ease;
+    }
+
+    .footer-email a:hover {
+      color: var(--accent);
+      transform: translateY(-1px);
+    }
+
+    .footer-email a:hover::after {
+      width: 100%;
+    }
+
+    .footer-copyright {
+      color: var(--muted);
+      font-size: 0.85rem;
+      margin: 0;
+      opacity: 0.8;
+    }
+
     @keyframes lockWiggle {
       0%, 100% { transform: rotate(0deg); }
       25% { transform: rotate(-5deg); }
@@ -254,6 +337,19 @@
         flex-direction: column;
         align-items: center;
         gap: 0.8rem;
+      }
+      .footer-links {
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+      .footer-links .separator {
+        display: none;
+      }
+      .footer-email {
+        margin-bottom: 0.75rem;
+      }
+      .site-footer {
+        padding: 0.75rem 1rem;
       }
     }
 
@@ -308,6 +404,20 @@
     </div>
   </main>
 
+  <footer class="site-footer">
+    <div class="footer-content">
+      <div class="footer-links">
+        <a href="/terms">Terms</a>
+        <span class="separator">|</span>
+        <a href="/privacy">Privacy</a>
+      </div>
+      <div class="footer-email">
+        <a href="mailto:support@utilix.forbidden">support@utilix.forbidden</a>
+      </div>
+      <p class="footer-copyright">© 2025 Utilix. Access Restricted.</p>
+    </div>
+  </footer>
+
   <script>
     const canvas = document.getElementById('starfield');
     const ctx = canvas.getContext('2d');
@@ -352,42 +462,5 @@
     createStars();
     animate();
   </script>
-  <script>
-document.addEventListener('DOMContentLoaded', async () => {
-  const paths = ['/footer.html', '/public/footer.html', './footer.html'];
-  for (const p of paths) {
-    try {
-      console.log('[footer] trying', p);
-      const resp = await fetch(new URL(p, location.origin).href, { cache: 'no-store' });
-      console.log('[footer] response', p, resp.status);
-      if (!resp.ok) {
-        console.warn('[footer] not ok, skipping', p);
-        continue;
-      }
-      const html = await resp.text();
-      console.log('[footer] fetched length', html.length, 'from', p);
-
-      if (document.querySelector('.site-footer')) {
-        console.log('[footer] already present - skipping insertion');
-        return;
-      }
-
-      const tmp = document.createElement('div');
-      tmp.innerHTML = html.trim();
-      const footerEl = tmp.querySelector('.site-footer') || tmp.firstElementChild;
-      if (footerEl) {
-        document.body.appendChild(footerEl);
-        console.log('[footer] appended footer from', p);
-        return;
-      } else {
-        console.warn('[footer] fetched HTML did not contain .site-footer', p);
-      }
-    } catch (err) {
-      console.warn('[footer] fetch failed for', p, err);
-    }
-  }
-  console.error('[footer] could not load footer from any tested path. Open /footer.html directly to verify it is being served.');
-});
-</script>
 </body>
 </html>
