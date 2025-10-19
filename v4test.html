@@ -158,36 +158,56 @@
       align-items: center;
       justify-content: center;
       text-align: center;
-      min-height: 72vh;
-      padding: 2rem 1rem;
+      min-height: 50vh;
+      padding: 1.5rem 1rem;
       background: radial-gradient(circle at center, #5a1fa0, #0b0a1e);
       border-radius: 16px;
     }
 
-    .hero-inner { max-width: 920px; }
+    .hero-inner {
+      max-width: 700px;
+      margin: 0 auto;
+    }
+
     .hero h1 {
-      font-size: 3.5rem;
+      font-size: 2.8rem;
       line-height: 1.1;
-      margin-bottom: 0.75rem;
+      margin-bottom: 0.5rem;
       background: linear-gradient(90deg, var(--accent), var(--accent2));
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
     }
+
+    .hero h2 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: var(--fg);
+      margin-bottom: 0.75rem;
+    }
+
     .hero p {
       color: var(--muted);
-      font-size: 1.15rem;
+      font-size: 1rem;
       margin-bottom: 1.25rem;
-      max-width: 760px;
+      max-width: 600px;
       margin-left: auto;
       margin-right: auto;
+    }
+
+    .hero-buttons {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      margin-top: 1.5rem;
     }
 
     .features {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
       gap: 1.6rem;
-      margin-top: 1.6rem;
+      margin-top: 2rem;
     }
+
     .feature {
       background: var(--card);
       border-radius: 14px;
@@ -196,15 +216,18 @@
       transition: transform 0.18s ease, box-shadow 0.18s ease;
       border: 1px solid rgba(255, 255, 255, 0.05);
     }
+
     .feature:hover {
       transform: translateY(-6px);
       box-shadow: 0 18px 40px rgba(0, 0, 0, 0.6);
     }
+
     .feature span {
       display: inline-block;
       font-size: 1.8rem;
       margin-bottom: 10px;
     }
+
     .feature h3 {
       margin: 0 0 8px 0;
       font-size: 1.15rem;
@@ -212,18 +235,50 @@
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
     }
-    .feature p { color: var(--muted); font-size: 0.96rem; }
+
+    .feature p {
+      color: var(--muted);
+      font-size: 0.96rem;
+    }
 
     @media (max-width: 768px) {
-      header { flex-direction: row; gap: 0.8rem; align-items: center; }
-      nav.header-nav ul { gap: 0.75rem; justify-content: center; }
-      .hero h1 { font-size: 2.5rem; }
-      .hero p { font-size: 1rem; }
-      .page { padding: 140px 20px 56px; }
+      header {
+        flex-direction: row;
+        gap: 0.8rem;
+        align-items: center;
+      }
+      nav.header-nav ul {
+        gap: 0.75rem;
+        justify-content: center;
+      }
+      .hero h1 {
+        font-size: 2rem;
+      }
+      .hero h2 {
+        font-size: 1.2rem;
+      }
+      .hero p {
+        font-size: 0.9rem;
+      }
+      .page {
+        padding: 140px 20px 56px;
+      }
+      .hero-buttons {
+        flex-direction: column;
+        align-items: center;
+        gap: 0.8rem;
+      }
     }
+
     @media (max-width: 640px) {
-      .features { grid-template-columns: 1fr; }
-      header { flex-direction: column; gap: 0.8rem; align-items: flex-start; }
+      .features {
+        grid-template-columns: 1fr;
+      }
+      header {
+        flex-direction: column;
+        gap: 0.8rem;
+        align-items: flex-start;
+      }
     }
 
     canvas#starfield {
@@ -258,31 +313,41 @@
   <main class="page">
     <div class="hero">
       <div class="hero-inner">
-        <h1>Utilix — Discord, Elevated</h1>
-        <p>Powerful Discord bot for server management, moderation, and fun. Fully customizable with an intuitive dashboard.</p>
+        <h1>Utilix</h1>
+        <h2>Upgrade your server, elevate your community.</h2>
+        <p>Utilix is the ultimate all-in-one Discord bot for moderation, tickets, utilities, and customization. Manage your server effortlessly with powerful tools, advanced moderation, and a fully customizable, intuitive dashboard, both in and outside of Discord.</p>
+        <div class="hero-buttons">
+          <a href="https://discord.com/oauth2/authorize?client_id=1392737327125762199&permissions=8&scope=bot%20applications.commands" class="discord-btn">Invite Bot</a>
+          <a href="https://discord.gg/support-server" class="discord-btn">Join Support Server</a>
+        </div>
       </div>
     </div>
 
     <div class="features">
       <div class="feature">
-        <span>⚙️</span>
-        <h3>Server Management</h3>
-        <p>Configure roles, channels, and settings with ease using our dashboard.</p>
+        <span>🎫</span>
+        <h3>Ticket Commands</h3>
+        <p>Create and manage support tickets with panels, permissions, and quick actions.</p>
       </div>
       <div class="feature">
         <span>🛡️</span>
         <h3>Moderation Tools</h3>
-        <p>Keep your server safe with warnings, mutes, bans, and logging.</p>
+        <p>Kick, ban, mute, and manage users with transparent logs and history tracking.</p>
+      </div>
+      <div class="feature">
+        <span>🕵️</span>
+        <h3>Scam Database</h3>
+        <p>Community-powered reports and checks to protect your server from scams and malicious links.</p>
+      </div>
+      <div class="feature">
+        <span>🛠️</span>
+        <h3>Utilities & Tools</h3>
+        <p>Handy automation and server management tools designed for admins.</p>
       </div>
       <div class="feature">
         <span>🎮</span>
-        <h3>Minigames & Fun</h3>
-        <p>Engage your community with exciting games and activities.</p>
-      </div>
-      <div class="feature">
-        <span>🎟️</span>
-        <h3>Ticketing System</h3>
-        <p>Streamlined support ticket creation and management for your members.</p>
+        <h3>Minigames</h3>
+        <p>Fun interactive games to keep your community engaged and entertained.</p>
       </div>
     </div>
   </main>
@@ -361,5 +426,13 @@
 
     updateAuthUI();
   </script>
+  <script>
+  fetch('/footer.html')
+    .then(response => response.text())
+    .then(data => {
+      document.body.insertAdjacentHTML('beforeend', data);
+    })
+    .catch(err => console.error('Failed to load footer:', err));
+</script>
 </body>
 </html>
