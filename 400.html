@@ -289,7 +289,6 @@
         </ul>
       </nav>
     </div>
-    <div id="auth-section"></div>
   </header>
 
   <div class="canvas-wrap"><canvas id="starfield"></canvas></div>
@@ -352,36 +351,6 @@
 
     createStars();
     animate();
-
-    // --- AUTH UI LOGIC ---
-    async function updateAuthUI() {
-      try {
-        const res = await fetch("/me");
-        const data = await res.json();
-        const container = document.getElementById("auth-section");
-
-        if (data.loggedIn) {
-          const user = data.user;
-          container.innerHTML = `
-            <div class="auth-wrapper">
-              <a href="/dashboard" class="discord-btn">Manage Servers</a>
-              <a href="https://discord.com/oauth2/authorize?client_id=1392737327125762199&permissions=8&scope=bot%20applications.commands" class="discord-btn">Add to Server</a>
-              <img src="https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png" width="36" height="36" alt="User avatar" />
-              <span>${user.username}#${user.discriminator}</span>
-              <a href="/logout" class="logout-btn" title="Logout">⎋</a>
-            </div>
-          `;
-        } else {
-          container.innerHTML = `
-            <a href="/login" class="discord-btn">Log in with Discord</a>
-          `;
-        }
-      } catch (err) {
-        console.error("Auth check failed", err);
-      }
-    }
-
-    updateAuthUI();
   </script>
   <script>
 document.addEventListener('DOMContentLoaded', async () => {
