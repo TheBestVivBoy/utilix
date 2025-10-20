@@ -41,7 +41,6 @@
       position: relative;
     }
 
-    /* ---------- HEADER (same as home) ---------- */
     header {
       position: fixed;
       top: 0;
@@ -165,7 +164,7 @@
       z-index: 1;
     }
 
-    /* ---------- CREDITS SECTION ---------- */
+
     .credits-header {
       text-align: center;
       margin-bottom: 3rem;
@@ -278,7 +277,6 @@
   </style>
 </head>
 <body>
-  <!-- ==================== HEADER (same as home) ==================== -->
   <header>
     <div style="display:flex;align-items:center;gap:16px">
       <div class="logo">Utilix</div>
@@ -297,7 +295,6 @@
 
   <div class="canvas-wrap"><canvas id="starfield"></canvas></div>
 
-  <!-- ==================== MAIN CONTENT ==================== -->
   <main class="page">
     <div class="credits-header">
       <h1>Credits</h1>
@@ -328,10 +325,10 @@
           <p><strong>Contact:</strong> <a href="mailto:infinity@utilix.support">infinity@utilix.support</a></p>
         </div>
       </div>
+      <!--  more cards here lil bro -->
     </div>
   </main>
 
-  <!-- ==================== STARFIELD ==================== -->
   <script>
     const canvas = document.getElementById('starfield');
     const ctx = canvas.getContext('2d');
@@ -374,7 +371,6 @@
     animate();
   </script>
 
-  <!-- ==================== AUTH UI (identical to home page) ==================== -->
   <script>
     async function updateAuthUI() {
       try {
@@ -390,7 +386,7 @@
               <a href="https://discord.com/oauth2/authorize?client_id=1392737327125762199&permissions=8&scope=bot%20applications.commands" class="discord-btn">Add to Server</a>
               <img src="https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png" width="36" height="36" alt="User avatar" />
               <span>${user.username}#${user.discriminator}</span>
-              <a href="/logout" class="logout-btn" title="Logout">Logout</a>
+              <a href="/logout" class="logout-btn" title="Logout">U+238B</a>
             </div>
           `;
         } else {
@@ -406,7 +402,6 @@
     updateAuthUI();
   </script>
 
-  <!-- ==================== FOOTER LOADER (exact copy from home) ==================== -->
   <script>
     document.addEventListener('DOMContentLoaded', async () => {
       const paths = ['/footer.html', '/public/footer.html', './footer.html'];
