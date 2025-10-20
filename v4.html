@@ -1,1 +1,462 @@
-<h1>Null</h1>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Utilix — Credits</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet" />
+
+  <!-- Open Graph / Social Preview -->
+  <meta property="og:title" content="Utilix — Credits" />
+  <meta property="og:description" content="Meet the team behind Utilix — developers, designers, and contributors." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://utilix.support/credits" />
+  <meta property="og:image" content="https://utilix.support/assets/utilixbanner.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta name="twitter:card" content="summary_large_image" />
+
+  <style>
+    :root {
+      --bg: #0b0a1e;
+      --fg: #f2f2f7;
+      --accent: #b266b2;
+      --accent2: #7a44d4;
+      --muted: #c0a0ff;
+      --card: rgba(20, 10, 40, 0.85);
+      --panel: rgba(15, 5, 35, 0.95);
+      --site-max-width: 1440px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      background: radial-gradient(circle at 20% 30%, #3b0a5f, #0b0a1e);
+      color: var(--fg);
+      min-height: 100vh;
+      line-height: 1.6;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 72px;
+      z-index: 1100;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem 2rem;
+      backdrop-filter: blur(10px);
+      background: rgba(15, 5, 35, 0.6);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .logo {
+      font-weight: 800;
+      font-size: 1.25rem;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: -0.02em;
+    }
+
+    nav.header-nav ul {
+      display: flex;
+      gap: 1.25rem;
+      list-style: none;
+      align-items: center;
+      flex-wrap: wrap;
+      background: rgba(25, 5, 50, 0.3);
+      padding: 0.4rem 0.9rem;
+      border-radius: 999px;
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    nav.header-nav a {
+      position: relative;
+      color: var(--fg);
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 0.95rem;
+      padding: 0.55rem 1.1rem;
+      border-radius: 999px;
+      transition: color 0.25s ease, background 0.25s ease, transform 0.2s ease;
+    }
+
+    nav.header-nav a::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      bottom: 6px;
+      transform: translateX(-50%) scaleX(0);
+      transform-origin: center;
+      width: 60%;
+      height: 2px;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      border-radius: 2px;
+      transition: transform 0.3s ease;
+    }
+
+    nav.header-nav a:hover {
+      color: var(--accent);
+      transform: translateY(-1px);
+    }
+
+    nav.header-nav a:hover::after {
+      transform: translateX(-50%) scaleX(1);
+    }
+
+    nav.header-nav a.active {
+      background: linear-gradient(90deg, rgba(178, 102, 178, 0.16), rgba(122, 68, 212, 0.12));
+      box-shadow: 0 0 12px rgba(178, 102, 178, 0.12);
+      color: white;
+    }
+
+    .discord-btn {
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      color: white;
+      font-weight: 600;
+      padding: 0.6rem 1.2rem;
+      border-radius: 999px;
+      text-decoration: none;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      margin-left: 8px;
+    }
+
+    .discord-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+    }
+
+    .auth-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .auth-wrapper img {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+
+    .logout-btn {
+      font-size: 1.1rem;
+      color: #f55;
+      text-decoration: none;
+      margin-left: 8px;
+    }
+
+    .page {
+      flex: 1;
+      max-width: var(--site-max-width);
+      margin: 0 auto;
+      padding: 140px 32px 56px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .credits-header {
+      text-align: center;
+      margin-bottom: 3rem;
+    }
+
+    .credits-header h1 {
+      font-size: 3.5rem;
+      font-weight: 900;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-shadow: 0 0 15px rgba(178, 102, 178, 0.4);
+      letter-spacing: -0.02em;
+    }
+
+    .credits-header p {
+      color: var(--muted);
+      font-size: 1.1rem;
+      margin-top: 1rem;
+    }
+
+    .credits-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 2rem;
+      justify-content: center;
+      margin-top: 2rem;
+    }
+
+    .credit-card {
+      flex: 1 1 300px;
+      max-width: 360px;
+      background: var(--panel);
+      border-radius: 15px;
+      padding: 2rem;
+      transition: all 0.3s ease;
+      border: 1px solid rgba(255,255,255,.08);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .credit-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(178,102,178,.1), transparent);
+      opacity: 0;
+      transition: opacity .3s;
+      pointer-events: none;
+    }
+    .credit-card:hover::before { opacity: 1; }
+
+    .credit-card:hover {
+      transform: translateY(-8px);
+      box-shadow: 0 15px 30px rgba(178,102,178,.2);
+      border-color: rgba(178,102,178,.3);
+    }
+
+    .credit-avatar {
+      width: 80px; height: 80px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 3px solid var(--accent2);
+      margin-bottom: 1rem;
+      box-shadow: 0 0 15px rgba(178,102,178,.4);
+      transition: transform .3s;
+    }
+    .credit-card:hover .credit-avatar { transform: scale(1.1) rotate(5deg); }
+
+    .credit-role {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--accent);
+      margin-bottom: .8rem;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+    }
+    .credit-info {
+      font-size: .95rem;
+      line-height: 1.7;
+    }
+    .credit-info strong { color: var(--muted); }
+    .credit-info a {
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .credit-info a:hover {
+      color: white;
+      text-shadow: 0 0 8px rgba(178,102,178,.6);
+    }
+
+    @media (max-width: 500px) {
+      .credits-row { flex-direction: column; align-items: center; }
+      .credit-card { max-width: 100%; }
+    }
+
+    @media (max-width: 768px) {
+      .page { padding: 140px 20px 50px; }
+      .credits-header h1 { font-size: 2.8rem; }
+    }
+
+    canvas#starfield {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      z-index: 0;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div style="display:flex;align-items:center;gap:16px">
+      <div class="logo">Utilix</div>
+      <nav class="header-nav" aria-label="Primary navigation">
+        <ul>
+          <li><a href="/index">Home</a></li>
+          <li><a href="/setup">Setup</a></li>
+          <li><a href="/faq">FAQ</a></li>
+          <li><a href="/changelog">Changelog</a></li>
+          </ul>
+      </nav>
+    </div>
+    <div id="auth-section"></div>
+  </header>
+
+  <div class="canvas-wrap"><canvas id="starfield"></canvas></div>
+
+  <main class="page">
+    <div class="credits-header">
+      <h1>Credits</h1>
+      <p>Meet the people who make Utilix possible</p>
+    </div>
+
+    <div class="credits-row">
+      <!-- OWNER -->
+      <div class="credit-card">
+        <img src="https://utilix.support/assets/avatar1.png" alt="thebestvivboy" class="credit-avatar" />
+        <div class="credit-role">Owner</div>
+        <div class="credit-info">
+          <p><strong>Username:</strong> thebestvivboy</p>
+          <p><strong>Discord ID:</strong> 896616448628228096</p>
+          <p><strong>Role:</strong> Bot Developer</p>
+          <p><strong>Contact:</strong> <a href="mailto:itsviv@utilix.support">itsviv@utilix.support</a></p>
+        </div>
+      </div>
+
+      <!-- CO-OWNER -->
+      <div class="credit-card">
+        <img src="https://utilix.support/assets/avatar.png" alt="infinityforlife_" class="credit-avatar" />
+        <div class="credit-role">Co-Owner</div>
+        <div class="credit-info">
+          <p><strong>Username:</strong> infinityforlife_</p>
+          <p><strong>Discord ID:</strong> 1289785877010321418</p>
+          <p><strong>Role:</strong> Website Design</p>
+          <p><strong>Contact:</strong> <a href="mailto:infinity@utilix.support">infinity@utilix.support</a></p>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Starfield -->
+  <script>
+    const canvas = document.getElementById('starfield');
+    const ctx = canvas.getContext('2d');
+    let stars = [];
+
+    function resize() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    function createStars() {
+      stars = [];
+      for(let i=0; i<200; i++) {
+        stars.push({
+          x: Math.random() * canvas.width,
+          y: Math.random() * canvas.height,
+          radius: Math.random() * 1.5,
+          speed: Math.random() * 0.5 + 0.1,
+          color: `hsl(${Math.random()*360}, 70%, 80%)`
+        });
+      }
+    }
+
+    function animate() {
+      ctx.fillStyle = 'rgba(11, 10, 30, 0.3)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      stars.forEach(star => {
+        star.y -= star.speed;
+        if(star.y < 0) star.y = canvas.height;
+        ctx.beginPath();
+        ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
+        ctx.fillStyle = star.color;
+        ctx.fill();
+      });
+      requestAnimationFrame(animate);
+    }
+    createStars();
+    animate();
+  </script>
+
+  <!-- Smart Avatar Loader: Only runs if no src or src fails -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      document.querySelectorAll('.credit-avatar').forEach(img => {
+        const customSrc = img.getAttribute('src');
+        const discordId = img.getAttribute('data-discord-id');
+
+        // If custom src exists and loads → do nothing
+        if (customSrc && customSrc !== '' && customSrc !== 'about:blank') {
+          const test = new Image();
+          test.onload = () => {}; // Already good
+          test.onerror = () => {
+            // If custom image fails → try Discord avatar
+            if (discordId) loadDiscordAvatar(img, discordId);
+            else img.src = 'https://utilix.support/assets/default-avatar.png'; // fallback
+          };
+          test.src = customSrc;
+          return;
+        }
+
+        // No custom src → use Discord ID
+        if (discordId) {
+          loadDiscordAvatar(img, discordId);
+        }
+      });
+
+      function loadDiscordAvatar(img, userId) {
+        // You need the real avatar hash from Discord API or cache it
+        // For now, we'll use a safe fallback
+        const fallback = `https://cdn.discordapp.com/embed/avatars/${userId % 5}.png`;
+        img.src = fallback; // Use default Discord avatar
+        console.warn(`Discord avatar hash missing for ID ${userId}. Using default.`);
+      }
+    });
+  </script>
+
+  <!-- Auth UI -->
+  <script>
+    async function updateAuthUI() {
+      try {
+        const res = await fetch("/me");
+        const data = await res.json();
+        const container = document.getElementById("auth-section");
+
+        if (data.loggedIn) {
+          const user = data.user;
+          container.innerHTML = `
+            <div class="auth-wrapper">
+              <a href="/dashboard" class="discord-btn">Manage Servers</a>
+              <a href="https://discord.com/oauth2/authorize?client_id=1392737327125762199&permissions=8&scope=bot%20applications.commands" class="discord-btn">Add to Server</a>
+              <img src="https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png" width="36" height="36" alt="User avatar" />
+              <span>${user.username}#${user.discriminator}</span>
+              <a href="/logout" class="logout-btn" title="Logout">Logout</a>
+            </div>
+          `;
+        } else {
+          container.innerHTML = `<a href="/login" class="discord-btn">Log in with Discord</a>`;
+        }
+      } catch (err) {
+        console.error("Auth check failed", err);
+      }
+    }
+    updateAuthUI();
+  </script>
+
+  <!-- Footer Loader -->
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      const paths = ['/footer.html', '/public/footer.html', './footer.html'];
+      for (const p of paths) {
+        try {
+          const resp = await fetch(new URL(p, location.origin).href, { cache: 'no-store' });
+          if (!resp.ok) continue;
+          const html = await resp.text();
+          if (document.querySelector('.site-footer')) return;
+          const tmp = document.createElement('div');
+          tmp.innerHTML = html.trim();
+          const footerEl = tmp.querySelector('.site-footer') || tmp.firstElementChild;
+          if (footerEl) {
+            document.body.appendChild(footerEl);
+            return;
+          }
+        } catch (err) {
+          console.warn('[footer] fetch failed for', p, err);
+        }
+      }
+    });
+  </script>
+</body>
+</html>
