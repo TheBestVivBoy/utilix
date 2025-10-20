@@ -2,11 +2,11 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Utilix — Credits</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet" />
 
-  <!-- Open Graph / Social Preview -->
+  <!-- Open Graph -->
   <meta property="og:title" content="Utilix — Credits" />
   <meta property="og:description" content="Meet the team behind Utilix — developers, designers, and contributors." />
   <meta property="og:type" content="website" />
@@ -25,7 +25,6 @@
       --muted: #c0a0ff;
       --card: rgba(20, 10, 40, 0.85);
       --panel: rgba(15, 5, 35, 0.95);
-      --site-max-width: 1440px;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -35,13 +34,14 @@
       background: radial-gradient(circle at 20% 30%, #3b0a5f, #0b0a1e);
       color: var(--fg);
       min-height: 100vh;
-      line-height: 1.6;
+      line-height: 1.45;
       display: flex;
       flex-direction: column;
       overflow-x: hidden;
       position: relative;
     }
 
+    /* ---------- HEADER (same as home) ---------- */
     header {
       position: fixed;
       top: 0;
@@ -158,13 +158,14 @@
 
     .page {
       flex: 1;
-      max-width: var(--site-max-width);
+      max-width: 1200px;
       margin: 0 auto;
-      padding: 140px 32px 56px;
+      padding: 140px 20px 56px;
       position: relative;
       z-index: 1;
     }
 
+    /* ---------- CREDITS SECTION ---------- */
     .credits-header {
       text-align: center;
       margin-bottom: 3rem;
@@ -263,7 +264,7 @@
     }
 
     @media (max-width: 768px) {
-      .page { padding: 140px 20px 50px; }
+      .page { padding: 140px 20px 56px; }
       .credits-header h1 { font-size: 2.8rem; }
     }
 
@@ -277,6 +278,7 @@
   </style>
 </head>
 <body>
+  <!-- ==================== HEADER (same as home) ==================== -->
   <header>
     <div style="display:flex;align-items:center;gap:16px">
       <div class="logo">Utilix</div>
@@ -286,7 +288,8 @@
           <li><a href="/setup">Setup</a></li>
           <li><a href="/faq">FAQ</a></li>
           <li><a href="/changelog">Changelog</a></li>
-          </ul>
+          <li><a href="/credits" class="active">Credits</a></li>
+        </ul>
       </nav>
     </div>
     <div id="auth-section"></div>
@@ -294,6 +297,7 @@
 
   <div class="canvas-wrap"><canvas id="starfield"></canvas></div>
 
+  <!-- ==================== MAIN CONTENT ==================== -->
   <main class="page">
     <div class="credits-header">
       <h1>Credits</h1>
@@ -327,7 +331,7 @@
     </div>
   </main>
 
-  <!-- Starfield -->
+  <!-- ==================== STARFIELD ==================== -->
   <script>
     const canvas = document.getElementById('starfield');
     const ctx = canvas.getContext('2d');
@@ -370,43 +374,7 @@
     animate();
   </script>
 
-  <!-- Smart Avatar Loader: Only runs if no src or src fails -->
-  <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      document.querySelectorAll('.credit-avatar').forEach(img => {
-        const customSrc = img.getAttribute('src');
-        const discordId = img.getAttribute('data-discord-id');
-
-        // If custom src exists and loads → do nothing
-        if (customSrc && customSrc !== '' && customSrc !== 'about:blank') {
-          const test = new Image();
-          test.onload = () => {}; // Already good
-          test.onerror = () => {
-            // If custom image fails → try Discord avatar
-            if (discordId) loadDiscordAvatar(img, discordId);
-            else img.src = 'https://utilix.support/assets/default-avatar.png'; // fallback
-          };
-          test.src = customSrc;
-          return;
-        }
-
-        // No custom src → use Discord ID
-        if (discordId) {
-          loadDiscordAvatar(img, discordId);
-        }
-      });
-
-      function loadDiscordAvatar(img, userId) {
-        // You need the real avatar hash from Discord API or cache it
-        // For now, we'll use a safe fallback
-        const fallback = `https://cdn.discordapp.com/embed/avatars/${userId % 5}.png`;
-        img.src = fallback; // Use default Discord avatar
-        console.warn(`Discord avatar hash missing for ID ${userId}. Using default.`);
-      }
-    });
-  </script>
-
-  <!-- Auth UI -->
+  <!-- ==================== AUTH UI (identical to home page) ==================== -->
   <script>
     async function updateAuthUI() {
       try {
@@ -426,36 +394,54 @@
             </div>
           `;
         } else {
-          container.innerHTML = `<a href="/login" class="discord-btn">Log in with Discord</a>`;
+          container.innerHTML = `
+            <a href="/login" class="discord-btn">Log in with Discord</a>
+          `;
         }
       } catch (err) {
         console.error("Auth check failed", err);
       }
     }
+
     updateAuthUI();
   </script>
 
-  <!-- Footer Loader -->
+  <!-- ==================== FOOTER LOADER (exact copy from home) ==================== -->
   <script>
     document.addEventListener('DOMContentLoaded', async () => {
       const paths = ['/footer.html', '/public/footer.html', './footer.html'];
       for (const p of paths) {
         try {
+          console.log('[footer] trying', p);
           const resp = await fetch(new URL(p, location.origin).href, { cache: 'no-store' });
-          if (!resp.ok) continue;
+          console.log('[footer] response', p, resp.status);
+          if (!resp.ok) {
+            console.warn('[footer] not ok, skipping', p);
+            continue;
+          }
           const html = await resp.text();
-          if (document.querySelector('.site-footer')) return;
+          console.log('[footer] fetched length', html.length, 'from', p);
+
+          if (document.querySelector('.site-footer')) {
+            console.log('[footer] already present - skipping insertion');
+            return;
+          }
+
           const tmp = document.createElement('div');
           tmp.innerHTML = html.trim();
           const footerEl = tmp.querySelector('.site-footer') || tmp.firstElementChild;
           if (footerEl) {
             document.body.appendChild(footerEl);
+            console.log('[footer] appended footer from', p);
             return;
+          } else {
+            console.warn('[footer] fetched HTML did not contain .site-footer', p);
           }
         } catch (err) {
           console.warn('[footer] fetch failed for', p, err);
         }
       }
+      console.error('[footer] could not load footer from any tested path. Open /footer.html directly to verify it is being served.');
     });
   </script>
 </body>
