@@ -12,15 +12,15 @@
       --accent: #b266b2;
       --accent2: #7a44d4;
       --muted: #c0a0ff;
-      --card: rgba(20,10,40,0.85);
-      --panel: rgba(15,5,35,0.95);
+      --card: rgba(20, 10, 40, 0.85);
+      --panel: rgba(15, 5, 35, 0.95);
     }
 
-    * { box-sizing: border-box; margin:0; padding:0; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
     html { scroll-behavior: smooth; }
     body {
       font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
-      background: radial-gradient(circle at 20% 30%, #3b0a5f, var(--bg));
+      background: radial-gradient(circle at 20% 30%, #3b0a5f, #0b0a1e);
       color: var(--fg);
       min-height: 100vh;
       line-height: 1.45;
@@ -30,192 +30,323 @@
       position: relative;
     }
 
-    /* ==== Header ==== */
+    /* Header */
     header {
       position: fixed;
-      top:0; left:0; width:100%;
-      height:72px;
-      z-index:1100;
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      padding:1rem 2rem;
-      backdrop-filter:blur(10px);
-      background:rgba(15,5,35,0.6);
-      border-bottom:1px solid rgba(255,255,255,0.05);
-    }
-    .logo {
-      font-weight:800;
-      font-size:1.25rem;
-      background:linear-gradient(90deg,var(--accent),var(--accent2));
-      -webkit-background-clip:text;
-      -webkit-text-fill-color:transparent;
-      letter-spacing:-0.02em;
-    }
-    nav.header-nav ul {
-      display:flex;
-      gap:1.25rem;
-      list-style:none;
-      align-items:center;
-      background:rgba(25,5,50,0.3);
-      padding:0.4rem 0.9rem;
-      border-radius:999px;
-      backdrop-filter:blur(12px);
-      border:1px solid rgba(255,255,255,0.08);
-    }
-    nav.header-nav a {
-      position:relative;
-      color:var(--fg);
-      text-decoration:none;
-      font-weight:600;
-      font-size:0.95rem;
-      padding:0.55rem 1.1rem;
-      border-radius:999px;
-      transition:color .25s, background .25s, transform .2s;
-    }
-    nav.header-nav a::after {
-      content:"";
-      position:absolute;
-      left:50%; bottom:6px;
-      transform:translateX(-50%) scaleX(0);
-      width:60%; height:2px;
-      background:linear-gradient(90deg,var(--accent),var(--accent2));
-      border-radius:2px;
-      transition:transform .3s;
-    }
-    nav.header-nav a:hover { color:var(--accent); transform:translateY(-1px); }
-    nav.header-nav a:hover::after { transform:translateX(-50%) scaleX(1); }
-    nav.header-nav a.active {
-      background:linear-gradient(90deg,rgba(178,102,178,.16),rgba(122,68,212,.12));
-      box-shadow:0 0 12px rgba(178,102,178,.12);
-      color:white;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 72px;
+      z-index: 1100;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem 2rem;
+      backdrop-filter: blur(10px);
+      background: rgba(15, 5, 35, 0.6);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
     }
 
-    /* ==== Layout ==== */
+    .logo {
+      font-weight: 800;
+      font-size: 1.25rem;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: -0.02em;
+    }
+
+    nav.header-nav ul {
+      display: flex;
+      gap: 1.25rem;
+      list-style: none;
+      align-items: center;
+      flex-wrap: wrap;
+      background: rgba(25, 5, 50, 0.3);
+      padding: 0.4rem 0.9rem;
+      border-radius: 999px;
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    nav.header-nav a {
+      position: relative;
+      color: var(--fg);
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 0.95rem;
+      padding: 0.55rem 1.1rem;
+      border-radius: 999px;
+      transition: color 0.25s ease, background 0.25s ease, transform 0.2s ease;
+    }
+
+    nav.header-nav a::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      bottom: 6px;
+      transform: translateX(-50%) scaleX(0);
+      transform-origin: center;
+      width: 60%;
+      height: 2px;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      border-radius: 2px;
+      transition: transform 0.3s ease;
+    }
+
+    nav.header-nav a:hover {
+      color: var(--accent);
+      transform: translateY(-1px);
+    }
+
+    nav.header-nav a:hover::after {
+      transform: translateX(-50%) scaleX(1);
+    }
+
+    nav.header-nav a.active {
+      background: linear-gradient(90deg, rgba(178, 102, 178, 0.16), rgba(122, 68, 212, 0.12));
+      box-shadow: 0 0 12px rgba(178, 102, 178, 0.12);
+      color: white;
+    }
+
+    .discord-btn {
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      color: white;
+      font-weight: 600;
+      padding: 0.6rem 1.2rem;
+      border-radius: 999px;
+      text-decoration: none;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      margin-left: 8px;
+    }
+
+    .discord-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+    }
+
+    .auth-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .auth-wrapper img {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+
+    .logout-btn {
+      font-size: 1.1rem;
+      color: #f55;
+      text-decoration: none;
+      margin-left: 8px;
+    }
+
+    /* Layout */
     .container {
-      display:flex;
-      width:100%;
-      margin-top:72px;               /* push below fixed header */
-      flex:1;
+      display: flex;
+      width: 100%;
+      margin-top: 72px;
+      flex: 1;
     }
+
     .sidebar {
-      width:260px;
-      flex-shrink:0;
-      background:var(--panel);
-      border-right:1px solid rgba(255,255,255,0.05);
-      padding:1.5rem 1rem;
-      position:sticky;
-      top:72px;
-      height:calc(100vh - 72px);
-      overflow-y:auto;
+      width: 260px;
+      flex-shrink: 0;
+      background: var(--panel);
+      border-right: 1px solid rgba(255,255,255,0.05);
+      padding: 1.5rem 1rem;
+      position: sticky;
+      top: 72px;
+      height: calc(100vh - 72px);
+      overflow-y: auto;
     }
+
     .sidebar h3 {
-      font-size:1rem;
-      margin-bottom:.75rem;
-      color:var(--accent);
-      font-weight:700;
+      font-size: 1rem;
+      margin-bottom: 0.75rem;
+      color: var(--accent);
+      font-weight: 700;
     }
-    .sidebar ul { list-style:none; }
-    .sidebar li { margin-bottom:.5rem; }
+
+    .sidebar ul { list-style: none; }
+    .sidebar li { margin-bottom: 0.5rem; }
     .sidebar a {
-      color:var(--muted);
-      text-decoration:none;
-      font-size:.95rem;
-      display:block;
-      padding:6px 10px;
-      border-radius:6px;
-      transition:background .2s, color .2s;
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 0.95rem;
+      display: block;
+      padding: 6px 10px;
+      border-radius: 6px;
+      transition: background 0.2s, color 0.2s;
     }
     .sidebar a:hover {
-      background:rgba(178,102,178,.12);
-      color:var(--fg);
+      background: rgba(178,102,178,.12);
+      color: var(--fg);
     }
 
     .page {
-      max-width:860px;
-      margin:0 auto;
-      padding:2rem;
-      flex-grow:1;
-      position:relative;
-      z-index:1;
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 2rem;
+      flex-grow: 1;
+      position: relative;
+      z-index: 1;
     }
-    h1, h2 {
-      background:linear-gradient(90deg,var(--accent),var(--accent2));
-      -webkit-background-clip:text;
-      -webkit-text-fill-color:transparent;
-    }
-    h1 { font-size:2.4rem; margin-bottom:1.2rem; text-align:center; }
-    h2 { margin-top:2rem; font-size:1.3rem; }
 
-    p, li { color:var(--muted); font-size:1rem; }
-    ul { padding-left:1.2rem; }
+    h1, h2 {
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    h1 { font-size: 2.4rem; margin-bottom: 1.2rem; text-align: center; }
+    h2 { margin-top: 2rem; font-size: 1.3rem; }
+
+    p, li { color: var(--muted); font-size: 1rem; }
+    ul { padding-left: 1.2rem; }
 
     .divider {
-      height:2px;
-      margin:2rem 0;
-      background:linear-gradient(90deg,rgba(178,102,178,.12),rgba(122,68,212,.06));
-      border-radius:4px;
+      height: 2px;
+      margin: 2rem 0;
+      background: linear-gradient(90deg, rgba(178,102,178,.12), rgba(122,68,212,.06));
+      border-radius: 4px;
     }
 
-    /* ==== Footer ==== */
+    /* Footer */
     .utilix-footer {
-      display:grid;
-      grid-template-columns:1fr auto 1fr;
-      align-items:center;
-      gap:1rem;
-      padding:1rem;
-      font-size:.9rem;
-      color:#bbb;
-      background:#000;
-      border-top:1px solid #333;
-      margin-top:auto;
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      gap: 1rem;
+      padding: 1rem;
+      font-size: 0.9rem;
+      color: #bbb;
+      background: #000;
+      border-top: 1px solid #333;
+      margin-top: auto;
     }
-    .utilix-footer .brand { justify-self:start; display:inline-flex; align-items:center; gap:.5rem; text-decoration:none; color:#fff; }
-    .utilix-footer .brand img { width:28px; height:28px; }
-    .utilix-footer .center { justify-self:center; text-align:center; }
-    .utilix-footer strong { color:#fff; }
-    .utilix-footer .links a { margin:0 .5rem; color:#4da6ff; text-decoration:none; }
-    .utilix-footer .links a:hover { text-decoration:underline; }
-    .utilix-footer .email a { display:inline-flex; align-items:center; gap:.4rem; color:#bbb; text-decoration:none; transition:color .2s; }
-    .utilix-footer .email a svg { width:18px; height:18px; fill:currentColor; }
-    .utilix-footer .email a:hover { color:#4da6ff; text-decoration:underline; }
+
+    .utilix-footer .brand {
+      justify-self: start;
+      display: inline-flex;
+      align-items: center;
+      gap: .5rem;
+      text-decoration: none;
+      color: #fff;
+      min-width: 0;
+    }
+    .utilix-footer .brand img {
+      width: 28px;
+      height: 28px;
+      display: block;
+    }
+    .utilix-footer .brand .brand-text {
+      font-weight: 700;
+      line-height: 1;
+      white-space: nowrap;
+    }
+
+    .utilix-footer .center {
+      justify-self: center;
+      text-align: center;
+    }
+    .utilix-footer strong { color: #fff; }
+    .utilix-footer .links a {
+      margin: 0 .5rem;
+      color: #4da6ff;
+      text-decoration: none;
+    }
+    .utilix-footer .links a:hover { text-decoration: underline; }
+
+    .utilix-footer .email {
+      margin-top: 6px;
+    }
+    .utilix-footer .email a {
+      display: inline-flex;
+      align-items: center;
+      gap: .4rem;
+      color: #bbb;
+      text-decoration: none;
+      transition: color .2s ease;
+    }
+    .utilix-footer .email a svg {
+      width: 18px;
+      height: 18px;
+      fill: currentColor;
+    }
+    .utilix-footer .email a:hover {
+      color: #4da6ff;
+      text-decoration: underline;
+    }
+
     .utilix-footer .discord-link {
-      justify-self:end;
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      width:44px; height:44px;
-      border-radius:10px;
-      text-decoration:none;
-      color:#5865F2;
-      transition:transform .15s;
+      justify-self: end;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      text-decoration: none;
+      color: #5865F2;
+      transition: transform .15s ease;
+      outline: none;
     }
-    .utilix-footer .discord-link svg { width:28px; height:28px; fill:currentColor; transition:filter .2s, transform .2s; }
-    .utilix-footer .discord-link:hover svg { filter:brightness(1.2); transform:translateY(-1px); }
-
-    @media (max-width:640px) {
-      .utilix-footer { display:flex; flex-direction:column; text-align:center; gap:.5rem; }
-      .utilix-footer .brand,.utilix-footer .center,.utilix-footer .discord-link { justify-self:center; }
+    .utilix-footer .discord-link:focus-visible {
+      outline: 2px solid #5865F2;
+      outline-offset: 2px;
+    }
+    .utilix-footer .discord-link svg {
+      width: 28px;
+      height: 28px;
+      fill: currentColor;
+      transition: filter .2s ease, transform .2s ease;
+      display: block;
+    }
+    .utilix-footer .discord-link:hover svg {
+      filter: brightness(1.2);
+      transform: translateY(-1px);
     }
 
-    /* ==== Starfield ==== */
+    @media (max-width: 640px) {
+      .utilix-footer {
+        display: flex;
+        flex-direction: column;
+        text-align: center;
+        gap: .5rem;
+      }
+      .utilix-footer .brand,
+      .utilix-footer .center,
+      .utilix-footer .discord-link {
+        justify-self: center;
+      }
+      .utilix-footer .brand { order: 1; }
+      .utilix-footer .center { order: 2; }
+      .utilix-footer .discord-link { order: 3; }
+    }
+
     canvas#starfield {
-      position:fixed;
-      top:0; left:0;
-      width:100%; height:100%;
-      z-index:0;
-      pointer-events:none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+      pointer-events: none;
     }
 
-    @media (max-width:900px) {
-      .sidebar { display:none; }
-      .page { padding:1.5rem; }
+    @media (max-width: 900px) {
+      .sidebar { display: none; }
+      .page { padding: 1.5rem; }
     }
   </style>
 </head>
 <body>
 
-  <!-- Header -->
+  <!-- Header with Auth -->
   <header>
     <div style="display:flex;align-items:center;gap:16px">
       <div class="logo">Utilix</div>
@@ -224,17 +355,17 @@
           <li><a href="/index">Home</a></li>
           <li><a href="/setup">Setup</a></li>
           <li><a href="/faq">FAQ</a></li>
-          <li><a href="/changelog">changelog</a></li>
+          <li><a href="/changelog">Changelog</a></li>
         </ul>
       </nav>
     </div>
     <div id="auth-section"></div>
   </header>
 
-  <!-- Starfield background -->
-  <canvas id="starfield"></canvas>
+  <!-- Starfield -->
+  <div class="canvas-wrap"><canvas id="starfield"></canvas></div>
 
-  <!-- Main layout -->
+  <!-- Main Content -->
   <div class="container">
     <aside class="sidebar">
       <h3>Sections</h3>
@@ -333,7 +464,7 @@
 
   
 
-  <!-- Starfield animation -->
+  <!-- Starfield Animation -->
   <script>
     const canvas = document.getElementById('starfield');
     const ctx = canvas.getContext('2d');
@@ -343,31 +474,33 @@
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
     }
+
     window.addEventListener('resize', resize);
     resize();
 
     function createStars() {
       stars = [];
-      for (let i = 0; i < 200; i++) {
+      for(let i=0; i<200; i++) {
         stars.push({
           x: Math.random() * canvas.width,
           y: Math.random() * canvas.height,
           radius: Math.random() * 1.5,
           speed: Math.random() * 0.5 + 0.1,
-          color: `hsl(${Math.random()*360},70%,80%)`
+          color: `hsl(${Math.random()*360}, 70%, 80%)`
         });
       }
     }
 
     function animate() {
-      ctx.fillStyle = 'rgba(11,10,30,0.3)';
-      ctx.fillRect(0,0,canvas.width,canvas.height);
-      stars.forEach(s => {
-        s.y -= s.speed;
-        if (s.y < 0) s.y = canvas.height;
+      ctx.fillStyle = 'rgba(11, 10, 30, 0.3)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      stars.forEach(star => {
+        star.y -= star.speed;
+        if(star.y < 0) star.y = canvas.height;
         ctx.beginPath();
-        ctx.arc(s.x, s.y, s.radius, 0, Math.PI*2);
-        ctx.fillStyle = s.color;
+        ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
+        ctx.fillStyle = star.color;
         ctx.fill();
       });
       requestAnimationFrame(animate);
@@ -375,30 +508,35 @@
 
     createStars();
     animate();
-  </script>
 
-  <!-- Optional auth UI (kept from the 404 example) -->
-  <script>
+    // --- AUTH UI LOGIC (1:1 from 404 page) ---
     async function updateAuthUI() {
       try {
         const res = await fetch("/me");
         const data = await res.json();
         const container = document.getElementById("auth-section");
+
         if (data.loggedIn) {
-          const u = data.user;
+          const user = data.user;
           container.innerHTML = `
-            <div style="display:flex;align-items:center;gap:8px">
-              <a href="/dashboard" class="discord-btn" style="background:linear-gradient(90deg,var(--accent),var(--accent2));color:#fff;padding:0.6rem 1.2rem;border-radius:999px;text-decoration:none;">Manage Servers</a>
-              <a href="https://discord.com/oauth2/authorize?client_id=1392737327125762199&permissions=8&scope=bot%20applications.commands" class="discord-btn" style="background:linear-gradient(90deg,var(--accent),var(--accent2));color:#fff;padding:0.6rem 1.2rem;border-radius:999px;text-decoration:none;">Add to Server</a>
-              <img src="https://cdn.discordapp.com/avatars/${u.id}/${u.avatar}.png" alt="avatar" style="width:36px;height:36px;border-radius:50%;">
-              <span>${u.username}#${u.discriminator}</span>
-              <a href="/logout" style="color:#f55;font-size:1.2rem;text-decoration:none;">Exit</a>
-            </div>`;
+            <div class="auth-wrapper">
+              <a href="/dashboard" class="discord-btn">Manage Servers</a>
+              <a href="https://discord.com/oauth2/authorize?client_id=1392737327125762199&permissions=8&scope=bot%20applications.commands" class="discord-btn">Add to Server</a>
+              <img src="https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png" width="36" height="36" alt="User avatar" />
+              <span>${user.username}#${user.discriminator}</span>
+              <a href="/logout" class="logout-btn" title="Logout">Exit</a>
+            </div>
+          `;
         } else {
-          container.innerHTML = `<a href="/login" style="background:linear-gradient(90deg,var(--accent),var(--accent2));color:#fff;padding:0.6rem 1.2rem;border-radius:999px;text-decoration:none;">Log in with Discord</a>`;
+          container.innerHTML = `
+            <a href="/login" class="discord-btn">Log in with Discord</a>
+          `;
         }
-      } catch (_) {}
+      } catch (err) {
+        console.error("Auth check failed", err);
+      }
     }
+
     updateAuthUI();
   </script>
  <script>
