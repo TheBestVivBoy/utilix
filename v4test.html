@@ -509,8 +509,7 @@
     createStars();
     animate();
 
-    // --- AUTH UI LOGIC (1:1 from 404 page) ---
-    async function updateAuthUI() {
+     async function updateAuthUI() {
       try {
         const res = await fetch("/me");
         const data = await res.json();
@@ -524,7 +523,7 @@
               <a href="https://discord.com/oauth2/authorize?client_id=1392737327125762199&permissions=8&scope=bot%20applications.commands" class="discord-btn">Add to Server</a>
               <img src="https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png" width="36" height="36" alt="User avatar" />
               <span>${user.username}#${user.discriminator}</span>
-              <a href="/logout" class="logout-btn" title="Logout">Exit</a>
+              <a href="/logout" class="logout-btn" title="Logout">⎋</a>
             </div>
           `;
         } else {
@@ -539,7 +538,7 @@
 
     updateAuthUI();
   </script>
- <script>
+  <script>
 document.addEventListener('DOMContentLoaded', async () => {
   const paths = ['/footer.html', '/public/footer.html', './footer.html'];
   for (const p of paths) {
