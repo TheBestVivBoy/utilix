@@ -5,11 +5,9 @@ const session = require("express-session");
 const path = require("path");
 const fs = require("fs");
 const jwtLib = require("jsonwebtoken");
-
 // node-fetch wrapper for CommonJS dynamic import
 const fetch = (...args) =>
   import("node-fetch").then(({ default: fetch }) => fetch(...args));
-
 const app = express();
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -20,7 +18,6 @@ app.use(
     saveUninitialized: false,
   })
 );
-
 const CLIENT_ID = process.env.DISCORD_CLIENT_ID;
 const CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET;
 const REDIRECT_URI = process.env.DISCORD_REDIRECT_URI;
@@ -29,7 +26,6 @@ const PORT = process.env.PORT || 3000;
 const API_BASE = "https://api.utilix.support";
 
 /* ---------------- helpers ---------------- */
-
 function escapeHtml(str = "") {
   return String(str)
     .replace(/&/g, "&amp;")
@@ -128,6 +124,11 @@ const multiKeys = [
   "greeting_channel_id", "auto_roles_on_join", "log_events",
 ];
 
+// JSON reviver to fix number rounding (convert big numbers to strings)
+function jsonReviver(key, value) {
+  return typeof value === 'number' ? String(value) : value;
+}
+
 async function fetchGuildData(guildId, jwt, extra = {}) {
   const headers = { Authorization: `Bearer ${jwt}` };
   try {
@@ -138,13 +139,12 @@ async function fetchGuildData(guildId, jwt, extra = {}) {
       fetch(`${API_BASE}/dashboard/${guildId}/channels`, { headers }).catch(() => ({ ok: false })),
       fetch(`${API_BASE}/dashboard/${guildId}/log_events`, { headers }).catch(() => ({ ok: false })),
     ]);
-
     const data = {
-      config: configRes.ok ? await configRes.json() : { allowed: false, config: {} },
-      shop: shopRes.ok ? await shopRes.json() : { success: false, items: [] },
-      roles: rolesRes.ok ? await rolesRes.json() : { success: false, roles: [] },
-      channels: channelsRes.ok ? await channelsRes.json() : { success: false, channels: [] },
-      logEvents: logEventsRes.ok ? await logEventsRes.json() : { success: false, events: [] },
+      config: configRes.ok ? JSON.parse(await configRes.text(), jsonReviver) : { allowed: false, config: {} },
+      shop: shopRes.ok ? JSON.parse(await shopRes.text(), jsonReviver) : { success: false, items: [] },
+      roles: rolesRes.ok ? JSON.parse(await rolesRes.text(), jsonReviver) : { success: false, roles: [] },
+      channels: channelsRes.ok ? JSON.parse(await channelsRes.text(), jsonReviver) : { success: false, channels: [] },
+      logEvents: logEventsRes.ok ? JSON.parse(await logEventsRes.text(), jsonReviver) : { success: false, events: [] },
       ...extra,
     };
     return data;
@@ -154,21 +154,30 @@ async function fetchGuildData(guildId, jwt, extra = {}) {
   }
 }
 
+// NEW: Fetch disabled commands
+async function fetchDisabledCommands(guildId, jwt) {
+  const headers = { Authorization: `Bearer ${jwt}` };
+  try {
+    const res = await fetch(`${API_BASE}/dashboard/${guildId}/disabled`, { headers }).catch(() => ({ ok: false }));
+    return res.ok ? JSON.parse(await res.text(), jsonReviver) : { success: false, disabled: [], available: [] };
+  } catch (err) {
+    console.error("Error fetching disabled commands:", err);
+    return { success: false, disabled: [], available: [] };
+  }
+}
+
 function renderConfigSections(guildId, config, roles, channels, logEvents, sectionType = 'settings') {
   let html = `<div class="section" id="${sectionType}-section">`;
   const allGroupedKeys = Object.values(sectionGroups).flat();
   const configKeys = Object.keys(config.config || {});
-
-  const targetGroups = sectionType === 'moderation' 
+  const targetGroups = sectionType === 'moderation'
     ? ["Moderation Roles"]
     : ["Bot Administrator Permissions", "Bot Customization", "Join / Leaves", "Logging", "General"];
-
   for (const title of targetGroups) {
-    let sectionKeys = title === "General" 
+    let sectionKeys = title === "General"
       ? configKeys.filter((k) => !allGroupedKeys.includes(k))
       : sectionGroups[title]?.filter((k) => configKeys.includes(k)) || [];
     if (sectionKeys.length === 0) continue;
-
     html += `<h2 style="font-size:1.5rem;margin-bottom:1rem;border-bottom:1px solid rgba(255,255,255,0.1);padding-bottom:0.5rem;">${escapeHtml(title)}</h2><div class="card" style="grid-template-columns:1fr 1fr;gap:1.5rem;padding:1.5rem;margin-bottom:2rem;">`;
     for (const key of sectionKeys) {
       html += renderConfigItem(guildId, key, config.config[key], roles, channels, logEvents);
@@ -183,8 +192,7 @@ function renderConfigItem(guildId, key, value, roles, channels, logEvents) {
   const isMulti = multiKeys.includes(key);
   const values = isMulti && typeof value === "string" ? value.split(",").filter(v => v) : [value];
   const pretty = getPrettyName(key);
-  const roleData = JSON.stringify((roles.roles || []).map(r => ({ id: r.id, name: r.name || '' })));
-
+  const roleData = JSON.stringify((roles.roles || []).map(r => ({ id: String(r.id), name: r.name || '' })));
   let inputHtml = "";
   if (isRoleKey(key) && isMulti) {
     inputHtml = `
@@ -233,7 +241,6 @@ function renderConfigItem(guildId, key, value, roles, channels, logEvents) {
   } else {
     inputHtml = `<input type="text" name="value" value="${escapeHtml(value || "")}" style="flex:1;padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);">`;
   }
-
   let html = `<div class="config-item" style="display:flex;align-items:center;gap:0.5rem;justify-content:space-between;" data-key="${escapeHtml(key)}" data-roles='${escapeHtml(roleData)}'>`;
   html += `<label style="font-weight:600;min-width:150px;">${escapeHtml(pretty)}</label>`;
   html += `<form class="config-form" style="display:flex;gap:0.5rem;flex:1;">`;
@@ -255,10 +262,9 @@ function renderShopSection(guildId, shop, roles) {
   });
   html += `</select>`;
   html += `<label>Name:</label><input name="name" required style="padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);">`;
-  html += `<label>Price:</label><input name="price" type="number" required style="padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);">`;
+  html += `<label>Price:</label><input name="price" type="number" step="any" required style="padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);">`;
   html += `<button type="submit" style="padding:0.5rem 1rem;background:linear-gradient(90deg,var(--accent),var(--accent2));color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600;box-shadow:0 2px 8px rgba(0,0,0,0.3);transition:transform 0.2s ease,box-shadow 0.2s ease;">Add</button>`;
   html += `</form>`;
-
   html += '<h3 style="margin-top:1.5rem;">Items</h3>';
   if (shop.items && shop.items.length > 0) {
     html += '<table style="width:100%;border-collapse:collapse;">';
@@ -269,7 +275,7 @@ function renderShopSection(guildId, shop, roles) {
       html += `<tr><td>${escapeHtml(item.name || '')}</td><td>${escapeHtml(role.name)}</td><td>${escapeHtml(item.price || '')}</td><td>${item.active ? 'Yes' : 'No'}</td><td style="display:flex;gap:0.5rem;">`;
       html += `<form action="/dashboard/${guildId}/shop/${item.id}/update" method="POST" style="display:flex;gap:0.5rem;">`;
       html += `<input name="name" value="${escapeHtml(item.name || '')}" style="padding:0.3rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);width:100px;">`;
-      html += `<input name="price" value="${escapeHtml(item.price || '')}" type="number" style="padding:0.3rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);width:80px;">`;
+      html += `<input name="price" value="${escapeHtml(item.price || '')}" type="number" step="any" style="padding:0.3rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);width:80px;">`;
       html += `<button type="submit" style="padding:0.3rem 0.6rem;background:linear-gradient(90deg,var(--accent),var(--accent2));color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600;box-shadow:0 2px 8px rgba(0,0,0,0.3);">Update</button>`;
       html += `</form>`;
       html += `<form action="/dashboard/${guildId}/shop/${item.id}/toggle" method="POST"><button type="submit" style="padding:0.3rem 0.6rem;background:linear-gradient(90deg,#6c34cc,#4a2a99);color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600;box-shadow:0 2px 8px rgba(0,0,0,0.3);">Toggle</button></form>`;
@@ -302,13 +308,38 @@ function renderMemberSearchSection(guildId, member = null) {
   return html;
 }
 
+// NEW: Render Disabled Commands Section
+function renderDisabledCommandsSection(guildId, disabledData) {
+  const { disabled = [], available = [] } = disabledData;
+  const allAvailable = [...new Set([...disabled, ...available])]; // Unique list
+  let html = `<div class="section" id="commands-section" style="display:none;">`;
+  html += '<h2 style="font-size:1.5rem;margin-bottom:1rem;border-bottom:1px solid rgba(255,255,255,0.1);padding-bottom:0.5rem;">Command Management</h2>';
+  html += `<div class="card" style="padding:1.5rem;margin-bottom:2rem;">`;
+  html += `<p><strong>Currently Disabled:</strong> ${disabled.length > 0 ? disabled.join(', ') : 'None'}</p>`;
+  html += `<h3>Select Commands to Manage:</h3>`;
+  html += `<form id="commands-form" style="display:flex;gap:0.5rem;margin-bottom:1rem;">`;
+  html += `<select name="selected_commands[]" multiple size="${Math.min(allAvailable.length, 10)}" style="flex:1;padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);">`;
+  allAvailable.forEach((cmd) => {
+    const isDisabled = disabled.includes(cmd);
+    const selected = isDisabled ? 'selected' : '';
+    html += `<option value="${escapeHtml(cmd)}" ${selected}>${escapeHtml(cmd)} ${isDisabled ? '(Disabled)' : '(Available)'}</option>`;
+  });
+  html += `</select>`;
+  html += `<button type="button" id="disable-btn" style="padding:0.5rem 1rem;background:#f55;color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Disable Selected</button>`;
+  html += `<button type="button" id="enable-btn" style="padding:0.5rem 1rem;background:#4f5;color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Enable Selected</button>`;
+  html += `<button type="button" id="save-all-btn" style="padding:0.5rem 1rem;background:linear-gradient(90deg,var(--accent),var(--accent2));color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Save All Changes</button>`;
+  html += `</form>`;
+  html += `<input type="hidden" id="current-disabled" value="${escapeHtml(disabled.join(','))}">`;
+  html += `</div></div>`;
+  return html;
+}
+
 function renderLayout(user, contentHtml, isServerDashboard = false) {
   const av = escapeHtml(avatarUrl(user || {}));
   const userDisplay = user ? `${escapeHtml(user.username || '')}#${escapeHtml(user.discriminator || '')}` : "";
   const addBotUrl = `https://discord.com/oauth2/authorize?client_id=${encodeURIComponent(
     CLIENT_ID || ""
   )}&permissions=8&scope=bot%20applications.commands`;
-
   const searchBarHtml = `
     <div class="search-wrapper" style="position:fixed;top:80px;left:50%;transform:translateX(-50%);width:300px;display:flex;gap:0.5rem;z-index:1000;">
       <input type="text" id="search" placeholder="${isServerDashboard ? 'Search config...' : 'Search servers...'}"
@@ -316,11 +347,9 @@ function renderLayout(user, contentHtml, isServerDashboard = false) {
       <button id="clear-search" style="padding:0.5rem;background:#f55;color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600;box-shadow:0 2px 8px rgba(0,0,0,0.3);">X</button>
     </div>
   `;
-
   const sidebarHtml = isServerDashboard ? `
     <nav class="nav-sidebar" id="nav-sidebar" style="position:fixed;top:80px;left:20px;width:220px;padding:1rem;background:var(--card);border-radius:12px;border:1px solid rgba(255,255,255,0.04);z-index:1000;"></nav>
   ` : '';
-
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -635,7 +664,6 @@ function escapeHtml(str) {
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 }
-
 /* starfield animation */
 const canvas = document.getElementById('starfield');
 const ctx = canvas.getContext('2d');
@@ -670,7 +698,6 @@ function animate() {
 }
 createStars();
 animate();
-
 /* Tag input handling for roles */
 document.addEventListener('DOMContentLoaded', () => {
   const loadingScreen = document.getElementById('loading-screen');
@@ -679,7 +706,6 @@ document.addEventListener('DOMContentLoaded', () => {
       loadingScreen.style.display = 'none';
     }, 1000);
   }
-
   document.querySelectorAll('.tag-input-wrapper').forEach(wrapper => {
     const input = wrapper.querySelector('.tag-input');
     const tagsContainer = wrapper.querySelector('.tags');
@@ -692,7 +718,6 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (e) {
       console.error('Failed to parse roles:', e);
     }
-
     input.addEventListener('input', () => {
       const query = input.value.toLowerCase();
       if (query.length < 1) {
@@ -703,7 +728,6 @@ document.addEventListener('DOMContentLoaded', () => {
       dropdownOptions.innerHTML = filtered.map(r => '<div data-id="' + escapeHtml(r.id) + '">' + escapeHtml(r.name) + '</div>').join('');
       dropdown.style.display = filtered.length > 0 ? 'block' : 'none';
     });
-
     input.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && dropdown.querySelector('.dropdown-options div')) {
         e.preventDefault();
@@ -726,7 +750,6 @@ document.addEventListener('DOMContentLoaded', () => {
         updateHiddenInput(tagsContainer, hiddenInput);
       }
     });
-
     dropdownOptions.addEventListener('click', (e) => {
       const option = e.target.closest('div[data-id]');
       if (!option) return;
@@ -743,24 +766,20 @@ document.addEventListener('DOMContentLoaded', () => {
       input.value = '';
       dropdown.style.display = 'none';
     });
-
     tagsContainer.addEventListener('click', (e) => {
       if (e.target.classList.contains('remove-tag')) {
         e.target.parentElement.remove();
         updateHiddenInput(tagsContainer, hiddenInput);
       }
     });
-
     input.addEventListener('blur', () => {
       setTimeout(() => dropdown.style.display = 'none', 200);
     });
   });
-
   function updateHiddenInput(tagsContainer, hiddenInput) {
     const ids = Array.from(tagsContainer.querySelectorAll('.tag')).map(tag => tag.dataset.id);
     hiddenInput.value = ids.join(',');
   }
-
   /* Seamless form submission with popup */
   document.querySelectorAll('.config-form').forEach(form => {
     form.addEventListener('submit', async (e) => {
@@ -815,7 +834,103 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   });
-
+  /* NEW: Command Management Handlers */
+  const commandsForm = document.getElementById('commands-form');
+  if (commandsForm) {
+    const guildId = document.querySelector('main').dataset.guildId;
+    const currentDisabledInput = document.getElementById('current-disabled');
+    let currentDisabled = currentDisabledInput ? currentDisabledInput.value.split(',') : [];
+    const disableBtn = document.getElementById('disable-btn');
+    const enableBtn = document.getElementById('enable-btn');
+    const saveAllBtn = document.getElementById('save-all-btn');
+    const select = commandsForm.querySelector('select[name="selected_commands[]"]');
+    async function showChanges(changes) {
+      const popup = document.getElementById('popup');
+      let msg = 'Success! ';
+      if (changes.disabled) msg += `Disabled: [${changes.disabled.join(', ')}] `;
+      if (changes.enabled) msg += `Enabled: [${changes.enabled.join(', ')}] `;
+      if (changes.already_disabled) msg += `Already disabled: [${changes.already_disabled.join(', ')}] `;
+      if (changes.already_enabled) msg += `Already enabled: [${changes.already_enabled.join(', ')}] `;
+      popup.textContent = msg;
+      popup.classList.add('show');
+      setTimeout(() => popup.classList.remove('show'), 4000);
+    }
+    disableBtn.addEventListener('click', async () => {
+      const selected = Array.from(select.selectedOptions).map(opt => opt.value).filter(v => v);
+      if (selected.length === 0) return;
+      try {
+        const res = await fetch(\`/dashboard/\${guildId}/disabled/disable\`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ commands: selected })
+        });
+        const data = await res.json();
+        if (data.success) {
+          currentDisabled = data.disabled;
+          currentDisabledInput.value = currentDisabled.join(',');
+          showChanges(data.changes);
+        } else {
+          const popup = document.getElementById('popup');
+          popup.textContent = 'Error disabling commands';
+          popup.classList.add('show');
+          popup.style.color = '#f55';
+          setTimeout(() => { popup.classList.remove('show'); popup.style.color = 'var(--fg)'; }, 2000);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    });
+    enableBtn.addEventListener('click', async () => {
+      const selected = Array.from(select.selectedOptions).map(opt => opt.value).filter(v => v);
+      if (selected.length === 0) return;
+      try {
+        const res = await fetch(\`/dashboard/\${guildId}/disabled/enable\`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ commands: selected })
+        });
+        const data = await res.json();
+        if (data.success) {
+          currentDisabled = data.disabled;
+          currentDisabledInput.value = currentDisabled.join(',');
+          showChanges(data.changes);
+        } else {
+          const popup = document.getElementById('popup');
+          popup.textContent = 'Error enabling commands';
+          popup.classList.add('show');
+          popup.style.color = '#f55';
+          setTimeout(() => { popup.classList.remove('show'); popup.style.color = 'var(--fg)'; }, 2000);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    });
+    saveAllBtn.addEventListener('click', async () => {
+      const selected = Array.from(select.selectedOptions).map(opt => opt.value).filter(v => v);
+      if (selected.length === 0) return;
+      try {
+        const res = await fetch(\`/dashboard/\${guildId}/disabled\`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ commands: selected })
+        });
+        const data = await res.json();
+        if (data.success) {
+          currentDisabled = data.disabled;
+          currentDisabledInput.value = currentDisabled.join(',');
+          showChanges(data.changes);
+        } else {
+          const popup = document.getElementById('popup');
+          popup.textContent = 'Error saving changes';
+          popup.classList.add('show');
+          popup.style.color = '#f55';
+          setTimeout(() => { popup.classList.remove('show'); popup.style.color = 'var(--fg)'; }, 2000);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    });
+  }
   /* Search bars with clear button */
   const page = document.querySelector('.page');
   const search = document.getElementById('search');
@@ -857,7 +972,6 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     }
   }
-
   /* Sidebar navigation (only for server dashboard) */
   const navSidebar = document.getElementById('nav-sidebar');
   if (navSidebar && page.dataset.guildId) {
@@ -865,14 +979,15 @@ document.addEventListener('DOMContentLoaded', () => {
       { id: 'settings-section', label: 'Settings', tooltip: 'Manage bot and server settings' },
       { id: 'moderation-section', label: 'Moderation', tooltip: 'Configure moderation roles' },
       { id: 'shop-section', label: 'Shop', tooltip: 'Manage shop items' },
-      { id: 'members-section', label: 'Member Lookup', tooltip: 'Search for server members' }
+      { id: 'members-section', label: 'Member Lookup', tooltip: 'Search for server members' },
+      { id: 'commands-section', label: 'Commands', tooltip: 'Disable/enable commands' }
     ];
     navSidebar.innerHTML = sections.map(function(section) {
       return '<button data-section="' + section.id + '" data-tooltip="' + section.tooltip + '"' +
         (section.id === 'settings-section' ? ' style="background:linear-gradient(90deg, var(--accent), var(--accent2));color:white"' : '') +
         '>' + section.label + '</button>';
     }).join('');
-    
+   
     document.querySelectorAll('.nav-sidebar button').forEach(button => {
       button.addEventListener('click', () => {
         const sectionId = button.dataset.section;
@@ -901,7 +1016,6 @@ document.addEventListener('DOMContentLoaded', () => {
 }
 
 /* ---------------- OAuth ---------------- */
-
 app.get("/login", (req, res) => {
   const authorizeURL = `https://discord.com/oauth2/authorize?client_id=${CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(
     REDIRECT_URI
@@ -912,7 +1026,6 @@ app.get("/login", (req, res) => {
 app.get("/callback", async (req, res) => {
   const code = req.query.code;
   if (!code) return res.status(400).send("No code provided");
-
   try {
     const params = new URLSearchParams({
       client_id: CLIENT_ID,
@@ -922,7 +1035,6 @@ app.get("/callback", async (req, res) => {
       redirect_uri: REDIRECT_URI,
       scope: "identify guilds",
     });
-
     const tokenResponse = await fetch("https://discord.com/api/oauth2/token", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -930,24 +1042,20 @@ app.get("/callback", async (req, res) => {
     });
     const tokenData = await tokenResponse.json();
     if (!tokenData.access_token) return res.status(500).send("Token error");
-
     // Fetch user
     const userResp = await fetch("https://discord.com/api/users/@me", {
       headers: { Authorization: `Bearer ${tokenData.access_token}` },
     });
     const userData = await userResp.json();
     if (!userData.id) throw new Error("Failed to fetch user data");
-
     // Mint JWT
     const myJwt = jwtLib.sign({ sub: userData.id }, JWT_SECRET, {
       algorithm: "HS256",
       expiresIn: "1h",
     });
-
     req.session.jwt = myJwt;
     req.session.discordAccessToken = tokenData.access_token;
     req.session.user = userData;
-
     // Fetch guilds
     const guildResp = await fetch("https://discord.com/api/users/@me/guilds", {
       headers: { Authorization: `Bearer ${tokenData.access_token}` },
@@ -955,7 +1063,6 @@ app.get("/callback", async (req, res) => {
     let guilds = await guildResp.json();
     if (!Array.isArray(guilds)) guilds = [];
     req.session.guilds = guilds;
-
     // Load bot guilds with fallback
     let botGuildIds = [];
     try {
@@ -967,10 +1074,8 @@ app.get("/callback", async (req, res) => {
       console.error("Failed to load bot_guilds.json:", err);
     }
     const botGuildSet = new Set(botGuildIds);
-
     // Filter guilds
     const candidateGuilds = guilds.filter(g => botGuildSet.has(String(g.id)) && (parseInt(g.permissions || "0", 10) & 0x20) === 0x20);
-
     // Single permission check
     let results = {};
     if (candidateGuilds.length > 0) {
@@ -981,10 +1086,11 @@ app.get("/callback", async (req, res) => {
             "Content-Type": "application/json",
             Authorization: `Bearer ${myJwt}`,
           },
-          body: JSON.stringify({ guildIds: candidateGuilds.map(g => g.id) }),
+          body: JSON.stringify({ guildIds: candidateGuilds.map(g => String(g.id)) }),
         });
         if (batchRes.ok) {
-          results = await batchRes.json();
+          const batchText = await batchRes.text();
+          results = JSON.parse(batchText, jsonReviver);
           results = results.results || {};
         }
       } catch (err) {
@@ -992,7 +1098,6 @@ app.get("/callback", async (req, res) => {
       }
     }
     req.session.perms = results;
-
     const filteredGuilds = candidateGuilds.filter(g => results[g.id]?.allowed);
     const serversHtml = filteredGuilds
       .map((g) => {
@@ -1005,7 +1110,6 @@ app.get("/callback", async (req, res) => {
         }<div class="server-name">${escapeHtml(name)}</div></a></div>`;
       })
       .join('');
-
     res.send(renderLayout(userData, `<h2>Your Servers</h2><div class="servers">${serversHtml}</div>`));
   } catch (err) {
     console.error("Callback error:", err);
@@ -1014,14 +1118,11 @@ app.get("/callback", async (req, res) => {
 });
 
 /* ---------------- Dashboard ---------------- */
-
 app.get("/dashboard", async (req, res) => {
   if (!req.session.user) return res.redirect("/login");
-
   const user = req.session.user;
   const perms = req.session.perms || {};
   const guilds = req.session.guilds || [];
-
   let botGuildIds = [];
   try {
     const botGuildsPath = path.join(__dirname, "bot_guilds.json");
@@ -1033,10 +1134,8 @@ app.get("/dashboard", async (req, res) => {
     botGuildIds = [];
   }
   const botGuildSet = new Set(botGuildIds);
-
   const candidateGuilds = guilds.filter(g => botGuildSet.has(String(g.id)) && (parseInt(g.permissions || "0", 10) & 0x20) === 0x20);
   const filteredGuilds = candidateGuilds.filter(g => perms[g.id]?.allowed);
-
   const serversHtml = filteredGuilds
     .map((g) => {
       const name = truncateName(g.name || "");
@@ -1048,12 +1147,10 @@ app.get("/dashboard", async (req, res) => {
       }<div class="server-name">${escapeHtml(name)}</div></a></div>`;
     })
     .join('');
-
   res.send(renderLayout(user, `<h2>Your Servers</h2><div class="servers">${serversHtml}</div>`));
 });
 
 /* ---------------- Individual Server ---------------- */
-
 app.get("/dashboard/:id", async (req, res) => {
   if (!req.session.user) return res.redirect("/login");
   const user = req.session.user;
@@ -1061,30 +1158,28 @@ app.get("/dashboard/:id", async (req, res) => {
   const guildId = req.params.id;
   const guild = (req.session.guilds || []).find((g) => g.id === guildId);
   const perms = req.session.perms || {};
-
   if (!guild) {
     return res.send(renderLayout(user, `<div class="card"><h2>No access</h2></div>`, false));
   }
-
   const MANAGE_GUILD = 0x20;
   const hasManage = (parseInt(guild.permissions || "0", 10) & MANAGE_GUILD) === MANAGE_GUILD;
-
   if (!hasManage || !perms[guildId]?.allowed) {
     return res.send(
       renderLayout(user, `<div class="card"><h2>${escapeHtml(guild.name || '')}</h2><p>No permission</p></div>`, false)
     );
   }
-
   try {
-    const data = await fetchGuildData(guildId, jwt);
+    const [data, disabledData] = await Promise.all([
+      fetchGuildData(guildId, jwt),
+      fetchDisabledCommands(guildId, jwt)
+    ]);
     if (data.error) throw new Error("Failed to fetch guild data");
-
     let contentHtml = `<h1>${escapeHtml(guild.name || '')}</h1>`;
     contentHtml += renderConfigSections(guildId, data.config, data.roles, data.channels, data.logEvents, 'settings');
     contentHtml += renderConfigSections(guildId, data.config, data.roles, data.channels, data.logEvents, 'moderation');
     contentHtml += renderShopSection(guildId, data.shop, data.roles);
     contentHtml += renderMemberSearchSection(guildId);
-
+    contentHtml += renderDisabledCommandsSection(guildId, disabledData);
     res.send(renderLayout(user, contentHtml, true));
   } catch (err) {
     console.error("Error in /dashboard/:id:", err);
@@ -1097,21 +1192,18 @@ app.get("/dashboard/:id/members", async (req, res) => {
   const guildId = req.params.id;
   const query = req.query.query;
   if (!query) return res.redirect(`/dashboard/${guildId}`);
-
   try {
     const headers = { Authorization: `Bearer ${req.session.jwt}` };
     const memberRes = await fetch(`${API_BASE}/dashboard/${guildId}/members?query=${encodeURIComponent(query)}`, { headers });
-    const member = memberRes.ok ? await memberRes.json() : { success: false };
-
+    let memberText = await memberRes.text();
+    const member = memberRes.ok ? JSON.parse(memberText, jsonReviver) : { success: false };
     const data = await fetchGuildData(guildId, req.session.jwt, { member: member.success ? member : null });
-
     const guild = (req.session.guilds || []).find((g) => g.id === guildId);
     let contentHtml = `<h1>${escapeHtml(guild.name || '')}</h1>`;
     contentHtml += renderConfigSections(guildId, data.config, data.roles, data.channels, data.logEvents, 'settings');
     contentHtml += renderConfigSections(guildId, data.config, data.roles, data.channels, data.logEvents, 'moderation');
     contentHtml += renderShopSection(guildId, data.shop, data.roles);
     contentHtml += renderMemberSearchSection(guildId, data.member);
-
     res.send(renderLayout(req.session.user, contentHtml, true));
   } catch (err) {
     console.error("Error in /dashboard/:id/members:", err);
@@ -1120,18 +1212,14 @@ app.get("/dashboard/:id/members", async (req, res) => {
 });
 
 /* ---------------- Config Updates ---------------- */
-
 app.post("/dashboard/:id/config", async (req, res) => {
   if (!req.session.user) return res.status(401).json({ error: "Unauthorized" });
   const guildId = req.params.id;
   let { key, value } = req.body;
-
   if (Array.isArray(value)) {
     value = value.join(",");
   }
-
   value = String(value);
-
   try {
     const headers = {
       "Content-Type": "application/json",
@@ -1142,7 +1230,6 @@ app.post("/dashboard/:id/config", async (req, res) => {
       headers,
       body: JSON.stringify({ key, value }),
     });
-
     if (updateRes.ok) {
       res.json({ success: true });
     } else {
@@ -1154,13 +1241,96 @@ app.post("/dashboard/:id/config", async (req, res) => {
   }
 });
 
-/* ---------------- Shop Actions ---------------- */
+/* ---------------- NEW: Disabled Commands Endpoints ---------------- */
+app.get("/dashboard/:id/disabled", async (req, res) => {
+  if (!req.session.user) return res.status(401).json({ error: "Unauthorized" });
+  const guildId = req.params.id;
+  try {
+    const headers = { Authorization: `Bearer ${req.session.jwt}` };
+    const apiRes = await fetch(`${API_BASE}/dashboard/${guildId}/disabled`, { headers });
+    let apiText = await apiRes.text();
+    const data = apiRes.ok ? JSON.parse(apiText, jsonReviver) : { success: false, disabled: [], available: [] };
+    res.json(data);
+  } catch (err) {
+    console.error("Error fetching disabled:", err);
+    res.status(500).json({ error: "Internal error" });
+  }
+});
 
+app.put("/dashboard/:id/disabled", async (req, res) => {
+  if (!req.session.user) return res.status(401).json({ error: "Unauthorized" });
+  const guildId = req.params.id;
+  const { commands } = req.body;
+  try {
+    const headers = {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${req.session.jwt}`,
+    };
+    const apiRes = await fetch(`${API_BASE}/dashboard/${guildId}/disabled`, {
+      method: "PUT",
+      headers,
+      body: JSON.stringify({ commands: commands.map(c => String(c)) }),
+    });
+    let apiText = await apiRes.text();
+    const data = apiRes.ok ? JSON.parse(apiText, jsonReviver) : { success: false };
+    res.json(data);
+  } catch (err) {
+    console.error("Error updating disabled:", err);
+    res.status(500).json({ error: "Internal error" });
+  }
+});
+
+app.post("/dashboard/:id/disabled/disable", async (req, res) => {
+  if (!req.session.user) return res.status(401).json({ error: "Unauthorized" });
+  const guildId = req.params.id;
+  const { commands } = req.body;
+  try {
+    const headers = {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${req.session.jwt}`,
+    };
+    const apiRes = await fetch(`${API_BASE}/dashboard/${guildId}/disabled/disable`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ commands: commands.map(c => String(c)) }),
+    });
+    let apiText = await apiRes.text();
+    const data = apiRes.ok ? JSON.parse(apiText, jsonReviver) : { success: false };
+    res.json(data);
+  } catch (err) {
+    console.error("Error disabling commands:", err);
+    res.status(500).json({ error: "Internal error" });
+  }
+});
+
+app.post("/dashboard/:id/disabled/enable", async (req, res) => {
+  if (!req.session.user) return res.status(401).json({ error: "Unauthorized" });
+  const guildId = req.params.id;
+  const { commands } = req.body;
+  try {
+    const headers = {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${req.session.jwt}`,
+    };
+    const apiRes = await fetch(`${API_BASE}/dashboard/${guildId}/disabled/enable`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ commands: commands.map(c => String(c)) }),
+    });
+    let apiText = await apiRes.text();
+    const data = apiRes.ok ? JSON.parse(apiText, jsonReviver) : { success: false };
+    res.json(data);
+  } catch (err) {
+    console.error("Error enabling commands:", err);
+    res.status(500).json({ error: "Internal error" });
+  }
+});
+
+/* ---------------- Shop Actions ---------------- */
 app.post("/dashboard/:id/shop", async (req, res) => {
   if (!req.session.user) return res.redirect("/login");
   const guildId = req.params.id;
   const { role_id, name, price } = req.body;
-
   try {
     const headers = {
       "Content-Type": "application/json",
@@ -1169,9 +1339,8 @@ app.post("/dashboard/:id/shop", async (req, res) => {
     const addRes = await fetch(`${API_BASE}/dashboard/${guildId}/shop`, {
       method: "POST",
       headers,
-      body: JSON.stringify({ role_id: String(role_id), name, price }),
+      body: JSON.stringify({ role_id: String(role_id), name, price: String(price) }),
     });
-
     if (addRes.ok) {
       res.redirect(`/dashboard/${guildId}`);
     } else {
@@ -1188,7 +1357,6 @@ app.post("/dashboard/:id/shop/:item_id/update", async (req, res) => {
   const guildId = req.params.id;
   const itemId = req.params.item_id;
   const { name, price } = req.body;
-
   try {
     const headers = {
       "Content-Type": "application/json",
@@ -1197,9 +1365,8 @@ app.post("/dashboard/:id/shop/:item_id/update", async (req, res) => {
     const updateRes = await fetch(`${API_BASE}/dashboard/${guildId}/shop/${itemId}`, {
       method: "PUT",
       headers,
-      body: JSON.stringify({ name, price }),
+      body: JSON.stringify({ name, price: String(price) }),
     });
-
     if (updateRes.ok) {
       res.redirect(`/dashboard/${guildId}`);
     } else {
@@ -1215,14 +1382,12 @@ app.post("/dashboard/:id/shop/:item_id/toggle", async (req, res) => {
   if (!req.session.user) return res.redirect("/login");
   const guildId = req.params.id;
   const itemId = req.params.item_id;
-
   try {
     const headers = { Authorization: `Bearer ${req.session.jwt}` };
     const toggleRes = await fetch(`${API_BASE}/dashboard/${guildId}/shop/${itemId}/toggle`, {
       method: "POST",
       headers,
     });
-
     if (toggleRes.ok) {
       res.redirect(`/dashboard/${guildId}`);
     } else {
@@ -1238,14 +1403,12 @@ app.post("/dashboard/:id/shop/:item_id/delete", async (req, res) => {
   if (!req.session.user) return res.redirect("/login");
   const guildId = req.params.id;
   const itemId = req.params.item_id;
-
   try {
     const headers = { Authorization: `Bearer ${req.session.jwt}` };
     const deleteRes = await fetch(`${API_BASE}/dashboard/${guildId}/shop/${itemId}`, {
       method: "DELETE",
       headers,
     });
-
     if (deleteRes.ok) {
       res.redirect(`/dashboard/${guildId}`);
     } else {
@@ -1258,7 +1421,6 @@ app.post("/dashboard/:id/shop/:item_id/delete", async (req, res) => {
 });
 
 /* ---------------- misc ---------------- */
-
 app.get("/logout", (req, res) => req.session.destroy(() => res.redirect("/")));
 app.get("/", (req, res) => res.redirect("/dashboard"));
 app.get("/me", (req, res) =>
@@ -1266,5 +1428,4 @@ app.get("/me", (req, res) =>
 );
 
 /* ---------------- start ---------------- */
-
 app.listen(PORT, () => console.log(`Server running http://localhost:${PORT}`));
