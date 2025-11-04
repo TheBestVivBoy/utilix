@@ -793,7 +793,7 @@ document.addEventListener('DOMContentLoaded', () => {
       { id: 'members-section', label: 'Members' }
     ];
     nav.innerHTML = sections.map(s => 
-      \\`<button data-section="\${s.id}" \${s.id === 'settings-section' ? 'class="active"' : ''}>\${s.label}</button>\\`
+      \`<button data-section="\${s.id}" \${s.id === 'settings-section' ? 'class="active"' : ''}>\${s.label}</button>\`
     ).join('');
     nav.addEventListener('click', e => {
       const btn = e.target.closest('button');
