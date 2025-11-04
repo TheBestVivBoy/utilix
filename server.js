@@ -486,7 +486,7 @@ document.querySelectorAll('.tag-wrapper').forEach(w=>{
     const id=div.dataset.id, name=div.textContent;
     if(tags.querySelector(\`.tag[data-id="\${id}"]\))return;
     const tag=document.createElement('span');tag.className='tag';tag.dataset.id=id;
-    tag.innerHTML = esc(name) + ' <button type="button" class="remove-tag">x</button>';
+    tag.innerHTML = `${escapeHtml(name)} <button type="button" class="remove-tag">x</button>`;
     tags.insertBefore(tag,input);updateHidden();input.value='';dropdown.style.display='none';
   });
   tags.addEventListener('click',e=>{if(e.target.classList.contains('remove-tag')){e.target.parentElement.remove();updateHidden();}});
