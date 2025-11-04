@@ -475,7 +475,7 @@ document.querySelectorAll('.tag-wrapper').forEach(w=>{
     const q=input.value.toLowerCase();
     if(!q){dropdown.style.display='none';return;}
     const filtered=roles.filter(r=>r.name.toLowerCase().includes(q));
-    options.innerHTML=filtered.map(r=>`<div data-id="${esc(r.id)}">${esc(r.name)}</div>`).join('');
+    options.innerHTML = filtered.map(r => `<div data-id="${esc(r.id)}">${esc(r.name)}</div>`).join('');
     dropdown.style.display=filtered.length?'block':'none';
   });
   options.addEventListener('click',e=>{
