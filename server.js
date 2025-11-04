@@ -125,27 +125,49 @@ const multiKeys = [
   "greeting_channel_id", "auto_roles_on_join", "log_events",
 ];
 
-// JSON reviver to fix number rounding
-function jsonReviver(key, value) {
-  return typeof value === 'number' ? String(value) : value;
-}
+// Map role keys to command names
+const roleToCommand = {
+  ban_role_id: "ban",
+  unban_role_id: "unban",
+  kick_role_id: "kick",
+  mute_role_id: "mute",
+  unmute_role_id: "unmute",
+  warn_role_id: "warn",
+  unwarn_role_id: "unwarn",
+  minigames_staff_role_id: "minigames",
+  ticket_staff_1_role_id: "ticket",
+  invite_manager_role_id: "invites",
+};
+
+const jsonReviver = (key, value) =>
+  typeof value === "number" ? String(value) : value;
 
 async function fetchGuildData(guildId, jwt, extra = {}) {
   const headers = { Authorization: `Bearer ${jwt}` };
   try {
-    const [configRes, shopRes, rolesRes, channelsRes, logEventsRes] = await Promise.all([
+    const [
+      configRes,
+      shopRes,
+      rolesRes,
+      channelsRes,
+      logEventsRes,
+      disabledRes
+    ] = await Promise.all([
       fetch(`${API_BASE}/dashboard/${guildId}`, { headers }).catch(() => ({ ok: false })),
       fetch(`${API_BASE}/dashboard/${guildId}/shop`, { headers }).catch(() => ({ ok: false })),
       fetch(`${API_BASE}/dashboard/${guildId}/roles`, { headers }).catch(() => ({ ok: false })),
       fetch(`${API_BASE}/dashboard/${guildId}/channels`, { headers }).catch(() => ({ ok: false })),
       fetch(`${API_BASE}/dashboard/${guildId}/log_events`, { headers }).catch(() => ({ ok: false })),
+      fetch(`${API_BASE}/dashboard/${guildId}/disabled`, { headers }).catch(() => ({ ok: false }))
     ]);
+
     const data = {
       config: configRes.ok ? JSON.parse(await configRes.text(), jsonReviver) : { allowed: false, config: {} },
       shop: shopRes.ok ? JSON.parse(await shopRes.text(), jsonReviver) : { success: false, items: [] },
       roles: rolesRes.ok ? JSON.parse(await rolesRes.text(), jsonReviver) : { success: false, roles: [] },
       channels: channelsRes.ok ? JSON.parse(await channelsRes.text(), jsonReviver) : { success: false, channels: [] },
       logEvents: logEventsRes.ok ? JSON.parse(await logEventsRes.text(), jsonReviver) : { success: false, events: [] },
+      disabled: disabledRes.ok ? JSON.parse(await disabledRes.text(), jsonReviver) : { disabled: [], available: [] },
       ...extra,
     };
     return data;
@@ -155,32 +177,43 @@ async function fetchGuildData(guildId, jwt, extra = {}) {
   }
 }
 
-async function fetchDisabledCommands(guildId, jwt) {
-  const headers = { Authorization: `Bearer ${jwt}` };
-  try {
-    const res = await fetch(`${API_BASE}/dashboard/${guildId}/disabled`, { headers }).catch(() => ({ ok: false }));
-    return res.ok ? JSON.parse(await res.text(), jsonReviver) : { success: false, disabled: [], available: [] };
-  } catch (err) {
-    console.error("Error fetching disabled commands:", err);
-    return { success: false, disabled: [], available: [] };
-  }
-}
-
-function renderConfigSections(guildId, config, roles, channels, logEvents, sectionType = 'settings') {
+function renderConfigSections(guildId, config, roles, channels, logEvents, disabled, sectionType = 'settings') {
   let html = `<div class="section" id="${sectionType}-section">`;
   const allGroupedKeys = Object.values(sectionGroups).flat();
   const configKeys = Object.keys(config.config || {});
   const targetGroups = sectionType === 'moderation'
     ? ["Moderation Roles"]
     : ["Bot Administrator Permissions", "Bot Customization", "Join / Leaves", "Logging", "General"];
+
   for (const title of targetGroups) {
     let sectionKeys = title === "General"
       ? configKeys.filter((k) => !allGroupedKeys.includes(k))
       : sectionGroups[title]?.filter((k) => configKeys.includes(k)) || [];
     if (sectionKeys.length === 0) continue;
-    html += `<h2 style="font-size:1.5rem;margin-bottom:1rem;border-bottom:1px solid rgba(255,255,255,0.1);padding-bottom:0.5rem;">${escapeHtml(title)}</h2><div class="card" style="grid-template-columns:1fr 1fr;gap:1.5rem;padding:1.5rem;margin-bottom:2rem;">`;
+
+    html += `<h2 style="font-size:1.5rem;margin:1.5rem 0 1rem;border-bottom:1px solid rgba(255,255,255,0.1);padding-bottom:0.5rem;">${escapeHtml(title)}</h2>`;
+    html += `<div class="card" style="padding:1.5rem;display:grid;gap:1rem;">`;
+
     for (const key of sectionKeys) {
-      html += renderConfigItem(guildId, key, config.config[key], roles, channels, logEvents);
+      const isCommandToggle = roleToCommand[key];
+      const commandName = isCommandToggle;
+      const isDisabled = commandName && disabled.disabled.includes(commandName);
+      const toggleId = `toggle-${key}`;
+
+      html += `<div class="config-item" style="display:flex;align-items:center;gap:1rem;padding:0.75rem;background:rgba(255,255,255,0.03);border-radius:8px;" data-key="${escapeHtml(key)}">`;
+
+      if (isCommandToggle) {
+        html += `
+          <label for="${toggleId}" style="font-weight:600;flex:1;cursor:pointer;">${escapeHtml(getPrettyName(key))}</label>
+          <label class="switch">
+            <input type="checkbox" id="${toggleId}" data-command="${commandName}" ${isDisabled ? 'checked' : ''}>
+            <span class="slider"></span>
+          </label>`;
+      } else {
+        html += renderConfigItem(guildId, key, config.config[key], roles, channels, logEvents);
+      }
+
+      html += `</div>`;
     }
     html += `</div>`;
   }
@@ -194,10 +227,11 @@ function renderConfigItem(guildId, key, value, roles, channels, logEvents) {
   const pretty = getPrettyName(key);
   const roleData = JSON.stringify((roles.roles || []).map(r => ({ id: String(r.id), name: r.name || '' })));
   let inputHtml = "";
+
   if (isRoleKey(key) && isMulti) {
     inputHtml = `
       <div class="tag-input-wrapper" style="flex:1;position:relative;">
-        <div class="tags" data-key="${escapeHtml(key)}" style="display:flex;gap:0.5rem;flex-wrap:wrap;padding:0.5rem;border:1px solid rgba(255,255,255,0.1);border-radius:4px;background:var(--panel);min-height:2.5rem;align-items:center;">
+        <div class="tags" style="display:flex;gap:0.5rem;flex-wrap:wrap;padding:0.5rem;border:1px solid rgba(255,255,255,0.1);border-radius:4px;background:var(--panel);min-height:2.5rem;align-items:center;">
           ${values.filter(v => v).map(v => {
             const role = (roles.roles || []).find(r => r.id === v);
             return role ? `<span class="tag" data-id="${escapeHtml(v)}">${escapeHtml(role.name)} <button type="button" class="remove-tag" style="margin-left:0.3rem;color:#f55;border:none;background:none;cursor:pointer;">x</button></span>` : "";
@@ -210,30 +244,21 @@ function renderConfigItem(guildId, key, value, roles, channels, logEvents) {
         <input type="hidden" name="value" value="${escapeHtml(values.join(","))}">
       </div>`;
   } else if (isRoleKey(key)) {
-    inputHtml = `<select name="value" style="flex:1;padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);">`;
-    inputHtml += `<option value="">None</option>`;
-    (roles.roles || []).forEach((r) => {
-      const selected = r.id === value ? "selected" : "";
-      inputHtml += `<option value="${escapeHtml(r.id)}" ${selected}>${escapeHtml(r.name || '')}</option>`;
-    });
-    inputHtml += `</select>`;
+    inputHtml = `<select name="value" style="flex:1;padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);">
+      <option value="">None</option>
+      ${(roles.roles || []).map(r => `<option value="${escapeHtml(r.id)}" ${r.id === value ? 'selected' : ''}>${escapeHtml(r.name || '')}</option>`).join('')}
+    </select>`;
   } else if (isChannelKey(key)) {
-    inputHtml = `<select name="value" style="flex:1;padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);" ${key === "greeting_channel_id" ? "multiple size='3'" : ""}>`;
-    inputHtml += `<option value="">None</option>`;
-    (channels.channels || []).filter(c => c.type !== "category").forEach((c) => {
-      const selected = key === "greeting_channel_id" ? values.includes(c.id) ? "selected" : "" : c.id === value ? "selected" : "";
-      inputHtml += `<option value="${escapeHtml(c.id)}" ${selected}>${escapeHtml(c.name || '')} (${escapeHtml(c.type || '')})</option>`;
-    });
-    inputHtml += `</select>`;
+    inputHtml = `<select name="value" style="flex:1;padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);" ${key === "greeting_channel_id" ? "multiple size='3'" : ""}>
+      <option value="">None</option>
+      ${(channels.channels || []).filter(c => c.type !== "category").map(c => `<option value="${escapeHtml(c.id)}" ${key === "greeting_channel_id" ? values.includes(c.id) ? 'selected' : '' : c.id === value ? 'selected' : ''}>${escapeHtml(c.name || '')} (${escapeHtml(c.type || '')})</option>`).join('')}
+    </select>`;
   } else if (key === "log_events") {
-    inputHtml = `<select name="value[]" multiple size="5" style="flex:1;padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);">`;
-    (logEvents.events || []).forEach((e) => {
-      const selected = values.includes(e.id) ? "selected" : "";
-      inputHtml += `<option value="${escapeHtml(e.id)}" ${selected}>${escapeHtml(e.name || '')}</option>`;
-    });
-    inputHtml += `</select>`;
+    inputHtml = `<select name="value[]" multiple size="5" style="flex:1;padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);">
+      ${(logEvents.events || []).map(e => `<option value="${escapeHtml(e.id)}" ${values.includes(e.id) ? 'selected' : ''}>${escapeHtml(e.name || '')}</option>`).join('')}
+    </select>`;
   } else if (isMessageKey(key)) {
-    inputHtml = `<textarea name="value" style="flex:1;padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);">${escapeHtml(value || "")}</textarea>`;
+    inputHtml = `<textarea name="value" style="flex:1;padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);height:80px;">${escapeHtml(value || "")}</textarea>`;
   } else if (isNumberKey(key)) {
     inputHtml = `<input type="number" name="value" value="${escapeHtml(value || "")}" style="flex:1;padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);">`;
   } else if (isUrlKey(key)) {
@@ -241,46 +266,55 @@ function renderConfigItem(guildId, key, value, roles, channels, logEvents) {
   } else {
     inputHtml = `<input type="text" name="value" value="${escapeHtml(value || "")}" style="flex:1;padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);">`;
   }
-  let html = `<div class="config-item" style="display:flex;align-items:center;gap:0.5rem;justify-content:space-between;" data-key="${escapeHtml(key)}" data-roles='${escapeHtml(roleData)}'>`;
-  html += `<label style="font-weight:600;min-width:150px;">${escapeHtml(pretty)}</label>`;
-  html += `<form class="config-form" style="display:flex;gap:0.5rem;flex:1;">`;
-  html += `<input type="hidden" name="key" value="${escapeHtml(key)}">`;
-  html += inputHtml;
-  html += `<button type="submit" style="padding:0.5rem 1rem;background:linear-gradient(90deg,var(--accent),var(--accent2));color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600;box-shadow:0 2px 8px rgba(0,0,0,0.3);transition:transform 0.2s ease,box-shadow 0.2s ease;">Save</button>`;
-  html += `</form></div>`;
-  return html;
+
+  return `
+    <label style="font-weight:600;min-width:160px;">${escapeHtml(pretty)}</label>
+    <form class="config-form" style="display:flex;gap:0.5rem;flex:1;align-items:center;">
+      <input type="hidden" name="key" value="${escapeHtml(key)}">
+      ${inputHtml}
+      <button type="submit" style="padding:0.5rem 1rem;background:linear-gradient(90deg,var(--accent),var(--accent2));color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Save</button>
+    </form>`;
 }
 
 function renderShopSection(guildId, shop, roles) {
   let html = `<div class="section" id="shop-section" style="display:none;">`;
-  html += '<h2 style="font-size:1.5rem;margin-bottom:1rem;border-bottom:1px solid rgba(255,255,255,0.1);padding-bottom:0.5rem;">Shop</h2><div class="card" style="padding:1.5rem;margin-bottom:2rem;">';
-  html += '<h3>Add Item</h3>';
-  html += `<form action="/dashboard/${guildId}/shop" method="POST" style="display:grid;gap:0.5rem;margin-bottom:1rem;">`;
-  html += `<label>Role:</label><select name="role_id" required style="padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);">`;
-  (roles.roles || []).forEach((r) => {
-    html += `<option value="${escapeHtml(r.id)}">${escapeHtml(r.name || '')}</option>`;
-  });
-  html += `</select>`;
-  html += `<label>Name:</label><input name="name" required style="padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);">`;
-  html += `<label>Price:</label><input name="price" type="number" step="any" required style="padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);">`;
-  html += `<button type="submit" style="padding:0.5rem 1rem;background:linear-gradient(90deg,var(--accent),var(--accent2));color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600;box-shadow:0 2px 8px rgba(0,0,0,0.3);transition:transform 0.2s ease,box-shadow 0.2s ease;">Add</button>`;
-  html += `</form>`;
-  html += '<h3 style="margin-top:1.5rem;">Items</h3>';
+  html += '<h2 style="font-size:1.5rem;margin:1.5rem 0 1rem;border-bottom:1px solid rgba(255,255,255,0.1);padding-bottom:0.5rem;">Shop</h2>';
+  html += `<div class="card" style="padding:1.5rem;">`;
+  html += '<h3 style="margin-bottom:1rem;">Add Item</h3>';
+  html += `<form action="/dashboard/${guildId}/shop" method="POST" style="display:grid;gap:0.5rem;margin-bottom:1.5rem;">
+    <label>Role:</label>
+    <select name="role_id" required style="padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);">
+      ${(roles.roles || []).map(r => `<option value="${escapeHtml(r.id)}">${escapeHtml(r.name || '')}</option>`).join('')}
+    </select>
+    <label>Name:</label><input name="name" required style="padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);">
+    <label>Price:</label><input name="price" type="number" step="any" required style="padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);">
+    <button type="submit" style="padding:0.5rem 1rem;background:linear-gradient(90deg,var(--accent),var(--accent2));color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Add</button>
+  </form>`;
+
   if (shop.items && shop.items.length > 0) {
-    html += '<table style="width:100%;border-collapse:collapse;">';
-    html += '<thead><tr><th>Name</th><th>Role</th><th>Price</th><th>Active</th><th>Actions</th></tr></thead>';
-    html += '<tbody>';
-    shop.items.forEach((item) => {
-      const role = (roles.roles || []).find((r) => r.id == item.role_id) || { name: 'Unknown' };
-      html += `<tr><td>${escapeHtml(item.name || '')}</td><td>${escapeHtml(role.name)}</td><td>${escapeHtml(item.price || '')}</td><td>${item.active ? 'Yes' : 'No'}</td><td style="display:flex;gap:0.5rem;">`;
-      html += `<form action="/dashboard/${guildId}/shop/${item.id}/update" method="POST" style="display:flex;gap:0.5rem;">`;
-      html += `<input name="name" value="${escapeHtml(item.name || '')}" style="padding:0.3rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);width:100px;">`;
-      html += `<input name="price" value="${escapeHtml(item.price || '')}" type="number" step="any" style="padding:0.3rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);width:80px;">`;
-      html += `<button type="submit" style="padding:0.3rem 0.6rem;background:linear-gradient(90deg,var(--accent),var(--accent2));color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600;box-shadow:0 2px 8px rgba(0,0,0,0.3);">Update</button>`;
-      html += `</form>`;
-      html += `<form action="/dashboard/${guildId}/shop/${item.id}/toggle" method="POST"><button type="submit" style="padding:0.3rem 0.6rem;background:linear-gradient(90deg,#6c34cc,#4a2a99);color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600;box-shadow:0 2px 8px rgba(0,0,0,0.3);">Toggle</button></form>`;
-      html += `<form action="/dashboard/${guildId}/shop/${item.id}/delete" method="POST"><button type="submit" style="padding:0.3rem 0.6rem;background:#f55;color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600;box-shadow:0 2px 8px rgba(0,0,0,0.3);">Delete</button></form>`;
-      html += `</td></tr>`;
+    html += '<h3 style="margin-top:1.5rem;">Items</h3>';
+    html += '<table style="width:100%;border-collapse:collapse;"><thead><tr><th>Name</th><th>Role</th><th>Price</th><th>Active</th><th>Actions</th></tr></thead><tbody>';
+    shop.items.forEach(item => {
+      const role = (roles.roles || []).find(r => r.id == item.role_id) || { name: 'Unknown' };
+      html += `<tr>
+        <td>${escapeHtml(item.name)}</td>
+        <td>${escapeHtml(role.name)}</td>
+        <td>${escapeHtml(item.price)}</td>
+        <td>${item.active ? 'Yes' : 'No'}</td>
+        <td style="display:flex;gap:0.5rem;">
+          <form action="/dashboard/${guildId}/shop/${item.id}/update" method="POST" style="display:flex;gap:0.5rem;">
+            <input name="name" value="${escapeHtml(item.name)}" style="padding:0.3rem;width:80px;">
+            <input name="price" value="${escapeHtml(item.price)}" type="number" step="any" style="padding:0.3rem;width:60px;">
+            <button type="submit" style="padding:0.3rem 0.6rem;background:var(--accent);color:white;border:none;border-radius:6px;">Update</button>
+          </form>
+          <form action="/dashboard/${guildId}/shop/${item.id}/toggle" method="POST">
+            <button type="submit" style="padding:0.3rem 0.6rem;background:#6c34cc;color:white;border:none;border-radius:6px;">Toggle</button>
+          </form>
+          <form action="/dashboard/${guildId}/shop/${item.id}/delete" method="POST">
+            <button type="submit" style="padding:0.3rem 0.6rem;background:#f55;color:white;border:none;border-radius:6px;">Delete</button>
+          </form>
+        </td>
+      </tr>`;
     });
     html += '</tbody></table>';
   } else {
@@ -292,74 +326,32 @@ function renderShopSection(guildId, shop, roles) {
 
 function renderMemberSearchSection(guildId, member = null) {
   let html = `<div class="section" id="members-section" style="display:none;">`;
-  html += '<h2 style="font-size:1.5rem;margin-bottom:1rem;border-bottom:1px solid rgba(255,255,255,0.1);padding-bottom:0.5rem;">Member Lookup</h2><div class="card" style="padding:1.5rem;margin-bottom:2rem;">';
-  html += `<form action="/dashboard/${guildId}/members" method="GET" style="display:flex;gap:0.5rem;margin-bottom:1rem;">`;
-  html += `<input name="query" placeholder="ID or username" required style="flex:1;padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);">`;
-  html += `<button type="submit" style="padding:0.5rem 1rem;background:linear-gradient(90deg,var(--accent),var(--accent2));color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600;box-shadow:0 2px 8px rgba(0,0,0,0.3);transition:transform 0.2s ease,box-shadow 0.2s ease;">Search</button>`;
-  html += `</form>`;
+  html += '<h2 style="font-size:1.5rem;margin:1.5rem 0 1rem;border-bottom:1px solid rgba(255,255,255,0.1);padding-bottom:0.5rem;">Member Lookup</h2>';
+  html += `<div class="card" style="padding:1.5rem;">`;
+  html += `<form action="/dashboard/${guildId}/members" method="GET" style="display:flex;gap:0.5rem;margin-bottom:1rem;">
+    <input name="query" placeholder="ID or username" required style="flex:1;padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);">
+    <button type="submit" style="padding:0.5rem 1rem;background:linear-gradient(90deg,var(--accent),var(--accent2));color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Search</button>
+  </form>`;
   if (member) {
-    if (member.in_guild) {
-      html += `<pre style="background:var(--panel);padding:1rem;border-radius:8px;border:1px solid rgba(255,255,255,0.05);">${escapeHtml(JSON.stringify(member.member, null, 2))}</pre>`;
-    } else {
-      html += '<p>Member not found in guild.</p>';
-    }
+    html += member.in_guild
+      ? `<pre style="background:var(--panel);padding:1rem;border-radius:8px;overflow-x:auto;">${escapeHtml(JSON.stringify(member.member, null, 2))}</pre>`
+      : '<p>Member not found.</p>';
   }
   html += '</div></div>';
-  return html;
-}
-
-function renderDisabledCommandsSection(guildId, disabledData) {
-  const { disabled = [], available = [] } = disabledData;
-  const allCommands = [...new Set([...disabled, ...available])];
-  let html = `<div class="section" id="commands-section" style="display:none;">`;
-  html += '<h2 style="font-size:1.5rem;margin-bottom:1rem;border-bottom:1px solid rgba(255,255,255,0.1);padding-bottom:0.5rem;">Command Management</h2>';
-  html += `<div class="card" style="padding:1.5rem;">`;
-
-  if (allCommands.length === 0) {
-    html += '<p>No commands available.</p>';
-  } else {
-    html += `<div style="display:grid;gap:0.75rem;">`;
-    allCommands.forEach(cmd => {
-      const isDisabled = disabled.includes(cmd);
-      const toggleId = `toggle-${cmd.replace(/\s/g, '-')}`;
-      html += `
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:0.75rem;background:rgba(255,255,255,0.03);border-radius:8px;">
-          <label for="${toggleId}" style="font-weight:500;cursor:pointer;flex:1;">${escapeHtml(cmd)}</label>
-          <label class="switch">
-            <input type="checkbox" id="${toggleId}" data-command="${escapeHtml(cmd)}" ${isDisabled ? 'checked' : ''}>
-            <span class="slider"></span>
-          </label>
-        </div>`;
-    });
-    html += `</div>`;
-  }
-
-  html += `</div></div>`;
   return html;
 }
 
 function renderLayout(user, contentHtml, isServerDashboard = false) {
   const av = escapeHtml(avatarUrl(user || {}));
   const userDisplay = user ? `${escapeHtml(user.username || '')}#${escapeHtml(user.discriminator || '')}` : "";
-  const addBotUrl = `https://discord.com/oauth2/authorize?client_id=${encodeURIComponent(
-    CLIENT_ID || ""
-  )}&permissions=8&scope=bot%20applications.commands`;
-  const searchBarHtml = `
-    <div class="search-wrapper" style="position:fixed;top:80px;left:50%;transform:translateX(-50%);width:300px;display:flex;gap:0.5rem;z-index:1000;">
-      <input type="text" id="search" placeholder="${isServerDashboard ? 'Search config...' : 'Search servers...'}"
-        style="flex:1;padding:0.5rem;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);">
-      <button id="clear-search" style="padding:0.5rem;background:#f55;color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600;box-shadow:0 2px 8px rgba(0,0,0,0.3);">X</button>
-    </div>
-  `;
-  const sidebarHtml = isServerDashboard ? `
-    <nav class="nav-sidebar" id="nav-sidebar" style="position:fixed;top:80px;left:20px;width:220px;padding:1rem;background:var(--card);border-radius:12px;border:1px solid rgba(255,255,255,0.04);z-index:1000;"></nav>
-  ` : '';
+  const addBotUrl = `https://discord.com/oauth2/authorize?client_id=${encodeURIComponent(CLIENT_ID || "")}&permissions=8&scope=bot%20applications.commands`;
+
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Utilix</title>
+<title>Utilix Dashboard</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet" />
 <style>
 :root {
@@ -372,35 +364,29 @@ function renderLayout(user, contentHtml, isServerDashboard = false) {
   --panel: rgba(15,5,35,0.95);
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
-html { scroll-behavior: smooth; }
 body {
-  font-family: "Inter", system-ui, -apple-system, Segoe UI, Roboto, Arial;
+  font-family: "Inter", system-ui, -apple-system;
   background: radial-gradient(circle at 20% 30%, #3b0a5f, var(--bg));
   color: var(--fg);
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  overflow-x: hidden;
-  position: relative;
 }
 header {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 72px;
+  top: 0; left: 0; width: 100%; height: 72px;
   z-index: 1100;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem 2rem;
+  padding: 0 2rem;
   backdrop-filter: blur(10px);
   background: rgba(15,5,35,0.6);
   border-bottom: 1px solid rgba(255,255,255,0.05);
 }
 .logo {
   font-weight: 800;
-  font-size: 1.25rem;
+  font-size: 1.3rem;
   background: linear-gradient(90deg, var(--accent), var(--accent2));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -409,168 +395,48 @@ nav.header-nav ul {
   display: flex;
   gap: 1.25rem;
   list-style: none;
-  align-items: center;
   background: rgba(25,5,50,0.3);
   padding: 0.4rem 0.9rem;
   border-radius: 999px;
   border: 1px solid rgba(255,255,255,0.08);
-  backdrop-filter: blur(12px);
 }
 nav.header-nav a {
-  position: relative;
   color: var(--fg);
   text-decoration: none;
   font-weight: 600;
-  font-size: 0.95rem;
   padding: 0.55rem 1.1rem;
   border-radius: 999px;
 }
-nav.header-nav a::after {
-  content: "";
-  position: absolute;
-  left: 50%;
-  bottom: 6px;
-  transform: translateX(-50%) scaleX(0);
-  transform-origin: center;
-  width: 60%;
-  height: 2px;
-  border-radius: 2px;
-  background: linear-gradient(90deg, var(--accent), var(--accent2));
-  transition: transform 0.3s ease;
-}
-nav.header-nav a:hover { color: var(--accent); transform: translateY(-1px); }
-nav.header-nav a:hover::after { transform: translateX(-50%) scaleX(1); }
+nav.header-nav a:hover { color: var(--accent); }
 nav.header-nav a.active {
   background: linear-gradient(90deg, rgba(178,102,178,0.16), rgba(122,68,212,0.12));
   color: white;
-  box-shadow: 0 0 12px rgba(178,102,178,0.12);
 }
 .auth-wrapper { display: flex; align-items: center; gap: 12px; }
-.auth-wrapper img { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; }
+.auth-wrapper img { width: 36px; height: 36px; border-radius: 50%; }
 .discord-btn {
   background: linear-gradient(90deg, var(--accent), var(--accent2));
   color: white;
-  font-weight: 600;
   padding: 0.6rem 1.2rem;
   border-radius: 999px;
   text-decoration: none;
+  font-weight: 600;
 }
-.logout-btn { font-size: 1.1rem; color: #f55; text-decoration: none; }
+.logout-btn { color: #f55; font-size: 1.1rem; }
 .page {
   flex: 1;
   max-width: 1200px;
   margin: 0 auto;
   padding: ${isServerDashboard ? '140px 20px 56px 260px' : '140px 20px 56px'};
-  position: relative;
-  z-index: 1;
   display: flex;
   flex-direction: row-reverse;
   gap: 2rem;
 }
-.content-area {
-  flex: 1;
-  transition: opacity 0.3s ease, transform 0.3s ease;
-}
-.content-area.hidden { opacity: 0; transform: translateY(20px); }
+.content-area { flex: 1; }
 h1, h2 { margin-bottom: 12px; font-weight: 600; }
-h3 { margin-bottom: 8px; font-weight: 600; }
-.servers {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
-  margin-top: 12px;
-}
-.server {
-  background: var(--card);
-  border-radius: 12px;
-  padding: 1rem;
-  text-align: center;
-  border: 1px solid rgba(255,255,255,0.04);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-.server:hover { transform: translateY(-6px); box-shadow: 0 18px 40px rgba(0,0,0,0.6); }
-.server img, .server-icon { width: 80px; height: 80px; border-radius: 16px; margin-bottom: 0.5rem; object-fit: cover; }
-.server-icon { display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.06); font-weight: 700; font-size: 1.5rem; }
-.server-name { font-size: 0.95rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px; margin: 0 auto; }
-.card { background: var(--card); padding: 16px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.04); margin-bottom: 2rem; }
-table th, table td { padding: 0.5rem; border-bottom: 1px solid rgba(255,255,255,0.05); text-align: left; }
-table th { font-weight: 600; }
+.card { background: var(--card); padding: 1.5rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.04); margin-bottom: 2rem; }
 .canvas-wrap { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
 canvas#starfield { width: 100%; height: 100%; display: block; }
-.tag-input-wrapper { position: relative; }
-.tags { min-height: 2.5rem; display: flex; align-items: center; flex-wrap: wrap; }
-.tag { background: rgba(255,255,255,0.1); padding: 0.3rem 0.6rem; border-radius: 4px; display: flex; align-items: center; }
-.tag-input { min-width: 100px; border: none; background: none; color: var(--fg); outline: none; }
-.dropdown { z-index: 1000; }
-.dropdown-options div { padding: 0.5rem; cursor: pointer; }
-.dropdown-options div:hover { background: rgba(255,255,255,0.1); }
-.popup {
-  position: fixed;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: var(--panel);
-  color: var(--fg);
-  padding: 0.8rem 1.5rem;
-  border-radius: 8px;
-  border: 1px solid transparent;
-  border-image: linear-gradient(90deg, var(--accent), var(--accent2)) 1;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-  z-index: 2000;
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-.popup.show { opacity: 1; }
-.nav-sidebar {
-  width: 220px;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-.nav-sidebar button {
-  padding: 1rem;
-  background: linear-gradient(90deg, rgba(178,102,178,0.2), rgba(122,68,212,0.2));
-  color: var(--fg);
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 1rem;
-  text-align: left;
-  transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
-  position: relative;
-}
-.nav-sidebar button:hover {
-  background: linear-gradient(90deg, var(--accent), var(--accent2));
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-}
-.nav-sidebar button.active {
-  background: linear-gradient(90deg, var(--accent), var(--accent2));
-  color: white;
-}
-.loading-screen {
-  position: fixed;
-  inset: 0;
-  background: var(--bg);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  z-index: 3000;
-}
-.loading-spinner {
-  width: 40px;
-  height: 40px;
-  border: 4px solid var(--fg);
-  border-top: 4px solid var(--accent);
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
 
 /* Toggle Switch */
 .switch {
@@ -580,11 +446,7 @@ canvas#starfield { width: 100%; height: 100%; display: block; }
   height: 26px;
   flex-shrink: 0;
 }
-.switch input {
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
+.switch input { opacity: 0; width: 0; height: 0; }
 .slider {
   position: absolute;
   cursor: pointer;
@@ -604,54 +466,121 @@ canvas#starfield { width: 100%; height: 100%; display: block; }
   transition: .3s;
   border-radius: 50%;
 }
-input:checked + .slider {
-  background-color: #66bb6a;
+input:checked + .slider { background-color: #66bb6a; }
+input:checked + .slider:before { transform: translateX(22px); }
+
+/* Search & Sidebar */
+.search-wrapper {
+  position: fixed;
+  top: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 300px;
+  display: flex;
+  gap: 0.5rem;
+  z-index: 1000;
 }
-input:checked + .slider:before {
-  transform: translateX(22px);
+#search {
+  flex: 1;
+  padding: 0.5rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: var(--panel);
+  color: var(--fg);
 }
+#clear-search {
+  padding: 0.5rem;
+  background: #f55;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.nav-sidebar {
+  position: fixed;
+  top: 80px;
+  left: 20px;
+  width: 220px;
+  padding: 1rem;
+  background: var(--card);
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.04);
+  z-index: 1000;
+}
+.nav-sidebar button {
+  width: 100%;
+  padding: 1rem;
+  background: linear-gradient(90deg, rgba(178,102,178,0.2), rgba(122,68,212,0.2));
+  color: var(--fg);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+19  font-weight: 600;
+  text-align: left;
+  margin-bottom: 0.5rem;
+}
+.nav-sidebar button:hover {
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  color: white;
+}
+.nav-sidebar button.active {
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  color: white;
+}
+.popup {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--panel);
+  color: var(--fg);
+  padding: 0.8rem 1.5rem;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  border-image: linear-gradient(90deg, var(--accent), var(--accent2)) 1;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+  z-index: 2000;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.popup.show { opacity: 1; }
+.loading-screen {
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 3000;
+}
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid var(--fg);
+  border-top: 4px solid var(--accent);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
 @media (max-width: 768px) {
-  .page {
-    flex-direction: column;
-    padding: ${isServerDashboard ? '140px 20px 56px' : '140px 20px 56px'};
-  }
-  .nav-sidebar {
-    position: relative;
-    width: 100%;
-    flex-direction: row;
-    flex-wrap: wrap;
-    justify-content: center;
-    top: 0;
-    left: 0;
-    padding: 0.5rem;
-    margin-bottom: 1rem;
-  }
-  .nav-sidebar button {
-    flex: 1 1 45%;
-    text-align: center;
-  }
-  .search-wrapper {
-    width: 100%;
-    max-width: 300px;
-    left: 50%;
-    transform: translateX(-50%);
-  }
-  .card {
-    grid-template-columns: 1fr;
-  }
+  .page { padding: 140px 20px 56px; flex-direction: column; }
+  .nav-sidebar { position: static; width: 100%; flex-direction: row; flex-wrap: wrap; }
+  .nav-sidebar button { flex: 1 1 45%; text-align: center; }
+  .search-wrapper { width: 100%; max-width: 300px; }
 }
 </style>
 </head>
 <body>
   <div id="loading-screen" class="loading-screen">
     <div class="loading-spinner"></div>
-    <p style="margin-top:1rem;font-weight:600;">Loading Utilix Dashboard...</p>
+    <p style="margin-top:1rem;font-weight:600;">Loading...</p>
   </div>
   <header>
     <div style="display:flex;align-items:center;gap:16px">
       <div class="logo">Utilix</div>
-      <nav class="header-nav" aria-label="Primary navigation">
+      <nav class="header-nav">
         <ul>
           <li><a href="/index" class="active">Home</a></li>
           <li><a href="/setup">Setup</a></li>
@@ -661,8 +590,8 @@ input:checked + .slider:before {
       </nav>
     </div>
     <div style="display:flex;align-items:center;gap:12px">
-      <a class="discord-btn" href="/dashboard">Manage Servers</a>
-      <a class="discord-btn" href="${escapeHtml(addBotUrl)}" target="_blank" rel="noopener">Add to Server</a>
+      <a class="discord-btn" href="/dashboard">Servers</a>
+      <a class="discord-btn" href="${escapeHtml(addBotUrl)}" target="_blank">Add Bot</a>
       <div class="auth-wrapper">
         <img src="${av}" alt="avatar"/>
         <div style="font-weight:600">${userDisplay}</div>
@@ -671,37 +600,29 @@ input:checked + .slider:before {
     </div>
   </header>
   <div class="canvas-wrap"><canvas id="starfield"></canvas></div>
-  <main class="page" data-guild-id="${contentHtml.includes('No access') || contentHtml.includes('Error') ? '' : contentHtml.match(/\/dashboard\/(\d+)/)?.[1] || ''}">
-    ${sidebarHtml}
-    <div class="content-area" id="content-area">${searchBarHtml}${contentHtml}</div>
-    <div id="popup" class="popup">Saved</div>
+  <main class="page" data-guild-id="${contentHtml.includes('No access') ? '' : contentHtml.match(/\/dashboard\/(\d+)/)?.[1] || ''}">
+    ${isServerDashboard ? `<nav class="nav-sidebar" id="nav-sidebar"></nav>` : ''}
+    <div class="content-area">
+      <div class="search-wrapper">
+        <input type="text" id="search" placeholder="${isServerDashboard ? 'Search settings...' : 'Search servers...'}">
+        <button id="clear-search">X</button>
+      </div>
+      ${contentHtml}
+      <div id="popup" class="popup">Saved</div>
+    </div>
   </main>
+
 <script>
 function escapeHtml(str) {
-  return String(str)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
+  return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
 const canvas = document.getElementById('starfield');
 const ctx = canvas.getContext('2d');
-function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
-window.addEventListener('resize', resizeCanvas);
-resizeCanvas();
+function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+window.addEventListener('resize', resize); resize();
 let stars = [];
-function createStars() {
-  stars = [];
-  for (let i = 0; i < 200; i++) {
-    stars.push({
-      x: Math.random() * canvas.width,
-      y: Math.random() * canvas.height,
-      r: Math.random() * 1.5,
-      s: Math.random() * 0.5 + 0.1,
-      c: 'hsl(' + Math.random() * 360 + ',70%,80%)'
-    });
-  }
+for (let i = 0; i < 200; i++) {
+  stars.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, r: Math.random() * 1.5, s: Math.random() * 0.5 + 0.1, c: 'hsl(' + Math.random() * 360 + ',70%,80%)' });
 }
 function animate() {
   ctx.fillStyle = 'rgba(11,10,30,0.3)';
@@ -716,15 +637,13 @@ function animate() {
   }
   requestAnimationFrame(animate);
 }
-createStars();
 animate();
 
 document.addEventListener('DOMContentLoaded', () => {
-  const loadingScreen = document.getElementById('loading-screen');
-  if (loadingScreen) {
-    setTimeout(() => loadingScreen.style.display = 'none', 1000);
-  }
+  const loading = document.getElementById('loading-screen');
+  if (loading) setTimeout(() => loading.style.display = 'none', 1000);
 
+  /* Tag inputs */
   document.querySelectorAll('.tag-input-wrapper').forEach(wrapper => {
     const input = wrapper.querySelector('.tag-input');
     const tagsContainer = wrapper.querySelector('.tags');
@@ -739,7 +658,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const query = input.value.toLowerCase();
       if (query.length < 1) { dropdown.style.display = 'none'; return; }
       const filtered = roles.filter(r => r.name.toLowerCase().includes(query));
-      dropdownOptions.innerHTML = filtered.map(r => \`<div data-id="\${escapeHtml(r.id)}">\${escapeHtml(r.name)}</div>\`).join('');
+      dropdownOptions.innerHTML = filtered.map(r => `<div data-id="${escapeHtml(r.id)}">${escapeHtml(r.name)}</div>`).join('');
       dropdown.style.display = filtered.length > 0 ? 'block' : 'none';
     });
     input.addEventListener('keydown', e => {
@@ -779,6 +698,7 @@ document.addEventListener('DOMContentLoaded', () => {
     input.addEventListener('blur', () => setTimeout(() => dropdown.style.display = 'none', 200));
   });
 
+  /* Config forms */
   document.querySelectorAll('.config-form').forEach(form => {
     form.addEventListener('submit', async e => {
       e.preventDefault();
@@ -804,44 +724,41 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
+  /* Command Toggles */
   const guildId = document.querySelector('main').dataset.guildId;
   const popup = document.getElementById('popup');
-
-  function showPopup(msg, isError = false) {
+  function show(msg, err = false) {
     popup.textContent = msg;
-    popup.style.color = isError ? '#f55' : 'var(--fg)';
+    popup.style.color = err ? '#f55' : 'var(--fg)';
     popup.classList.add('show');
     setTimeout(() => popup.classList.remove('show'), 3000);
   }
 
-  document.querySelectorAll('#commands-section input[type="checkbox"]').forEach(cb => {
+  document.querySelectorAll('input[data-command]').forEach(cb => {
     cb.addEventListener('change', async function() {
-      const command = this.dataset.command;
+      const cmd = this.dataset.command;
       const disable = this.checked;
-      const endpoint = disable ? 'disable' : 'enable';
       try {
-        const res = await fetch(\`/dashboard/\${guildId}/disabled/\${endpoint}\`, {
+        const res = await fetch(\`/dashboard/\${guildId}/disabled/\${disable ? 'disable' : 'enable'}\`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ commands: [command] })
+          body: JSON.stringify({ commands: [cmd] })
         });
         const data = await res.json();
         if (data.success) {
-          let msg = disable ? \`Disabled: \${command}\` : \`Enabled: \${command}\`;
-          if (data.changes.already_disabled) msg += \` (already disabled)\`;
-          if (data.changes.already_enabled) msg += \` (already enabled)\`;
-          showPopup(msg);
+          show(disable ? \`Disabled: \${cmd}\` : \`Enabled: \${cmd}\`);
         } else {
           this.checked = !disable;
-          showPopup('Failed to update', true);
+          show('Failed', true);
         }
-      } catch (err) {
+      } catch {
         this.checked = !disable;
-        showPopup('Network error', true);
+        show('Network error', true);
       }
     });
   });
 
+  /* Search */
   const search = document.getElementById('search');
   const clearSearch = document.getElementById('clear-search');
   if (search && clearSearch) {
@@ -866,22 +783,22 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  /* Sidebar */
   const nav = document.getElementById('nav-sidebar');
   if (nav && guildId) {
     const sections = [
       { id: 'settings-section', label: 'Settings' },
       { id: 'moderation-section', label: 'Moderation' },
       { id: 'shop-section', label: 'Shop' },
-      { id: 'members-section', label: 'Members' },
-      { id: 'commands-section', label: 'Commands' }
+      { id: 'members-section', label: 'Members' }
     ];
     nav.innerHTML = sections.map(s => 
-      \`<button data-section="\${s.id}" \${s.id === 'settings-section' ? 'class="active"' : ''}>\${s.label}</button>\`
+      `<button data-section="\${s.id}" \${s.id === 'settings-section' ? 'class="active"' : ''}>\${s.label}</button>`
     ).join('');
     nav.addEventListener('click', e => {
       const btn = e.target.closest('button');
       if (!btn) return;
-      document.querySelectorAll('.section').forEach(sec => sec.style.display = 'none');
+      document.querySelectorAll('.section').forEach(s => s.style.display = 'none');
       document.querySelectorAll('.nav-sidebar button').forEach(b => b.classList.remove('active'));
       const target = document.getElementById(btn.dataset.section);
       if (target) target.style.display = 'block';
@@ -1041,17 +958,12 @@ app.get("/dashboard/:id", async (req, res) => {
     );
   }
   try {
-    const [data, disabledData] = await Promise.all([
-      fetchGuildData(guildId, jwt),
-      fetchDisabledCommands(guildId, jwt)
-    ]);
-    if (data.error) throw new Error("Failed to fetch guild data");
+    const data = await fetchGuildData(guildId, jwt);
     let contentHtml = `<h1>${escapeHtml(guild.name || '')}</h1>`;
-    contentHtml += renderConfigSections(guildId, data.config, data.roles, data.channels, data.logEvents, 'settings');
-    contentHtml += renderConfigSections(guildId, data.config, data.roles, data.channels, data.logEvents, 'moderation');
+    contentHtml += renderConfigSections(guildId, data.config, data.roles, data.channels, data.logEvents, data.disabled, 'settings');
+    contentHtml += renderConfigSections(guildId, data.config, data.roles, data.channels, data.logEvents, data.disabled, 'moderation');
     contentHtml += renderShopSection(guildId, data.shop, data.roles);
     contentHtml += renderMemberSearchSection(guildId);
-    contentHtml += renderDisabledCommandsSection(guildId, disabledData);
     res.send(renderLayout(user, contentHtml, true));
   } catch (err) {
     console.error("Error in /dashboard/:id:", err);
@@ -1072,8 +984,8 @@ app.get("/dashboard/:id/members", async (req, res) => {
     const data = await fetchGuildData(guildId, req.session.jwt, { member: member.success ? member : null });
     const guild = (req.session.guilds || []).find((g) => g.id === guildId);
     let contentHtml = `<h1>${escapeHtml(guild.name || '')}</h1>`;
-    contentHtml += renderConfigSections(guildId, data.config, data.roles, data.channels, data.logEvents, 'settings');
-    contentHtml += renderConfigSections(guildId, data.config, data.roles, data.channels, data.logEvents, 'moderation');
+    contentHtml += renderConfigSections(guildId, data.config, data.roles, data.channels, data.logEvents, data.disabled, 'settings');
+    contentHtml += renderConfigSections(guildId, data.config, data.roles, data.channels, data.logEvents, data.disabled, 'moderation');
     contentHtml += renderShopSection(guildId, data.shop, data.roles);
     contentHtml += renderMemberSearchSection(guildId, data.member);
     res.send(renderLayout(req.session.user, contentHtml, true));
