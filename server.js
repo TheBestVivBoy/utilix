@@ -80,7 +80,7 @@ function isUrlKey(key) {
 const prettyNames = {
   prefix: "Command Prefix",
   bot_admin_role_id: "Bot Admin",
-  ticket_admin_1_role_id: "Ticket Admin",
+  ticket_admin_1_role_id: "Ticket Admin Role",
   bot_profile_nick: "Bot Profile Name",
   bot_profile_bio: "Bot's Profile Bio",
   bot_profile_avatar_url: "Bot Profile Avatar URL",
@@ -98,13 +98,14 @@ const prettyNames = {
   welcome_message: "Welcome Message",
   goodbye_message: "Goodbye Message",
   welcome_channel_id: "Welcome/Goodbye Channel",
-  greeting_channel_id: "Greeting's Channel",
+  greeting_channel_id: "Greeting Channels",
   auto_roles_on_join: "Auto Roles on Join",
   modlog_channel_id: "Modlogs",
   logs_channel_id: "Action Log",
   log_events: "Event Log",
   ban_threshold: "Ban Threshold",
   ticket_log_1_channel_id: "Ticket Logging / Transcripts",
+  store_payment_user_id: "Shop Revenue Recipient",
 };
 
 function getPrettyName(key) {
@@ -117,6 +118,7 @@ const sectionGroups = {
   "Moderation Roles": ["warn_role_id", "mute_role_id", "unmute_role_id", "unwarn_role_id", "ban_role_id", "unban_role_id", "kick_role_id", "minigames_staff_role_id", "ticket_staff_1_role_id", "invite_manager_role_id"],
   "Join / Leaves": ["welcome_message", "goodbye_message", "welcome_channel_id", "greeting_channel_id", "auto_roles_on_join"],
   "Logging": ["modlog_channel_id", "logs_channel_id", "log_events", "ban_threshold", "ticket_log_1_channel_id"],
+  "Economy": ["store_payment_user_id"],
 };
 
 const multiKeys = [
@@ -141,6 +143,21 @@ const roleToCommand = {
 
 const jsonReviver = (key, value) =>
   typeof value === "number" ? String(value) : value;
+
+function clientWantsJson(req) {
+  const accept = req.headers?.accept || "";
+  return accept.includes("application/json") || req.headers["x-requested-with"] === "fetch";
+}
+
+async function parseApiResponseBody(response) {
+  const raw = await response.text();
+  if (!raw) return {};
+  try {
+    return JSON.parse(raw, jsonReviver);
+  } catch (err) {
+    return { raw };
+  }
+}
 
 async function fetchGuildData(guildId, jwt, extra = {}) {
   const headers = { Authorization: `Bearer ${jwt}` };
@@ -177,169 +194,294 @@ async function fetchGuildData(guildId, jwt, extra = {}) {
   }
 }
 
-function renderConfigSections(guildId, config, roles, channels, logEvents, disabled, sectionType = 'settings') {
-  let html = `<div class="section" id="${sectionType}-section">`;
+
+
+function renderConfigSections(guildId, config, roles, channels, logEvents, disabled, sectionType = "settings") {
+  const configPayload = config && typeof config.config === "object" ? config.config : (config || {});
   const allGroupedKeys = Object.values(sectionGroups).flat();
-  const configKeys = Object.keys(config.config || {});
-  const targetGroups = sectionType === 'moderation'
-    ? ["Moderation Roles"]
-    : ["Bot Administrator Permissions", "Bot Customization", "Join / Leaves", "Logging", "General"];
+  const knownKeys = new Set([...Object.keys(prettyNames), ...allGroupedKeys, "store_payment_user_id"]);
+  const targetGroups =
+    sectionType === "moderation"
+      ? ["Moderation Roles"]
+      : ["Bot Administrator Permissions", "Bot Customization", "Join / Leaves", "Logging", "Economy", "General"];
+  const roleDatasetValue = escapeHtml(
+    JSON.stringify((roles.roles || []).map((role) => ({ id: String(role.id), name: role.name || "" })))
+  );
+  const isSettingsSection = sectionType === "settings";
+
+  let html = `<section class="section" id="${sectionType}-section"${isSettingsSection ? "" : ' style="display:none;"'}>`;
 
   for (const title of targetGroups) {
-    let sectionKeys = title === "General"
-      ? configKeys.filter((k) => !allGroupedKeys.includes(k))
-      : sectionGroups[title]?.filter((k) => configKeys.includes(k)) || [];
+    const baseKeys = sectionGroups[title] || [];
+    let sectionKeys;
+    if (title === "General") {
+      const generalKeys = Object.keys(configPayload).filter((key) => !allGroupedKeys.includes(key));
+      const defaultGeneral = Array.from(knownKeys).filter((key) => !allGroupedKeys.includes(key));
+      sectionKeys = generalKeys.length ? generalKeys : defaultGeneral;
+    } else if (baseKeys.length) {
+      sectionKeys = baseKeys;
+    } else {
+      sectionKeys = Object.keys(configPayload).filter((key) => baseKeys.includes(key));
+    }
+
+    sectionKeys = Array.from(new Set(sectionKeys)).filter((key) => key !== "guild_id" && key !== "allowed" && knownKeys.has(key));
     if (sectionKeys.length === 0) continue;
 
-    html += `<h2 style="font-size:1.5rem;margin:1.5rem 0 1rem;border-bottom:1px solid rgba(255,255,255,0.1);padding-bottom:0.5rem;">${escapeHtml(title)}</h2>`;
-    html += `<div class="card" style="padding:1.5rem;display:grid;gap:1rem;">`;
+    html += `<h2 class="section-title">${escapeHtml(title)}</h2>`;
+    html += `<div class="card settings-card">`;
 
-    for (const key of sectionKeys) {
-      const isCommandToggle = roleToCommand[key];
-      const commandName = isCommandToggle;
-      const isDisabled = commandName && disabled.disabled.includes(commandName);
-      const toggleId = `toggle-${key}`;
-
-      html += `<div class="config-item" style="display:flex;align-items:center;gap:1rem;padding:0.75rem;background:rgba(255,255,255,0.03);border-radius:8px;" data-key="${escapeHtml(key)}">`;
-
-      if (isCommandToggle) {
-        html += `
-          <label for="${toggleId}" style="font-weight:600;flex:1;cursor:pointer;">${escapeHtml(getPrettyName(key))}</label>
-          <label class="switch">
-            <input type="checkbox" id="${toggleId}" data-command="${commandName}" ${isDisabled ? 'checked' : ''}>
-            <span class="slider"></span>
-          </label>`;
-      } else {
-        html += renderConfigItem(guildId, key, config.config[key], roles, channels, logEvents);
-      }
-
+    sectionKeys.forEach((key) => {
+      const roleAttr = isRoleKey(key) ? ` data-roles="${roleDatasetValue}"` : "";
+      const value = Object.prototype.hasOwnProperty.call(configPayload, key) ? configPayload[key] : "";
+      html += `<div class="config-item" data-key="${escapeHtml(key)}"${roleAttr}>`;
+      html += renderConfigItem(guildId, key, value, roles, channels, logEvents);
       html += `</div>`;
-    }
+    });
+
     html += `</div>`;
   }
-  html += `</div>`;
+
+  html += `</section>`;
   return html;
 }
 
 function renderConfigItem(guildId, key, value, roles, channels, logEvents) {
   const isMulti = multiKeys.includes(key);
-  const values = isMulti && typeof value === "string" ? value.split(",").filter(v => v) : [value];
+  const normalizedValue = value === undefined || value === null ? "" : value;
+  const stringValue = Array.isArray(normalizedValue) ? normalizedValue.join(",") : String(normalizedValue);
+  const values = isMulti
+    ? (Array.isArray(normalizedValue) ? normalizedValue : stringValue.split(",")).map((v) => String(v).trim()).filter((v) => v)
+    : [stringValue];
   const pretty = getPrettyName(key);
-  const roleData = JSON.stringify((roles.roles || []).map(r => ({ id: String(r.id), name: r.name || '' })));
   let inputHtml = "";
 
   if (isRoleKey(key) && isMulti) {
     inputHtml = `
-      <div class="tag-input-wrapper" style="flex:1;position:relative;">
-        <div class="tags" style="display:flex;gap:0.5rem;flex-wrap:wrap;padding:0.5rem;border:1px solid rgba(255,255,255,0.1);border-radius:4px;background:var(--panel);min-height:2.5rem;align-items:center;">
-          ${values.filter(v => v).map(v => {
-            const role = (roles.roles || []).find(r => r.id === v);
-            return role ? `<span class="tag" data-id="${escapeHtml(v)}">${escapeHtml(role.name)} <button type="button" class="remove-tag" style="margin-left:0.3rem;color:#f55;border:none;background:none;cursor:pointer;">x</button></span>` : "";
-          }).join("")}
-          <input type="text" class="tag-input" placeholder="Type role name..." style="flex:1;border:none;background:none;color:var(--fg);outline:none;">
+      <div class="tag-input-wrapper">
+        <div class="tags">
+          ${values
+            .map((v) => {
+              const role = (roles.roles || []).find((r) => String(r.id) === String(v));
+              return role
+                ? `<span class="tag" data-id="${escapeHtml(String(v))}"><span class="tag-text">${escapeHtml(
+                    role.name
+                  )}</span><button type="button" class="tag-remove" aria-label="Remove ${escapeHtml(
+                    role.name || ""
+                  )}">&times;</button></span>`
+                : "";
+            })
+            .join("")}
+          <input type="text" class="tag-input" placeholder="Search role...">
         </div>
-        <div class="dropdown" style="display:none;position:absolute;background:var(--panel);border:1px solid rgba(255,255,255,0.1);border-radius:4px;max-height:150px;overflow-y:auto;width:100%;z-index:1000;">
+        <div class="dropdown">
           <div class="dropdown-options"></div>
         </div>
         <input type="hidden" name="value" value="${escapeHtml(values.join(","))}">
       </div>`;
   } else if (isRoleKey(key)) {
-    inputHtml = `<select name="value" style="flex:1;padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);">
+    inputHtml = `<select name="value" class="form-control">
       <option value="">None</option>
-      ${(roles.roles || []).map(r => `<option value="${escapeHtml(r.id)}" ${r.id === value ? 'selected' : ''}>${escapeHtml(r.name || '')}</option>`).join('')}
+      ${(roles.roles || [])
+        .map(
+          (r) =>
+            `<option value="${escapeHtml(String(r.id))}" ${String(r.id) === stringValue ? "selected" : ""}>${escapeHtml(
+              r.name || ""
+            )}</option>`
+        )
+        .join("")}
     </select>`;
   } else if (isChannelKey(key)) {
-    inputHtml = `<select name="value" style="flex:1;padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);" ${key === "greeting_channel_id" ? "multiple size='3'" : ""}>
+    const isMultiChannel = key === "greeting_channel_id";
+    const channelValues = isMultiChannel ? values : [stringValue];
+    inputHtml = `<select name="value" class="form-control${isMultiChannel ? " form-control--multi" : ""}" ${
+      isMultiChannel ? "multiple size='4'" : ""
+    }>
       <option value="">None</option>
-      ${(channels.channels || []).filter(c => c.type !== "category").map(c => `<option value="${escapeHtml(c.id)}" ${key === "greeting_channel_id" ? values.includes(c.id) ? 'selected' : '' : c.id === value ? 'selected' : ''}>${escapeHtml(c.name || '')} (${escapeHtml(c.type || '')})</option>`).join('')}
+      ${(channels.channels || [])
+        .filter((c) => c.type !== "category")
+        .map((c) => {
+          const selected = isMultiChannel
+            ? channelValues.includes(String(c.id))
+            : String(c.id) === stringValue;
+          return `<option value="${escapeHtml(String(c.id))}" ${selected ? "selected" : ""}>${escapeHtml(
+            c.name || ""
+          )} (${escapeHtml(c.type || "")})</option>`;
+        })
+        .join("")}
     </select>`;
   } else if (key === "log_events") {
-    inputHtml = `<select name="value[]" multiple size="5" style="flex:1;padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);">
-      ${(logEvents.events || []).map(e => `<option value="${escapeHtml(e.id)}" ${values.includes(e.id) ? 'selected' : ''}>${escapeHtml(e.name || '')}</option>`).join('')}
+    inputHtml = `<select name="value[]" multiple size="5" class="form-control form-control--multi">
+      ${(logEvents.events || [])
+        .map((event) => {
+          const id = String(event.id);
+          return `<option value="${escapeHtml(id)}" ${values.includes(id) ? "selected" : ""}>${escapeHtml(
+            event.name || ""
+          )}</option>`;
+        })
+        .join("")}
     </select>`;
   } else if (isMessageKey(key)) {
-    inputHtml = `<textarea name="value" style="flex:1;padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);height:80px;">${escapeHtml(value || "")}</textarea>`;
+    inputHtml = `<textarea name="value" class="form-control form-control--textarea">${escapeHtml(stringValue)}</textarea>`;
   } else if (isNumberKey(key)) {
-    inputHtml = `<input type="number" name="value" value="${escapeHtml(value || "")}" style="flex:1;padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);">`;
+    inputHtml = `<input type="number" name="value" value="${escapeHtml(stringValue)}" class="form-control">`;
   } else if (isUrlKey(key)) {
-    inputHtml = `<input type="url" name="value" value="${escapeHtml(value || "")}" style="flex:1;padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);">`;
+    inputHtml = `<input type="url" name="value" value="${escapeHtml(stringValue)}" class="form-control">`;
   } else {
-    inputHtml = `<input type="text" name="value" value="${escapeHtml(value || "")}" style="flex:1;padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);">`;
+    inputHtml = `<input type="text" name="value" value="${escapeHtml(stringValue)}" class="form-control">`;
   }
 
   return `
-    <label style="font-weight:600;min-width:160px;">${escapeHtml(pretty)}</label>
-    <form class="config-form" style="display:flex;gap:0.5rem;flex:1;align-items:center;">
+    <label class="config-label">${escapeHtml(pretty)}</label>
+    <form class="config-form">
       <input type="hidden" name="key" value="${escapeHtml(key)}">
       ${inputHtml}
-      <button type="submit" style="padding:0.5rem 1rem;background:linear-gradient(90deg,var(--accent),var(--accent2));color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Save</button>
+      <button type="submit" class="primary-btn save-btn">Save</button>
     </form>`;
+}
+function renderCommandSection(disabled) {
+  const disabledList = Array.isArray(disabled?.disabled) ? disabled.disabled.map((value) => String(value)) : [];
+  const availableRaw = Array.isArray(disabled?.available) ? disabled.available : [];
+  const fallback = Array.from(new Set(Object.values(roleToCommand)));
+  const merged = availableRaw.length ? availableRaw : fallback;
+  const commands = merged
+    .map((entry) => {
+      if (entry && typeof entry === "object") {
+        const command = entry.id || entry.command || entry.name || entry.value;
+        const label = entry.label || entry.name || entry.title || command;
+        if (!command) return null;
+        return { command: String(command), label: String(label || command) };
+      }
+      if (!entry) return null;
+      return { command: String(entry), label: String(entry) };
+    })
+    .filter(Boolean);
+
+  commands.sort((a, b) => a.label.localeCompare(b.label));
+
+  if (!commands.length) return "";
+
+  const disabledSet = new Set(disabledList);
+
+  const formatLabel = (label) => {
+    return label
+      .replace(/[_-]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .replace(/\b\w/g, (char) => char.toUpperCase());
+  };
+
+  let html = `<section class="section" id="commands-section" style="display:none;">`;
+  html += '<h2 class="section-title">Command Access</h2>';
+  html += '<div class="card command-card">';
+  html += '<p class="section-description">Toggle which moderation commands should be unavailable. Leave a command on to keep it active for members with the correct roles.</p>';
+  html += '<div class="command-grid">';
+
+  commands.forEach(({ command, label }) => {
+    const slug = command.trim();
+    if (!slug) return;
+    const friendly = formatLabel(label || slug);
+    const isDisabled = disabledSet.has(slug);
+    html += `<div class="command-item">`;
+    html += `<div class="command-info"><span class="command-name">${escapeHtml(friendly)}</span><span class="command-slug">${escapeHtml(slug)}</span></div>`;
+    html += `<div class="config-toggle"><label class="switch"><input type="checkbox" data-command="${escapeHtml(slug)}" ${isDisabled ? "checked" : ""}><span class="slider"></span></label></div>`;
+    html += `</div>`;
+  });
+
+  html += '</div></div></section>';
+  return html;
+}
+
+function renderShopItemsHtml(guildId, items = [], roles = {}) {
+  const safeGuildId = escapeHtml(String(guildId));
+  const roleMap = new Map((roles.roles || []).map((role) => [String(role.id), role.name || 'Unknown Role']));
+  if (!Array.isArray(items) || items.length === 0) {
+    return '<p class="empty-state">No items yet. Start by adding your first reward above.</p>';
+  }
+  const rows = items
+    .map((item) => {
+      const roleName = roleMap.get(String(item.role_id)) || 'Unknown Role';
+      const active = Boolean(item.active ?? item.is_active);
+      return `
+      <tr data-item-id="${escapeHtml(String(item.id))}">
+        <td>${escapeHtml(item.name || '')}</td>
+        <td>${escapeHtml(roleName)}</td>
+        <td>${escapeHtml(String(item.price ?? '0'))}</td>
+        <td><span class="status-chip ${active ? 'status-chip--success' : 'status-chip--muted'}">${active ? 'Active' : 'Hidden'}</span></td>
+        <td class="actions-cell">
+          <div class="action-buttons">
+            <form action="/dashboard/${safeGuildId}/shop/${escapeHtml(String(item.id))}/update" method="POST" class="inline-form" data-shop-form="update" data-item-id="${escapeHtml(String(item.id))}">
+              <input name="name" value="${escapeHtml(item.name || '')}" class="form-control form-control--compact" placeholder="Name">
+              <input name="price" value="${escapeHtml(String(item.price ?? ''))}" type="number" step="any" class="form-control form-control--compact" placeholder="0">
+              <button type="submit" class="ghost-btn">Update</button>
+            </form>
+            <form action="/dashboard/${safeGuildId}/shop/${escapeHtml(String(item.id))}/toggle" method="POST" class="inline-form" data-shop-form="toggle" data-item-id="${escapeHtml(String(item.id))}">
+              <button type="submit" class="secondary-btn">${active ? 'Disable' : 'Enable'}</button>
+            </form>
+            <form action="/dashboard/${safeGuildId}/shop/${escapeHtml(String(item.id))}/delete" method="POST" class="inline-form" data-shop-form="delete" data-item-id="${escapeHtml(String(item.id))}">
+              <button type="submit" class="danger-btn">Delete</button>
+            </form>
+          </div>
+        </td>
+      </tr>`;
+    })
+    .join('');
+  return `<div class="table-wrap"><table class="data-table"><thead><tr><th>Name</th><th>Role</th><th>Price</th><th>Status</th><th class="actions-heading">Actions</th></tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 
 function renderShopSection(guildId, shop, roles) {
-  let html = `<div class="section" id="shop-section" style="display:none;">`;
-  html += '<h2 style="font-size:1.5rem;margin:1.5rem 0 1rem;border-bottom:1px solid rgba(255,255,255,0.1);padding-bottom:0.5rem;">Shop</h2>';
-  html += `<div class="card" style="padding:1.5rem;">`;
-  html += '<h3 style="margin-bottom:1rem;">Add Item</h3>';
-  html += `<form action="/dashboard/${guildId}/shop" method="POST" style="display:grid;gap:0.5rem;margin-bottom:1.5rem;">
-    <label>Role:</label>
-    <select name="role_id" required style="padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);">
-      ${(roles.roles || []).map(r => `<option value="${escapeHtml(r.id)}">${escapeHtml(r.name || '')}</option>`).join('')}
+  const safeGuildId = escapeHtml(String(guildId));
+  const roleOptions = escapeHtml(JSON.stringify((roles.roles || []).map((role) => ({ id: String(role.id), name: role.name || '' }))));
+  let html = `<section class="section" id="shop-section" style="display:none;" data-roles="${roleOptions}">`;
+  html += '<h2 class="section-title">Community Shop</h2>';
+  html += `<div class="card shop-card">`;
+  html += `<form action="/dashboard/${safeGuildId}/shop" method="POST" class="stack-form shop-form" data-shop-form="create">`;
+  html += `<div class="form-row">
+    <label class="field-label">Role</label>
+    <select name="role_id" required class="form-control">
+      ${(roles.roles || []).map((r) => `<option value="${escapeHtml(String(r.id))}">${escapeHtml(r.name || '')}</option>`).join('')}
     </select>
-    <label>Name:</label><input name="name" required style="padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);">
-    <label>Price:</label><input name="price" type="number" step="any" required style="padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);">
-    <button type="submit" style="padding:0.5rem 1rem;background:linear-gradient(90deg,var(--accent),var(--accent2));color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Add</button>
-  </form>`;
-
-  if (shop.items && shop.items.length > 0) {
-    html += '<h3 style="margin-top:1.5rem;">Items</h3>';
-    html += '<table style="width:100%;border-collapse:collapse;"><thead><tr><th>Name</th><th>Role</th><th>Price</th><th>Active</th><th>Actions</th></tr></thead><tbody>';
-    shop.items.forEach(item => {
-      const role = (roles.roles || []).find(r => r.id == item.role_id) || { name: 'Unknown' };
-      html += `<tr>
-        <td>${escapeHtml(item.name)}</td>
-        <td>${escapeHtml(role.name)}</td>
-        <td>${escapeHtml(item.price)}</td>
-        <td>${item.active ? 'Yes' : 'No'}</td>
-        <td style="display:flex;gap:0.5rem;">
-          <form action="/dashboard/${guildId}/shop/${item.id}/update" method="POST" style="display:flex;gap:0.5rem;">
-            <input name="name" value="${escapeHtml(item.name)}" style="padding:0.3rem;width:80px;">
-            <input name="price" value="${escapeHtml(item.price)}" type="number" step="any" style="padding:0.3rem;width:60px;">
-            <button type="submit" style="padding:0.3rem 0.6rem;background:var(--accent);color:white;border:none;border-radius:6px;">Update</button>
-          </form>
-          <form action="/dashboard/${guildId}/shop/${item.id}/toggle" method="POST">
-            <button type="submit" style="padding:0.3rem 0.6rem;background:#6c34cc;color:white;border:none;border-radius:6px;">Toggle</button>
-          </form>
-          <form action="/dashboard/${guildId}/shop/${item.id}/delete" method="POST">
-            <button type="submit" style="padding:0.3rem 0.6rem;background:#f55;color:white;border:none;border-radius:6px;">Delete</button>
-          </form>
-        </td>
-      </tr>`;
-    });
-    html += '</tbody></table>';
-  } else {
-    html += '<p>No items yet.</p>';
-  }
-  html += '</div></div>';
+  </div>`;
+  html += `<div class="form-row">
+    <label class="field-label">Name</label>
+    <input name="name" required class="form-control" placeholder="Item name">
+  </div>`;
+  html += `<div class="form-row">
+    <label class="field-label">Price</label>
+    <input name="price" type="number" step="any" required class="form-control" placeholder="0">
+  </div>`;
+  html += `<div class="form-actions">
+    <button type="submit" class="primary-btn">Add Item</button>
+  </div>`;
+  html += `</form>`;
+  html += `<div class="shop-items" data-shop-items>`;
+  html += renderShopItemsHtml(guildId, shop.items || [], roles);
+  html += `</div>`;
+  html += `</div></section>`;
   return html;
 }
 
 function renderMemberSearchSection(guildId, member = null) {
-  let html = `<div class="section" id="members-section" style="display:none;">`;
-  html += '<h2 style="font-size:1.5rem;margin:1.5rem 0 1rem;border-bottom:1px solid rgba(255,255,255,0.1);padding-bottom:0.5rem;">Member Lookup</h2>';
-  html += `<div class="card" style="padding:1.5rem;">`;
-  html += `<form action="/dashboard/${guildId}/members" method="GET" style="display:flex;gap:0.5rem;margin-bottom:1rem;">
-    <input name="query" placeholder="ID or username" required style="flex:1;padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);">
-    <button type="submit" style="padding:0.5rem 1rem;background:linear-gradient(90deg,var(--accent),var(--accent2));color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Search</button>
-  </form>`;
+  const safeGuildId = escapeHtml(String(guildId));
+  let resultHtml = '<p class="empty-state">Search by user ID or username to explore member details.</p>';
   if (member) {
-    html += member.in_guild
-      ? `<pre style="background:var(--panel);padding:1rem;border-radius:8px;overflow-x:auto;">${escapeHtml(JSON.stringify(member.member, null, 2))}</pre>`
-      : '<p>Member not found.</p>';
+    if (member.in_guild && member.member) {
+      resultHtml = `<pre class="code-block">${escapeHtml(JSON.stringify(member.member, null, 2))}</pre>`;
+    } else {
+      resultHtml = '<p class="empty-state">Member not found.</p>';
+    }
   }
-  html += '</div></div>';
+  let html = `<section class="section" id="members-section" style="display:none;">`;
+  html += '<h2 class="section-title">Member Lookup</h2>';
+  html += `<div class="card">`;
+  html += `<form action="/dashboard/${safeGuildId}/members" method="GET" class="inline-form member-search-form">
+    <input name="query" placeholder="ID or username" required class="form-control">
+    <button type="submit" class="primary-btn">Search</button>
+  </form>`;
+  html += `<div class="member-result" id="member-result">${resultHtml}</div>`;
+  html += '</div></section>';
   return html;
 }
+
 
 function renderLayout(user, contentHtml, isServerDashboard = false) {
   const av = escapeHtml(avatarUrl(user || {}));
@@ -352,260 +494,622 @@ function renderLayout(user, contentHtml, isServerDashboard = false) {
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Utilix Dashboard</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
 <style>
 :root {
-  --bg: #0b0a1e;
-  --fg: #f2f2f7;
-  --accent: #b266b2;
-  --accent2: #7a44d4;
-  --muted: #c0a0ff;
-  --card: rgba(20,10,40,0.85);
-  --panel: rgba(15,5,35,0.95);
+  --bg: #050114;
+  --bg-alt: #120b2c;
+  --fg: #f5f4ff;
+  --fg-muted: rgba(245,244,255,0.66);
+  --accent: #b266f2;
+  --accent2: #6c3ff6;
+  --panel: rgba(17,11,35,0.84);
+  --panel-alt: rgba(22,15,45,0.76);
+  --border: rgba(255,255,255,0.08);
+  --border-strong: rgba(255,255,255,0.16);
+  --shadow-lg: 0 22px 60px rgba(7,4,25,0.45);
+  --shadow-sm: 0 18px 30px rgba(9,5,27,0.32);
+  --radius-lg: 18px;
+  --radius-md: 12px;
+  --radius-sm: 8px;
+  --transition: 220ms ease;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body {
-  font-family: "Inter", system-ui, -apple-system;
-  background: radial-gradient(circle at 20% 30%, #3b0a5f, var(--bg));
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(122,68,212,0.22), transparent 45%),
+    radial-gradient(circle at 80% 10%, rgba(178,102,242,0.18), transparent 40%),
+    var(--bg);
   color: var(--fg);
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  position: relative;
+  overflow-x: hidden;
 }
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(circle at 50% 0%, rgba(110,52,220,0.18), transparent 65%);
+  pointer-events: none;
+  z-index: 0;
+}
+a { color: inherit; text-decoration: none; transition: color var(--transition), opacity var(--transition); }
+a:hover { color: var(--accent); }
+button { font-family: inherit; border: none; background: none; color: inherit; cursor: pointer; transition: all var(--transition); }
 header {
   position: fixed;
-  top: 0; left: 0; width: 100%; height: 72px;
-  z-index: 1100;
+  top: 0; left: 0; right: 0;
+  height: 80px;
+  padding: 0 2.4rem;
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 0 2rem;
-  backdrop-filter: blur(10px);
-  background: rgba(15,5,35,0.6);
-  border-bottom: 1px solid rgba(255,255,255,0.05);
+  justify-content: space-between;
+  background: rgba(8,4,22,0.78);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 12px 45px rgba(5,3,18,0.45);
+  z-index: 1200;
 }
+.header-left { display: flex; align-items: center; gap: 1.8rem; }
+.logo-group { display: flex; flex-direction: column; gap: 2px; }
 .logo {
+  font-size: 1.45rem;
   font-weight: 800;
-  font-size: 1.3rem;
+  letter-spacing: 0.04em;
   background: linear-gradient(90deg, var(--accent), var(--accent2));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
-nav.header-nav ul {
+.logo-tagline {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--fg-muted);
+}
+.header-nav ul {
   display: flex;
-  gap: 1.25rem;
+  gap: 1rem;
   list-style: none;
-  background: rgba(25,5,50,0.3);
-  padding: 0.4rem 0.9rem;
+  padding: 0.35rem 0.6rem;
   border-radius: 999px;
-  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
 }
-nav.header-nav a {
+.header-nav a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.45rem 0.95rem;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 0.82rem;
+  color: var(--fg-muted);
+}
+.header-nav a.active {
+  background: linear-gradient(90deg, rgba(178,102,242,0.22), rgba(108,63,246,0.22));
   color: var(--fg);
-  text-decoration: none;
-  font-weight: 600;
-  padding: 0.55rem 1.1rem;
-  border-radius: 999px;
+  box-shadow: 0 12px 30px rgba(108,63,246,0.25);
 }
-nav.header-nav a:hover { color: var(--accent); }
-nav.header-nav a.active {
-  background: linear-gradient(90deg, rgba(178,102,178,0.16), rgba(122,68,212,0.12));
-  color: white;
-}
-.auth-wrapper { display: flex; align-items: center; gap: 12px; }
-.auth-wrapper img { width: 36px; height: 36px; border-radius: 50%; }
+.header-nav a:hover { color: var(--fg); }
+.header-right { display: flex; align-items: center; gap: 1rem; }
 .discord-btn {
-  background: linear-gradient(90deg, var(--accent), var(--accent2));
-  color: white;
-  padding: 0.6rem 1.2rem;
+  padding: 0.55rem 1.15rem;
   border-radius: 999px;
-  text-decoration: none;
+  background: linear-gradient(120deg, var(--accent), var(--accent2));
+  color: #fff;
   font-weight: 600;
+  font-size: 0.85rem;
+  box-shadow: 0 12px 38px rgba(108,63,246,0.35);
 }
-.logout-btn { color: #f55; font-size: 1.1rem; }
-.page {
-  flex: 1;
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: ${isServerDashboard ? '140px 20px 56px 260px' : '140px 20px 56px'};
+.discord-btn:hover { transform: translateY(-1px); box-shadow: 0 15px 40px rgba(108,63,246,0.4); }
+.discord-btn--ghost { background: rgba(255,255,255,0.06); color: var(--fg); box-shadow: none; border: 1px solid rgba(255,255,255,0.08); }
+.discord-btn--ghost:hover { background: rgba(255,255,255,0.12); }
+.auth-wrapper {
   display: flex;
-  flex-direction: row-reverse;
-  gap: 2rem;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.35rem 0.65rem;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--border);
 }
-.content-area { flex: 1; }
-h1, h2 { margin-bottom: 12px; font-weight: 600; }
-.card { background: var(--card); padding: 1.5rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.04); margin-bottom: 2rem; }
+.auth-wrapper img {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.2);
+}
+.user-display { font-weight: 600; font-size: 0.85rem; }
+.logout-btn { color: #ff7b9c; font-size: 0.85rem; font-weight: 600; }
+.logout-btn:hover { opacity: 0.8; }
 .canvas-wrap { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
 canvas#starfield { width: 100%; height: 100%; display: block; }
-
-/* Toggle Switch */
-.switch {
-  position: relative;
-  display: inline-block;
-  width: 48px;
-  height: 26px;
-  flex-shrink: 0;
-}
-.switch input { opacity: 0; width: 0; height: 0; }
-.slider {
-  position: absolute;
-  cursor: pointer;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background-color: #444;
-  transition: .3s;
-  border-radius: 34px;
-}
-.slider:before {
-  position: absolute;
-  content: "";
-  height: 20px;
-  width: 20px;
-  left: 3px;
-  bottom: 3px;
-  background-color: white;
-  transition: .3s;
-  border-radius: 50%;
-}
-input:checked + .slider { background-color: #66bb6a; }
-input:checked + .slider:before { transform: translateX(22px); }
-
-/* Search & Sidebar */
-.search-wrapper {
-  position: fixed;
-  top: 80px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 300px;
+.page {
+  flex: 1;
+  width: min(1180px, calc(100% - 48px));
+  margin: 0 auto;
+  padding: 140px 0 72px;
   display: flex;
-  gap: 0.5rem;
-  z-index: 1000;
+  gap: 2.4rem;
+  position: relative;
+  z-index: 1;
 }
+.page--with-nav { align-items: flex-start; }
+.content-area { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1.75rem; }
+.search-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.65rem 1rem;
+  background: var(--panel);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  position: sticky;
+  top: 108px;
+  z-index: 50;
+  backdrop-filter: blur(18px);
+}
+.search-icon { font-size: 1.05rem; color: var(--fg-muted); }
 #search {
   flex: 1;
-  padding: 0.5rem;
-  border-radius: 8px;
-  border: 1px solid rgba(255,255,255,0.1);
-  background: var(--panel);
-  color: var(--fg);
-}
-#clear-search {
-  padding: 0.5rem;
-  background: #f55;
-  color: white;
   border: none;
-  border-radius: 8px;
-  cursor: pointer;
+  background: transparent;
+  color: var(--fg);
+  font-size: 0.95rem;
+  font-weight: 500;
+  outline: none;
 }
+#search::placeholder { color: var(--fg-muted); }
+#clear-search {
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.08);
+  color: var(--fg);
+  visibility: hidden;
+  opacity: 0;
+}
+#clear-search.is-visible { visibility: visible; opacity: 1; }
+#clear-search:hover { background: rgba(255,255,255,0.16); }
 .nav-sidebar {
-  position: fixed;
-  top: 80px;
-  left: 20px;
-  width: 220px;
+  width: 250px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  background: var(--panel);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
   padding: 1rem;
-  background: var(--card);
-  border-radius: 12px;
-  border: 1px solid rgba(255,255,255,0.04);
-  z-index: 1000;
+  box-shadow: var(--shadow-sm);
+  position: sticky;
+  top: 120px;
 }
 .nav-sidebar button {
   width: 100%;
-  padding: 1rem;
-  background: linear-gradient(90deg, rgba(178,102,178,0.2), rgba(122,68,212,0.2));
-  color: var(--fg);
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-19  font-weight: 600;
+  padding: 0.85rem 1rem;
+  border-radius: var(--radius-md);
   text-align: left;
-  margin-bottom: 0.5rem;
+  background: rgba(255,255,255,0.04);
+  font-weight: 600;
+  color: var(--fg-muted);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02);
 }
 .nav-sidebar button:hover {
-  background: linear-gradient(90deg, var(--accent), var(--accent2));
-  color: white;
+  background: linear-gradient(120deg, rgba(178,102,242,0.22), rgba(114,63,246,0.24));
+  color: var(--fg);
+  transform: translateX(2px);
 }
 .nav-sidebar button.active {
-  background: linear-gradient(90deg, var(--accent), var(--accent2));
-  color: white;
+  background: linear-gradient(120deg, rgba(178,102,242,0.3), rgba(108,63,246,0.36));
+  color: var(--fg);
+  box-shadow: 0 15px 40px rgba(108,63,246,0.35);
 }
+.section { display: none; animation: fadeInUp 0.6s ease forwards; }
+.section:first-of-type { display: block; }
+.section-title {
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: var(--fg);
+  margin-bottom: 0.9rem;
+}
+.section-subtitle { font-size: 1.05rem; font-weight: 600; color: var(--fg); margin: 2rem 0 0.75rem; }
+.card {
+  background: var(--panel);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  padding: 1.75rem;
+  box-shadow: var(--shadow-sm);
+  backdrop-filter: blur(12px);
+}
+.stack-form { display: flex; flex-direction: column; gap: 1rem; }
+.form-row { display: flex; flex-direction: column; gap: 0.35rem; }
+.field-label { font-size: 0.78rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--fg-muted); font-weight: 600; }
+.form-actions { display: flex; justify-content: flex-end; }
+.member-search-form { gap: 0.75rem; flex-wrap: nowrap; }
+.member-search-form .form-control { flex: 1; }
+h1 { font-size: 1.9rem; font-weight: 700; letter-spacing: 0.02em; color: var(--fg); }
+h1 + .servers { margin-top: 1.2rem; }
+p { line-height: 1.6; color: var(--fg-muted); }
+.command-card { display: flex; flex-direction: column; gap: 1.25rem; }
+.section-description { color: var(--fg-muted); font-size: 0.9rem; line-height: 1.6; }
+.command-grid { display: grid; gap: 0.85rem; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+.command-item { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 0.9rem 1rem; border-radius: var(--radius-md); background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.04); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02); transition: transform var(--transition), border-color var(--transition), box-shadow var(--transition); }
+.command-item:hover { border-color: rgba(178,102,242,0.35); box-shadow: 0 18px 32px rgba(108,63,246,0.18); transform: translateY(-2px); }
+.command-info { display: flex; flex-direction: column; gap: 0.25rem; }
+.command-name { font-weight: 600; letter-spacing: 0.01em; color: var(--fg); }
+.command-slug { font-size: 0.7rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--fg-muted); }
+.settings-card { display: grid; gap: 1rem; }
+.config-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.5rem;
+  padding: 1.1rem 1.25rem;
+  border-radius: var(--radius-md);
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.04);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02);
+  transition: transform var(--transition), box-shadow var(--transition), border-color var(--transition);
+  animation: fadeInUp 0.45s ease both;
+  animation-delay: calc(var(--i, 0) * 40ms);
+}
+.config-item:hover {
+  transform: translateY(-2px);
+  border-color: rgba(178,102,242,0.35);
+  box-shadow: 0 18px 40px rgba(108,63,246,0.25);
+}
+.config-label {
+  flex: 0 0 220px;
+  font-weight: 600;
+  color: var(--fg);
+  letter-spacing: 0.02em;
+  line-height: 1.4;
+}
+.config-toggle { display: flex; align-items: center; justify-content: flex-end; flex: 1; }
+.config-form { flex: 1; display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; justify-content: flex-end; }
+.config-form > .form-control,
+.config-form > .tag-input-wrapper,
+.config-form > textarea,
+.config-form > select { flex: 1 1 260px; }
+.save-btn { flex-shrink: 0; }
+.form-control {
+  width: 100%;
+  padding: 0.65rem 0.85rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.05);
+  color: var(--fg);
+  font-size: 0.95rem;
+  transition: border-color var(--transition), box-shadow var(--transition), background var(--transition);
+}
+.form-control:focus {
+  border-color: rgba(178,102,242,0.55);
+  box-shadow: 0 0 0 4px rgba(178,102,242,0.18);
+  outline: none;
+  background: rgba(255,255,255,0.08);
+}
+.form-control--textarea { min-height: 120px; resize: vertical; }
+.form-control--multi { min-height: 140px; }
+.form-control--compact { max-width: 160px; }
+.primary-btn {
+  padding: 0.6rem 1.2rem;
+  border-radius: var(--radius-md);
+  background: linear-gradient(120deg, var(--accent), var(--accent2));
+  color: #fff;
+  font-weight: 600;
+  box-shadow: 0 18px 40px rgba(108,63,246,0.32);
+}
+.primary-btn:hover { transform: translateY(-1px); box-shadow: 0 20px 50px rgba(108,63,246,0.4); }
+.ghost-btn {
+  padding: 0.55rem 1rem;
+  border-radius: var(--radius-md);
+  background: rgba(255,255,255,0.08);
+  color: var(--fg);
+  font-weight: 600;
+}
+.ghost-btn:hover { background: rgba(255,255,255,0.16); }
+.ghost-btn--icon {
+  padding: 0;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  font-size: 1.1rem;
+}
+.secondary-btn {
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-md);
+  background: rgba(114,63,246,0.18);
+  color: var(--fg);
+  font-weight: 600;
+  border: 1px solid rgba(114,63,246,0.35);
+}
+.secondary-btn:hover { background: rgba(114,63,246,0.3); }
+.danger-btn {
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-md);
+  background: rgba(255,93,128,0.16);
+  color: #ff809f;
+  font-weight: 600;
+  border: 1px solid rgba(255,128,159,0.3);
+}
+.danger-btn:hover { background: rgba(255,93,128,0.26); }
+.tag-input-wrapper { position: relative; width: 100%; }
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.45rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.04);
+  min-height: 45px;
+  align-items: center;
+}
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.6rem;
+  border-radius: 999px;
+  background: rgba(178,102,242,0.25);
+  color: #fff;
+  font-size: 0.85rem;
+  box-shadow: inset 0 0 0 1px rgba(178,102,242,0.4);
+}
+.tag-text { font-weight: 600; }
+.tag-remove {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.2);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+}
+.tag-remove:hover { background: rgba(0,0,0,0.35); }
+.tag-input { flex: 1; border: none; background: transparent; color: var(--fg); min-width: 120px; outline: none; }
+.dropdown {
+  display: none;
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0; right: 0;
+  background: var(--panel);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  max-height: 180px;
+  overflow-y: auto;
+  z-index: 30;
+}
+.dropdown-options div { padding: 0.55rem 0.75rem; cursor: pointer; transition: background var(--transition); }
+.dropdown-options div:hover { background: rgba(178,102,242,0.25); }
+.table-wrap { overflow-x: auto; margin-top: 1.2rem; border-radius: var(--radius-lg); border: 1px solid var(--border); }
+.data-table { width: 100%; border-collapse: separate; border-spacing: 0; background: rgba(255,255,255,0.02); }
+.data-table th, .data-table td { padding: 0.85rem 1rem; border-bottom: 1px solid rgba(255,255,255,0.06); text-align: left; font-size: 0.9rem; }
+.data-table thead th { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--fg-muted); background: rgba(255,255,255,0.04); }
+.data-table tbody tr:hover { background: rgba(178,102,242,0.16); }
+.data-table tbody tr:last-child td { border-bottom: none; }
+.actions-heading { width: 220px; }
+.actions-cell { min-width: 220px; }
+.action-buttons { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.inline-form { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+.empty-state { color: var(--fg-muted); font-size: 0.9rem; margin-top: 1.2rem; }
+.code-block {
+  background: rgba(0,0,0,0.35);
+  border-radius: var(--radius-md);
+  padding: 1.1rem;
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+  font-size: 0.85rem;
+  overflow: auto;
+  border: 1px solid rgba(255,255,255,0.08);
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.2);
+}
+.servers {
+  display: grid;
+  gap: 1.2rem;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  margin-top: 1.5rem;
+}
+.server {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 1.1rem;
+  border-radius: var(--radius-lg);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  transform: translateY(0);
+  transition: transform var(--transition), box-shadow var(--transition), border-color var(--transition);
+  animation: fadeInUp 0.5s ease both;
+  animation-delay: calc(var(--i, 0) * 60ms);
+}
+.server::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(120deg, rgba(178,102,242,0.22), rgba(108,63,246,0.18));
+  opacity: 0;
+  transition: opacity var(--transition);
+}
+.server:hover { transform: translateY(-4px); border-color: rgba(178,102,242,0.4); box-shadow: 0 22px 48px rgba(108,63,246,0.3); }
+.server:hover::before { opacity: 1; }
+.server > a { position: relative; display: flex; align-items: center; gap: 0.9rem; width: 100%; }
+.server img, .server-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  box-shadow: 0 12px 24px rgba(0,0,0,0.35);
+}
+.server-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(160deg, var(--accent), var(--accent2));
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: #fff;
+}
+.server-name { font-size: 0.95rem; font-weight: 600; letter-spacing: 0.03em; color: var(--fg); }
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.status-chip--success { background: rgba(104,214,154,0.18); color: #7ff7b6; border: 1px solid rgba(104,214,154,0.4); }
+.status-chip--muted { background: rgba(255,255,255,0.08); color: var(--fg-muted); border: 1px solid rgba(255,255,255,0.12); }
 .popup {
   position: fixed;
-  bottom: 20px;
+  bottom: 32px;
   left: 50%;
   transform: translateX(-50%);
   background: var(--panel);
+  border: 1px solid rgba(178,102,242,0.45);
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--radius-md);
   color: var(--fg);
-  padding: 0.8rem 1.5rem;
-  border-radius: 8px;
-  border: 1px solid transparent;
-  border-image: linear-gradient(90deg, var(--accent), var(--accent2)) 1;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-  z-index: 2000;
+  box-shadow: var(--shadow-sm);
   opacity: 0;
-  transition: opacity 0.3s ease;
+  pointer-events: none;
+  transition: opacity var(--transition), transform var(--transition);
+  z-index: 1500;
 }
-.popup.show { opacity: 1; }
+.popup.show { opacity: 1; transform: translate(-50%, -12px); }
 .loading-screen {
   position: fixed;
   inset: 0;
-  background: var(--bg);
+  background: rgba(5,1,20,0.92);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  z-index: 3000;
+  z-index: 2000;
+  gap: 1.1rem;
+  transition: opacity 0.45s ease;
 }
+.loading-screen.hide { opacity: 0; pointer-events: none; }
 .loading-spinner {
-  width: 40px;
-  height: 40px;
-  border: 4px solid var(--fg);
-  border-top: 4px solid var(--accent);
+  width: 42px;
+  height: 42px;
   border-radius: 50%;
+  border: 4px solid rgba(255,255,255,0.12);
+  border-top-color: var(--accent);
   animation: spin 1s linear infinite;
 }
-@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-
-@media (max-width: 768px) {
-  .page { padding: 140px 20px 56px; flex-direction: column; }
-  .nav-sidebar { position: static; width: 100%; flex-direction: row; flex-wrap: wrap; }
-  .nav-sidebar button { flex: 1 1 45%; text-align: center; }
-  .search-wrapper { width: 100%; max-width: 300px; }
+.loading-copy { font-weight: 600; color: var(--fg); letter-spacing: 0.04em; }
+.switch { position: relative; width: 54px; height: 28px; display: inline-block; }
+.switch input { opacity: 0; width: 0; height: 0; }
+.slider {
+  position: absolute;
+  inset: 0;
+  background: rgba(255,255,255,0.12);
+  border-radius: 999px;
+  transition: all var(--transition);
 }
+.slider:before {
+  content: "";
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  left: 4px;
+  top: 3px;
+  background: #fff;
+  border-radius: 50%;
+  transition: all var(--transition);
+  box-shadow: 0 10px 20px rgba(0,0,0,0.25);
+}
+input:checked + .slider { background: linear-gradient(120deg, var(--accent), var(--accent2)); }
+input:checked + .slider:before { transform: translateX(24px); }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+@keyframes fadeInUp { 0% { opacity: 0; transform: translate3d(0,16px,0); } 100% { opacity: 1; transform: translateZ(0); } }
+@media (max-width: 1080px) {
+  .page { flex-direction: column; width: min(960px, calc(100% - 40px)); padding: 120px 0 64px; }
+  .nav-sidebar { position: static; width: 100%; flex-direction: row; flex-wrap: wrap; justify-content: center; }
+  .nav-sidebar button { flex: 1 1 220px; text-align: center; }
+  .config-item { flex-direction: column; align-items: stretch; }
+  .config-label { flex: 1 1 auto; }
+  .config-toggle { justify-content: flex-start; }
+}
+@media (max-width: 720px) {
+  header { padding: 0 1.2rem; height: auto; flex-wrap: wrap; gap: 1rem; padding-top: 1rem; padding-bottom: 1rem; }
+  .header-left { width: 100%; justify-content: space-between; }
+  .header-nav ul { width: 100%; justify-content: space-between; }
+  .header-right { width: 100%; justify-content: space-between; flex-wrap: wrap; }
+  .page { width: calc(100% - 32px); padding-top: 140px; }
+  .search-wrapper { position: static; }
+  .config-form { justify-content: flex-start; }
+  .form-control--compact { max-width: none; }
+  .action-buttons { flex-direction: column; align-items: stretch; }
+  .inline-form { width: 100%; }
+}
+@media (max-width: 520px) {
+  .header-nav { display: none; }
+  .logo-group { flex-direction: row; align-items: center; gap: 0.5rem; }
+  .logo-tagline { letter-spacing: 0.12em; }
+  .discord-btn--ghost { flex: 1; text-align: center; }
+  .search-wrapper { flex-direction: column; align-items: flex-start; }
+  #clear-search { align-self: flex-end; }
+  .section-title { font-size: 1.2rem; }
+}
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: rgba(178,102,242,0.35); border-radius: 999px; }
+::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); }
 </style>
 </head>
 <body>
   <div id="loading-screen" class="loading-screen">
     <div class="loading-spinner"></div>
-    <p style="margin-top:1rem;font-weight:600;">Loading...</p>
+    <p class="loading-copy">Loading...</p>
   </div>
   <header>
-    <div style="display:flex;align-items:center;gap:16px">
-      <div class="logo">Utilix</div>
-      <nav class="header-nav">
+    <div class="header-left">
+      <div class="logo-group">
+        <div class="logo">Utilix</div>
+        <span class="logo-tagline">Control Center</span>
+      </div>
+      <nav class="header-nav" aria-label="Primary navigation">
         <ul>
-          <li><a href="/index" class="active">Home</a></li>
+          <li><a href="/index" class="active">Overview</a></li>
           <li><a href="/setup">Setup</a></li>
           <li><a href="/faq">FAQ</a></li>
           <li><a href="/changelog">Changelog</a></li>
         </ul>
       </nav>
     </div>
-    <div style="display:flex;align-items:center;gap:12px">
-      <a class="discord-btn" href="/dashboard">Servers</a>
-      <a class="discord-btn" href="${escapeHtml(addBotUrl)}" target="_blank">Add Bot</a>
+    <div class="header-right">
+      <a class="discord-btn discord-btn--ghost" href="/dashboard">Servers</a>
+      <a class="discord-btn" href="${escapeHtml(addBotUrl)}" target="_blank" rel="noopener">Add Bot</a>
       <div class="auth-wrapper">
-        <img src="${av}" alt="avatar"/>
-        <div style="font-weight:600">${userDisplay}</div>
-        <a href="/logout" class="logout-btn" title="Logout">Logout</a>
+        <img src="${av}" alt="User avatar"/>
+        <span class="user-display">${userDisplay}</span>
+        <a href="/logout" class="logout-btn">Logout</a>
       </div>
     </div>
   </header>
   <div class="canvas-wrap"><canvas id="starfield"></canvas></div>
-  <main class="page" data-guild-id="${contentHtml.includes('No access') ? '' : contentHtml.match(/\/dashboard\/(\d+)/)?.[1] || ''}">
-    ${isServerDashboard ? `<nav class="nav-sidebar" id="nav-sidebar"></nav>` : ''}
+  <main class="page${isServerDashboard ? " page--with-nav" : ""}" data-guild-id="${contentHtml.includes('No access') ? '' : contentHtml.match(/\/dashboard\/(\d+)/)?.[1] || ''}">
+    ${isServerDashboard ? `<nav class="nav-sidebar" id="nav-sidebar" aria-label="Dashboard navigation"></nav>` : ''}
     <div class="content-area">
       <div class="search-wrapper">
-        <input type="text" id="search" placeholder="${isServerDashboard ? 'Search settings...' : 'Search servers...'}">
-        <button id="clear-search">X</button>
+        <span class="search-icon" aria-hidden="true">&#128269;</span>
+        <input type="text" id="search" placeholder="${isServerDashboard ? "Search settings..." : "Search servers..."}">
+        <button id="clear-search" class="ghost-btn ghost-btn--icon" type="button" aria-label="Clear search">&times;</button>
       </div>
       ${contentHtml}
       <div id="popup" class="popup">Saved</div>
@@ -621,18 +1125,24 @@ const ctx = canvas.getContext('2d');
 function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
 window.addEventListener('resize', resize); resize();
 let stars = [];
-for (let i = 0; i < 200; i++) {
-  stars.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, r: Math.random() * 1.5, s: Math.random() * 0.5 + 0.1, c: 'hsl(' + Math.random() * 360 + ',70%,80%)' });
+for (let i = 0; i < 220; i++) {
+  stars.push({
+    x: Math.random() * canvas.width,
+    y: Math.random() * canvas.height,
+    r: Math.random() * 1.5 + 0.5,
+    s: Math.random() * 0.6 + 0.1,
+    color: "hsla(" + (Math.random() * 360) + ", 70%, 80%, 0.8)"
+  });
 }
 function animate() {
-  ctx.fillStyle = 'rgba(11,10,30,0.3)';
+  ctx.fillStyle = 'rgba(5,4,20,0.3)';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
-  for (const s of stars) {
-    s.y -= s.s;
-    if (s.y < 0) s.y = canvas.height;
+  for (const star of stars) {
+    star.y -= star.s;
+    if (star.y < 0) star.y = canvas.height;
     ctx.beginPath();
-    ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
-    ctx.fillStyle = s.c;
+    ctx.arc(star.x, star.y, star.r, 0, Math.PI * 2);
+    ctx.fillStyle = star.color;
     ctx.fill();
   }
   requestAnimationFrame(animate);
@@ -641,10 +1151,17 @@ animate();
 
 document.addEventListener('DOMContentLoaded', () => {
   const loading = document.getElementById('loading-screen');
-  if (loading) setTimeout(() => loading.style.display = 'none', 1000);
+  if (loading) {
+    setTimeout(() => {
+      loading.classList.add('hide');
+      setTimeout(() => loading.remove(), 600);
+    }, 600);
+  }
 
-  /* Tag inputs */
-  document.querySelectorAll('.tag-input-wrapper').forEach(wrapper => {
+  document.querySelectorAll('.config-item').forEach((item, index) => item.style.setProperty('--i', index));
+  document.querySelectorAll('.servers .server').forEach((item, index) => item.style.setProperty('--i', index));
+
+  document.querySelectorAll('.tag-input-wrapper').forEach((wrapper) => {
     const input = wrapper.querySelector('.tag-input');
     const tagsContainer = wrapper.querySelector('.tags');
     const dropdown = wrapper.querySelector('.dropdown');
@@ -652,165 +1169,448 @@ document.addEventListener('DOMContentLoaded', () => {
     const hiddenInput = wrapper.querySelector('input[name="value"]');
     let roles = [];
     try {
-      roles = JSON.parse(wrapper.closest('.config-item').dataset.roles || '[]');
-    } catch (e) {}
+      const holder = wrapper.closest('.config-item');
+      roles = holder?.dataset.roles ? JSON.parse(holder.dataset.roles) : [];
+    } catch (err) {}
+
+    const hideDropdown = () => {
+      dropdownOptions.innerHTML = '';
+      dropdown.style.display = 'none';
+    };
+
     input.addEventListener('input', () => {
       const query = input.value.toLowerCase();
-      if (query.length < 1) { dropdown.style.display = 'none'; return; }
-      const filtered = roles.filter(r => r.name.toLowerCase().includes(query));
-      dropdownOptions.innerHTML = filtered.map(r => \`<div data-id="\${escapeHtml(r.id)}">\${escapeHtml(r.name)}</div>\`).join('');
+      if (query.length < 1) {
+        hideDropdown();
+        return;
+      }
+      const filtered = roles.filter((role) => role.name.toLowerCase().includes(query));
+      dropdownOptions.innerHTML = filtered
+        .map((role) => '<div data-id="' + escapeHtml(role.id) + '">' + escapeHtml(role.name) + '</div>')
+        .join('');
       dropdown.style.display = filtered.length > 0 ? 'block' : 'none';
     });
-    input.addEventListener('keydown', e => {
-      if (e.key === 'Enter' && dropdown.querySelector('.dropdown-options div')) {
-        e.preventDefault();
-        const first = dropdown.querySelector('.dropdown-options div');
-        addTag(first.dataset.id, first.textContent);
-      } else if (e.key === 'Backspace' && input.value === '' && tagsContainer.querySelectorAll('.tag').length > 0) {
-        tagsContainer.querySelector('.tag:last-of-type')?.remove();
+
+    input.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        const first = dropdownOptions.querySelector('div');
+        if (first) {
+          event.preventDefault();
+          addTag(first.dataset.id, first.textContent || first.dataset.id);
+        }
+      } else if (event.key === 'Backspace' && !input.value && tagsContainer.querySelectorAll('.tag').length > 0) {
+        tagsContainer.lastElementChild?.remove();
         updateHidden();
       }
     });
-    dropdownOptions.addEventListener('click', e => {
-      const div = e.target.closest('div[data-id]');
-      if (div) addTag(div.dataset.id, div.textContent);
+
+    dropdownOptions.addEventListener('click', (event) => {
+      const option = event.target.closest('div[data-id]');
+      if (!option) return;
+      addTag(option.dataset.id, option.textContent || option.dataset.id);
     });
-    tagsContainer.addEventListener('click', e => {
-      if (e.target.classList.contains('remove-tag')) {
-        e.target.parentElement.remove();
+
+    tagsContainer.addEventListener('click', (event) => {
+      if (event.target.classList.contains('tag-remove')) {
+        event.target.closest('.tag')?.remove();
         updateHidden();
       }
     });
+
     function addTag(id, name) {
-      if (tagsContainer.querySelector(\`.tag[data-id="\${id}"]\`)) return;
-      const tag = document.createElement('span');
-      tag.className = 'tag';
-      tag.dataset.id = id;
-      tag.innerHTML = \`\${escapeHtml(name)} <button type="button" class="remove-tag" style="margin-left:0.3rem;color:#f55;border:none;background:none;cursor:pointer;">x</button>\`;
-      tagsContainer.insertBefore(tag, input);
+      const safeId = window.CSS && CSS.escape ? CSS.escape(id) : String(id).replace(/([^a-zA-Z0-9_-])/g, '\$1');
+      if (!id || tagsContainer.querySelector('.tag[data-id="' + safeId + '"]')) return;
+      const span = document.createElement('span');
+      span.className = 'tag';
+      span.dataset.id = id;
+      span.innerHTML = '<span class="tag-text">' + escapeHtml(name) + '</span><button type="button" class="tag-remove" aria-label="Remove ' + escapeHtml(name) + '">&times;</button>';
+      tagsContainer.insertBefore(span, input);
       input.value = '';
-      dropdown.style.display = 'none';
+      hideDropdown();
       updateHidden();
     }
+
     function updateHidden() {
-      hiddenInput.value = Array.from(tagsContainer.querySelectorAll('.tag')).map(t => t.dataset.id).join(',');
+      hiddenInput.value = Array.from(tagsContainer.querySelectorAll('.tag')).map((tag) => tag.dataset.id).join(',');
     }
-    input.addEventListener('blur', () => setTimeout(() => dropdown.style.display = 'none', 200));
+
+    input.addEventListener('blur', () => setTimeout(hideDropdown, 150));
   });
 
-  /* Config forms */
-  document.querySelectorAll('.config-form').forEach(form => {
-    form.addEventListener('submit', async e => {
-      e.preventDefault();
+  const popup = document.getElementById('popup');
+  function showPopup(message, isError = false) {
+    if (!popup) return;
+    popup.textContent = message;
+    popup.style.borderColor = isError ? '#ff7b9c' : 'rgba(178,102,242,0.45)';
+    popup.style.color = isError ? '#ff7b9c' : 'var(--fg)';
+    popup.classList.add('show');
+    setTimeout(() => popup.classList.remove('show'), 2600);
+  }
+
+  document.querySelectorAll('.config-form').forEach((form) => {
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
       const fd = new FormData(form);
       const key = fd.get('key');
       let value = fd.get('value');
-      if (!value) value = fd.getAll('value[]').join(',');
-      const guildId = document.querySelector('main').dataset.guildId;
+      if (!value && fd.getAll('value[]').length) {
+        value = fd.getAll('value[]').join(',');
+      }
+      const guildId = document.querySelector('main.page')?.dataset.guildId;
+      if (!guildId) return;
       try {
-        const res = await fetch(\`/dashboard/\${guildId}/config\`, {
+        const res = await fetch('/dashboard/' + guildId + '/config', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ key, value })
         });
-        const popup = document.getElementById('popup');
-        popup.textContent = res.ok ? 'Saved!' : 'Error';
-        popup.style.color = res.ok ? 'var(--fg)' : '#f55';
-        popup.classList.add('show');
-        setTimeout(() => popup.classList.remove('show'), 2000);
+        showPopup(res.ok ? 'Saved!' : 'Error saving', !res.ok);
       } catch (err) {
         console.error(err);
+        showPopup('Network error', true);
       }
     });
   });
 
-  /* Command Toggles */
-  const guildId = document.querySelector('main').dataset.guildId;
-  const popup = document.getElementById('popup');
-  function show(msg, err = false) {
-    popup.textContent = msg;
-    popup.style.color = err ? '#f55' : 'var(--fg)';
-    popup.classList.add('show');
-    setTimeout(() => popup.classList.remove('show'), 3000);
-  }
-
-  document.querySelectorAll('input[data-command]').forEach(cb => {
-    cb.addEventListener('change', async function() {
+  const guildId = document.querySelector('main.page')?.dataset.guildId;
+  document.querySelectorAll('input[data-command]').forEach((checkbox) => {
+    checkbox.addEventListener('change', async function () {
       const cmd = this.dataset.command;
       const disable = this.checked;
+      if (!guildId) return;
       try {
-        const res = await fetch(\`/dashboard/\${guildId}/disabled/\${disable ? 'disable' : 'enable'}\`, {
+        const res = await fetch('/dashboard/' + guildId + '/disabled/' + (disable ? 'disable' : 'enable'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ commands: [cmd] })
         });
         const data = await res.json();
         if (data.success) {
-          show(disable ? \`Disabled: \${cmd}\` : \`Enabled: \${cmd}\`);
+          showPopup((disable ? 'Disabled: ' : 'Enabled: ') + cmd);
         } else {
           this.checked = !disable;
-          show('Failed', true);
+          showPopup('Unable to update command', true);
         }
-      } catch {
+      } catch (err) {
+        console.error(err);
         this.checked = !disable;
-        show('Network error', true);
+        showPopup('Network error', true);
       }
     });
   });
 
-  /* Search */
   const search = document.getElementById('search');
   const clearSearch = document.getElementById('clear-search');
-  if (search && clearSearch) {
+
+  const toggleClearButton = (value) => {
+    if (!clearSearch) return;
+    clearSearch.classList.toggle('is-visible', Boolean(value));
+  };
+
+  const applySearch = (query) => {
+    const q = (query || '').trim().toLowerCase();
+    if (document.querySelector('.servers')) {
+      const items = Array.from(document.querySelectorAll('.server'));
+      let matches = 0;
+      items.forEach((item) => {
+        const name = item.querySelector('.server-name')?.textContent.toLowerCase() || '';
+        const show = !q || name.includes(q);
+        item.style.display = show ? '' : 'none';
+        if (show) matches += 1;
+      });
+      document.querySelector('.servers')?.classList.toggle('has-results', matches > 0);
+    } else {
+      const cards = Array.from(document.querySelectorAll('.settings-card'));
+      cards.forEach((card) => {
+        let visibleItems = 0;
+        card.querySelectorAll('.config-item').forEach((item) => {
+          const label = item.querySelector('.config-label')?.textContent.toLowerCase() || '';
+          const match = !q || label.includes(q);
+          item.style.display = match ? 'flex' : 'none';
+          if (match) visibleItems += 1;
+        });
+        card.style.display = visibleItems > 0 ? 'grid' : 'none';
+        const title = card.previousElementSibling;
+        if (title && title.classList.contains('section-title')) {
+          title.style.display = visibleItems > 0 ? '' : 'none';
+        }
+      });
+      const commandCards = Array.from(document.querySelectorAll('.command-card'));
+      commandCards.forEach((card) => {
+        let visibleItems = 0;
+        card.querySelectorAll('.command-item').forEach((item) => {
+          const name = item.querySelector('.command-name')?.textContent.toLowerCase() || '';
+          const slug = item.querySelector('.command-slug')?.textContent.toLowerCase() || '';
+          const match = !q || name.includes(q) || slug.includes(q);
+          item.style.display = match ? 'flex' : 'none';
+          if (match) visibleItems += 1;
+        });
+        card.style.display = visibleItems > 0 ? '' : 'none';
+        const section = card.closest('.section');
+        if (section) {
+          const title = section.querySelector('.section-title');
+          if (title) title.style.display = visibleItems > 0 ? '' : 'none';
+        }
+      });
+    }
+  };
+
+  if (search) {
     search.addEventListener('input', () => {
-      const q = search.value.toLowerCase();
-      if (document.querySelector('.servers')) {
-        document.querySelectorAll('.server').forEach(s => {
-          s.style.display = s.querySelector('.server-name').textContent.toLowerCase().includes(q) ? '' : 'none';
-        });
-      } else {
-        document.querySelectorAll('.config-item').forEach(i => {
-          i.style.display = i.querySelector('label').textContent.toLowerCase().includes(q) ? 'flex' : 'none';
-        });
-        document.querySelectorAll('.card').forEach(c => {
-          c.style.display = Array.from(c.querySelectorAll('.config-item')).some(i => i.style.display !== 'none') ? 'grid' : 'none';
-        });
-      }
+      applySearch(search.value);
+      toggleClearButton(search.value);
     });
-    clearSearch.addEventListener('click', () => {
-      search.value = '';
-      document.querySelectorAll('.server, .config-item, .card').forEach(el => el.style.display = '');
+    search.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        search.value = '';
+        applySearch('');
+        toggleClearButton('');
+      }
     });
   }
 
-  /* Sidebar */
+  if (clearSearch) {
+    clearSearch.addEventListener('click', () => {
+      if (!search) return;
+      search.value = '';
+      applySearch('');
+      toggleClearButton('');
+      search.focus();
+    });
+  }
+
+  toggleClearButton(search?.value);
+  applySearch(search?.value || '');
+
   const nav = document.getElementById('nav-sidebar');
   if (nav && guildId) {
-    const sections = [
+    const sectionDefinitions = [
       { id: 'settings-section', label: 'Settings' },
       { id: 'moderation-section', label: 'Moderation' },
+      { id: 'commands-section', label: 'Commands' },
       { id: 'shop-section', label: 'Shop' },
       { id: 'members-section', label: 'Members' }
     ];
-    nav.innerHTML = sections.map(s => 
-      \`<button data-section="\${s.id}" \${s.id === 'settings-section' ? 'class="active"' : ''}>\${s.label}</button>\`
-    ).join('');
-    nav.addEventListener('click', e => {
-      const btn = e.target.closest('button');
-      if (!btn) return;
-      document.querySelectorAll('.section').forEach(s => s.style.display = 'none');
-      document.querySelectorAll('.nav-sidebar button').forEach(b => b.classList.remove('active'));
-      const target = document.getElementById(btn.dataset.section);
-      if (target) target.style.display = 'block';
-      btn.classList.add('active');
+    const availableSections = sectionDefinitions.filter((section) => document.getElementById(section.id));
+    if (!availableSections.length) return;
+    nav.innerHTML = availableSections
+      .map((section, index) => '<button data-section="' + section.id + '"' + (index === 0 ? ' class="active"' : '') + '>' + section.label + '</button>')
+      .join('');
+    const showSection = (id) => {
+      document.querySelectorAll('.section').forEach((section) => {
+        section.style.display = section.id === id ? 'block' : 'none';
+      });
+      nav.querySelectorAll('button').forEach((button) => {
+        button.classList.toggle('active', button.dataset.section === id);
+      });
+    };
+    nav.addEventListener('click', (event) => {
+      const button = event.target.closest('button[data-section]');
+      if (!button) return;
+      showSection(button.dataset.section);
     });
-    document.getElementById('settings-section').style.display = 'block';
+    const initialSection = availableSections[0]?.id;
+    if (initialSection) {
+      showSection(initialSection);
+    }
   }
+
+  setupShopSection(guildId);
+  setupMemberSearch(guildId);
 });
+function parseJsonResponse(responseText) {
+  if (!responseText) return {};
+  try {
+    return JSON.parse(responseText);
+  } catch (err) {
+    return {};
+  }
+}
+
+function renderShopItemsClient(guildId, items, roleMap) {
+  if (!Array.isArray(items) || items.length === 0) {
+    return '<p class="empty-state">No items yet. Start by adding your first reward above.</p>';
+  }
+  const safeGuildId = escapeHtml(String(guildId));
+  const rows = items
+    .map((item) => {
+      const roleName = roleMap.get(String(item.role_id)) || 'Unknown Role';
+      const active = Boolean(item.active ?? item.is_active);
+      const statusClass = active ? 'status-chip--success' : 'status-chip--muted';
+      const statusLabel = active ? 'Active' : 'Hidden';
+      const toggleLabel = active ? 'Disable' : 'Enable';
+      const priceValue = item.price ?? '0';
+      const safeId = escapeHtml(String(item.id));
+      const parts = [
+        '<tr data-item-id="', safeId, '">',
+        '<td>', escapeHtml(item.name || ''), '</td>',
+        '<td>', escapeHtml(roleName), '</td>',
+        '<td>', escapeHtml(String(priceValue)), '</td>',
+        '<td><span class="status-chip ', statusClass, '">', statusLabel, '</span></td>',
+        '<td class="actions-cell"><div class="action-buttons">',
+        '<form action="/dashboard/', safeGuildId, '/shop/', safeId, '/update" method="POST" class="inline-form" data-shop-form="update" data-item-id="', safeId, '">',
+        '<input name="name" value="', escapeHtml(item.name || ''), '" class="form-control form-control--compact" placeholder="Name">',
+        '<input name="price" value="', escapeHtml(String(item.price ?? '')), '" type="number" step="any" class="form-control form-control--compact" placeholder="0">',
+        '<button type="submit" class="ghost-btn">Update</button>',
+        '</form>',
+        '<form action="/dashboard/', safeGuildId, '/shop/', safeId, '/toggle" method="POST" class="inline-form" data-shop-form="toggle" data-item-id="', safeId, '">',
+        '<button type="submit" class="secondary-btn">', toggleLabel, '</button>',
+        '</form>',
+        '<form action="/dashboard/', safeGuildId, '/shop/', safeId, '/delete" method="POST" class="inline-form" data-shop-form="delete" data-item-id="', safeId, '">',
+        '<button type="submit" class="danger-btn">Delete</button>',
+        '</form>',
+        '</div></td></tr>'
+      ];
+      return parts.join('');
+    })
+    .join('');
+  return '<div class="table-wrap"><table class="data-table"><thead><tr><th>Name</th><th>Role</th><th>Price</th><th>Status</th><th class="actions-heading">Actions</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+}
+
+function setupShopSection(guildId) {
+  const section = document.getElementById('shop-section');
+  if (!section || !guildId) return;
+  const itemsContainer = section.querySelector('[data-shop-items]');
+  const roleOptions = (() => {
+    try {
+      return JSON.parse(section.dataset.roles || '[]');
+    } catch (err) {
+      return [];
+    }
+  })();
+  const roleMap = new Map(roleOptions.map((role) => [String(role.id), role.name || 'Unknown Role']));
+
+  const renderItems = (items) => {
+    if (!itemsContainer) return;
+    itemsContainer.innerHTML = renderShopItemsClient(guildId, items, roleMap);
+  };
+
+  const requestShopUpdate = async (form, payload, method = 'POST') => {
+    const response = await fetch(form.getAttribute('action'), {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'X-Requested-With': 'fetch',
+      },
+      credentials: 'same-origin',
+      body: JSON.stringify(payload),
+    });
+    const text = await response.text();
+    const data = parseJsonResponse(text);
+    if (!response.ok || data.success === false) {
+      const message = data?.detail || data?.error || 'Shop request failed';
+      throw new Error(message);
+    }
+    if (data.items) {
+      renderItems(data.items);
+    }
+    return data;
+  };
+
+  section.addEventListener('submit', async (event) => {
+    const form = event.target;
+    if (!(form instanceof HTMLFormElement)) return;
+    const actionType = form.dataset.shopForm;
+    if (!actionType) return;
+    event.preventDefault();
+
+    const submitButton = form.querySelector('button[type="submit"]');
+    if (submitButton) submitButton.disabled = true;
+
+    try {
+      if (actionType === 'create') {
+        const formData = new FormData(form);
+        const roleId = formData.get('role_id');
+        const name = (formData.get('name') || '').toString().trim();
+        const priceValue = formData.get('price');
+        if (!roleId || !name || !priceValue) throw new Error('All fields are required.');
+        const payload = {
+          role_id: Number(roleId),
+          name,
+          price: Number(priceValue),
+        };
+        await requestShopUpdate(form, payload, 'POST');
+        form.reset();
+        showPopup('Item added to shop');
+      } else if (actionType === 'update') {
+        const formData = new FormData(form);
+        const payload = {};
+        const name = (formData.get('name') || '').toString().trim();
+        const priceValue = formData.get('price');
+        if (name) payload.name = name;
+        if (priceValue !== null && priceValue !== undefined && priceValue !== '') {
+          payload.price = Number(priceValue);
+        }
+        await requestShopUpdate(form, payload, 'POST');
+        showPopup('Shop item updated');
+      } else if (actionType === 'toggle') {
+        await requestShopUpdate(form, {}, 'POST');
+        showPopup('Shop item toggled');
+      } else if (actionType === 'delete') {
+        if (!window.confirm('Delete this shop item?')) return;
+        await requestShopUpdate(form, {}, 'POST');
+        showPopup('Shop item deleted');
+      }
+    } catch (err) {
+      console.error(err);
+      showPopup(err.message || 'Shop update failed', true);
+    } finally {
+      if (submitButton) submitButton.disabled = false;
+    }
+  });
+}
+
+function setupMemberSearch(guildId) {
+  const form = document.querySelector('.member-search-form');
+  if (!form || !guildId) return;
+  const resultContainer = document.getElementById('member-result');
+
+  const renderMemberResult = (content) => {
+    if (!resultContainer) return;
+    resultContainer.innerHTML = content;
+  };
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const formData = new FormData(form);
+    const query = (formData.get('query') || '').toString().trim();
+    if (!query) {
+      renderMemberResult('<p class="empty-state">Enter a user ID or username to search.</p>');
+      return;
+    }
+    renderMemberResult('<p class="empty-state">Searching...</p>');
+    try {
+      const endpoint = form.getAttribute('action') + '?query=' + encodeURIComponent(query);
+      const response = await fetch(endpoint, {
+        headers: {
+          'Accept': 'application/json',
+          'X-Requested-With': 'fetch',
+        },
+        credentials: 'same-origin',
+      });
+      const text = await response.text();
+      const data = parseJsonResponse(text);
+      if (!response.ok || data.success === false) {
+        throw new Error(data?.detail || data?.error || 'Lookup failed');
+      }
+      if (data.in_guild && data.member) {
+        renderMemberResult('<pre class="code-block">' + escapeHtml(JSON.stringify(data.member, null, 2)) + '</pre>');
+      } else {
+        renderMemberResult('<p class="empty-state">Member not found.</p>');
+      }
+    } catch (err) {
+      console.error(err);
+      renderMemberResult('<p class="empty-state">' + escapeHtml(err.message || 'Member lookup failed') + '</p>');
+    }
+  });
+}
+
 </script>
 </body>
 </html>`;
 }
+
 
 /* ---------------- OAuth & Dashboard Routes ---------------- */
 app.get("/login", (req, res) => {
@@ -962,6 +1762,7 @@ app.get("/dashboard/:id", async (req, res) => {
     let contentHtml = `<h1>${escapeHtml(guild.name || '')}</h1>`;
     contentHtml += renderConfigSections(guildId, data.config, data.roles, data.channels, data.logEvents, data.disabled, 'settings');
     contentHtml += renderConfigSections(guildId, data.config, data.roles, data.channels, data.logEvents, data.disabled, 'moderation');
+    contentHtml += renderCommandSection(data.disabled);
     contentHtml += renderShopSection(guildId, data.shop, data.roles);
     contentHtml += renderMemberSearchSection(guildId);
     res.send(renderLayout(user, contentHtml, true));
@@ -975,26 +1776,38 @@ app.get("/dashboard/:id/members", async (req, res) => {
   if (!req.session.user) return res.redirect("/login");
   const guildId = req.params.id;
   const query = req.query.query;
-  if (!query) return res.redirect(`/dashboard/${guildId}`);
+  const wantsJson = clientWantsJson(req);
+  if (!query) {
+    if (wantsJson) return res.status(400).json({ success: false, error: "Missing query" });
+    return res.redirect(`/dashboard/${guildId}`);
+  }
   try {
     const headers = { Authorization: `Bearer ${req.session.jwt}` };
     const memberRes = await fetch(`${API_BASE}/dashboard/${guildId}/members?query=${encodeURIComponent(query)}`, { headers });
-    let memberText = await memberRes.text();
-    const member = memberRes.ok ? JSON.parse(memberText, jsonReviver) : { success: false };
+    const memberData = await parseApiResponseBody(memberRes);
+    if (wantsJson) {
+      const status = memberRes.status || (memberRes.ok ? 200 : 500);
+      if (!memberRes.ok) {
+        return res.status(status).json({ success: false, error: memberData?.detail || memberData?.error || "Lookup failed" });
+      }
+      return res.status(status).json(memberData);
+    }
+    const member = memberRes.ok ? memberData : { success: false };
     const data = await fetchGuildData(guildId, req.session.jwt, { member: member.success ? member : null });
-    const guild = (req.session.guilds || []).find((g) => g.id === guildId);
+    const guild = (req.session.guilds || []).find((g) => g.id === guildId) || {};
     let contentHtml = `<h1>${escapeHtml(guild.name || '')}</h1>`;
     contentHtml += renderConfigSections(guildId, data.config, data.roles, data.channels, data.logEvents, data.disabled, 'settings');
     contentHtml += renderConfigSections(guildId, data.config, data.roles, data.channels, data.logEvents, data.disabled, 'moderation');
+    contentHtml += renderCommandSection(data.disabled);
     contentHtml += renderShopSection(guildId, data.shop, data.roles);
     contentHtml += renderMemberSearchSection(guildId, data.member);
     res.send(renderLayout(req.session.user, contentHtml, true));
   } catch (err) {
     console.error("Error in /dashboard/:id/members:", err);
+    if (wantsJson) return res.status(500).json({ success: false, error: "Internal error" });
     res.redirect(`/dashboard/${guildId}`);
   }
 });
-
 /* ---------------- Config & Disabled Endpoints ---------------- */
 app.post("/dashboard/:id/config", async (req, res) => {
   if (!req.session.user) return res.status(401).json({ error: "Unauthorized" });
@@ -1096,17 +1909,30 @@ app.post("/dashboard/:id/shop", async (req, res) => {
   if (!req.session.user) return res.redirect("/login");
   const guildId = req.params.id;
   const { role_id, name, price } = req.body;
+  const wantsJson = clientWantsJson(req);
   try {
+    const payload = {
+      role_id: role_id !== undefined ? Number(role_id) : undefined,
+      name,
+      price: price !== undefined && price !== null && price !== "" ? Number(price) : undefined,
+    };
     const headers = { "Content-Type": "application/json", Authorization: `Bearer ${req.session.jwt}` };
-    const addRes = await fetch(`${API_BASE}/dashboard/${guildId}/shop`, {
+    const apiRes = await fetch(`${API_BASE}/dashboard/${guildId}/shop`, {
       method: "POST",
       headers,
-      body: JSON.stringify({ role_id: String(role_id), name, price: String(price) }),
+      body: JSON.stringify(payload),
     });
-    if (addRes.ok) res.redirect(`/dashboard/${guildId}`);
-    else res.status(400).send("Error adding item");
+    const data = await parseApiResponseBody(apiRes);
+    if (apiRes.ok) {
+      if (wantsJson) return res.json(data || { success: true });
+      return res.redirect(`/dashboard/${guildId}`);
+    }
+    const message = data?.detail || data?.error || "Error adding item";
+    if (wantsJson) return res.status(apiRes.status || 500).json({ success: false, error: message });
+    return res.status(apiRes.status || 400).send(message);
   } catch (err) {
     console.error("Error in /dashboard/:id/shop:", err);
+    if (wantsJson) return res.status(500).json({ success: false, error: "Internal error" });
     res.status(500).send("Internal error");
   }
 });
@@ -1116,17 +1942,28 @@ app.post("/dashboard/:id/shop/:item_id/update", async (req, res) => {
   const guildId = req.params.id;
   const itemId = req.params.item_id;
   const { name, price } = req.body;
+  const wantsJson = clientWantsJson(req);
   try {
+    const payload = {};
+    if (typeof name === "string" && name.trim()) payload.name = name.trim();
+    if (price !== undefined && price !== null && price !== "") payload.price = Number(price);
     const headers = { "Content-Type": "application/json", Authorization: `Bearer ${req.session.jwt}` };
-    const updateRes = await fetch(`${API_BASE}/dashboard/${guildId}/shop/${itemId}`, {
+    const apiRes = await fetch(`${API_BASE}/dashboard/${guildId}/shop/${itemId}`, {
       method: "PUT",
       headers,
-      body: JSON.stringify({ name, price: String(price) }),
+      body: JSON.stringify(payload),
     });
-    if (updateRes.ok) res.redirect(`/dashboard/${guildId}`);
-    else res.status(400).send("Error updating item");
+    const data = await parseApiResponseBody(apiRes);
+    if (apiRes.ok) {
+      if (wantsJson) return res.json(data || { success: true });
+      return res.redirect(`/dashboard/${guildId}`);
+    }
+    const message = data?.detail || data?.error || "Error updating item";
+    if (wantsJson) return res.status(apiRes.status || 500).json({ success: false, error: message });
+    return res.status(apiRes.status || 400).send(message);
   } catch (err) {
     console.error("Error in /dashboard/:id/shop/:item_id/update:", err);
+    if (wantsJson) return res.status(500).json({ success: false, error: "Internal error" });
     res.status(500).send("Internal error");
   }
 });
@@ -1135,16 +1972,24 @@ app.post("/dashboard/:id/shop/:item_id/toggle", async (req, res) => {
   if (!req.session.user) return res.redirect("/login");
   const guildId = req.params.id;
   const itemId = req.params.item_id;
+  const wantsJson = clientWantsJson(req);
   try {
     const headers = { Authorization: `Bearer ${req.session.jwt}` };
-    const toggleRes = await fetch(`${API_BASE}/dashboard/${guildId}/shop/${itemId}/toggle`, {
+    const apiRes = await fetch(`${API_BASE}/dashboard/${guildId}/shop/${itemId}/toggle`, {
       method: "POST",
       headers,
     });
-    if (toggleRes.ok) res.redirect(`/dashboard/${guildId}`);
-    else res.status(400).send("Error toggling item");
+    const data = await parseApiResponseBody(apiRes);
+    if (apiRes.ok) {
+      if (wantsJson) return res.json(data || { success: true });
+      return res.redirect(`/dashboard/${guildId}`);
+    }
+    const message = data?.detail || data?.error || "Error toggling item";
+    if (wantsJson) return res.status(apiRes.status || 500).json({ success: false, error: message });
+    return res.status(apiRes.status || 400).send(message);
   } catch (err) {
     console.error("Error in /dashboard/:id/shop/:item_id/toggle:", err);
+    if (wantsJson) return res.status(500).json({ success: false, error: "Internal error" });
     res.status(500).send("Internal error");
   }
 });
@@ -1153,16 +1998,24 @@ app.post("/dashboard/:id/shop/:item_id/delete", async (req, res) => {
   if (!req.session.user) return res.redirect("/login");
   const guildId = req.params.id;
   const itemId = req.params.item_id;
+  const wantsJson = clientWantsJson(req);
   try {
     const headers = { Authorization: `Bearer ${req.session.jwt}` };
-    const deleteRes = await fetch(`${API_BASE}/dashboard/${guildId}/shop/${itemId}`, {
+    const apiRes = await fetch(`${API_BASE}/dashboard/${guildId}/shop/${itemId}`, {
       method: "DELETE",
       headers,
     });
-    if (deleteRes.ok) res.redirect(`/dashboard/${guildId}`);
-    else res.status(400).send("Error deleting item");
+    const data = await parseApiResponseBody(apiRes);
+    if (apiRes.ok) {
+      if (wantsJson) return res.json(data || { success: true });
+      return res.redirect(`/dashboard/${guildId}`);
+    }
+    const message = data?.detail || data?.error || "Error deleting item";
+    if (wantsJson) return res.status(apiRes.status || 500).json({ success: false, error: message });
+    return res.status(apiRes.status || 400).send(message);
   } catch (err) {
     console.error("Error in /dashboard/:id/shop/:item_id/delete:", err);
+    if (wantsJson) return res.status(500).json({ success: false, error: "Internal error" });
     res.status(500).send("Internal error");
   }
 });
