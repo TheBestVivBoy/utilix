@@ -739,7 +739,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const query = input.value.toLowerCase();
       if (query.length < 1) { dropdown.style.display = 'none'; return; }
       const filtered = roles.filter(r => r.name.toLowerCase().includes(query));
-      \`<button data-section="\${s.id}" \${s.id === 'settings-section' ? 'class="active"' : ''}>\${s.label}</button>\`
+      dropdownOptions.innerHTML = filtered.map(r => \`<div data-id="\${escapeHtml(r.id)}">\${escapeHtml(r.name)}</div>\`).join('');
       dropdown.style.display = filtered.length > 0 ? 'block' : 'none';
     });
     input.addEventListener('keydown', e => {
@@ -876,7 +876,7 @@ document.addEventListener('DOMContentLoaded', () => {
       { id: 'commands-section', label: 'Commands' }
     ];
     nav.innerHTML = sections.map(s => 
-      `<button data-section="\${s.id}" \${s.id === 'settings-section' ? 'class="active"' : ''}>\${s.label}</button>`
+      \`<button data-section="\${s.id}" \${s.id === 'settings-section' ? 'class="active"' : ''}>\${s.label}</button>\`
     ).join('');
     nav.addEventListener('click', e => {
       const btn = e.target.closest('button');
