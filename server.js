@@ -945,7 +945,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const guildId = document.querySelector('main.page').dataset.guildId;
 
       try {
-        const res = await fetch(`/dashboard/${guildId}/disabled`, {
+        const res = await fetch(\`/dashboard/\${guildId}/disabled\`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ commands: enable ? [] : [cmd] })
