@@ -194,8 +194,6 @@ async function fetchGuildData(guildId, jwt, extra = {}) {
   }
 }
 
-
-
 function renderConfigSections(guildId, config, roles, channels, logEvents, disabled, sectionType = "settings") {
   const configPayload = config && typeof config.config === "object" ? config.config : (config || {});
   const allGroupedKeys = Object.values(sectionGroups).flat();
@@ -224,7 +222,9 @@ function renderConfigSections(guildId, config, roles, channels, logEvents, disab
       sectionKeys = Object.keys(configPayload).filter((key) => baseKeys.includes(key));
     }
 
-    sectionKeys = Array.from(new Set(sectionKeys)).filter((key) => key !== "guild_id" && key !== "allowed" && knownKeys.has(key));
+    // Removed knownKeys.has(key) so every key from configPayload can render
+    sectionKeys = Array.from(new Set(sectionKeys)).filter((key) => key !== "guild_id" && key !== "allowed");
+
     if (sectionKeys.length === 0) continue;
 
     html += `<h2 class="section-title">${escapeHtml(title)}</h2>`;
