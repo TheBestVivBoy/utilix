@@ -1085,7 +1085,7 @@ input:checked + .slider:before { transform: translateX(24px); }
       </div>
       <nav class="header-nav" aria-label="Primary navigation">
         <ul>
-          <li><a href="/index" class="active">Overview</a></li>
+          <li><a href="/index">Home</a></li>
           <li><a href="/setup">Setup</a></li>
           <li><a href="/faq">FAQ</a></li>
           <li><a href="/changelog">Changelog</a></li>
