@@ -5,10 +5,10 @@ const session = require("express-session");
 const path = require("path");
 const fs = require("fs");
 const jwtLib = require("jsonwebtoken");
-// node-fetch wrapper for CommonJS dynamic import
 const fetch = (...args) =>
   import("node-fetch").then(({ default: fetch }) => fetch(...args));
 const app = express();
+
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(
@@ -18,6 +18,7 @@ app.use(
     saveUninitialized: false,
   })
 );
+
 const CLIENT_ID = process.env.DISCORD_CLIENT_ID;
 const CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET;
 const REDIRECT_URI = process.env.DISCORD_REDIRECT_URI;
@@ -124,7 +125,7 @@ const multiKeys = [
   "greeting_channel_id", "auto_roles_on_join", "log_events",
 ];
 
-// JSON reviver to fix number rounding (convert big numbers to strings)
+// JSON reviver to fix number rounding
 function jsonReviver(key, value) {
   return typeof value === 'number' ? String(value) : value;
 }
@@ -154,7 +155,6 @@ async function fetchGuildData(guildId, jwt, extra = {}) {
   }
 }
 
-// NEW: Fetch disabled commands
 async function fetchDisabledCommands(guildId, jwt) {
   const headers = { Authorization: `Bearer ${jwt}` };
   try {
@@ -308,28 +308,32 @@ function renderMemberSearchSection(guildId, member = null) {
   return html;
 }
 
-// NEW: Render Disabled Commands Section
 function renderDisabledCommandsSection(guildId, disabledData) {
   const { disabled = [], available = [] } = disabledData;
-  const allAvailable = [...new Set([...disabled, ...available])]; // Unique list
+  const allCommands = [...new Set([...disabled, ...available])];
   let html = `<div class="section" id="commands-section" style="display:none;">`;
   html += '<h2 style="font-size:1.5rem;margin-bottom:1rem;border-bottom:1px solid rgba(255,255,255,0.1);padding-bottom:0.5rem;">Command Management</h2>';
-  html += `<div class="card" style="padding:1.5rem;margin-bottom:2rem;">`;
-  html += `<p><strong>Currently Disabled:</strong> ${disabled.length > 0 ? disabled.join(', ') : 'None'}</p>`;
-  html += `<h3>Select Commands to Manage:</h3>`;
-  html += `<form id="commands-form" style="display:flex;gap:0.5rem;margin-bottom:1rem;">`;
-  html += `<select name="selected_commands[]" multiple size="${Math.min(allAvailable.length, 10)}" style="flex:1;padding:0.5rem;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:var(--panel);color:var(--fg);">`;
-  allAvailable.forEach((cmd) => {
-    const isDisabled = disabled.includes(cmd);
-    const selected = isDisabled ? 'selected' : '';
-    html += `<option value="${escapeHtml(cmd)}" ${selected}>${escapeHtml(cmd)} ${isDisabled ? '(Disabled)' : '(Available)'}</option>`;
-  });
-  html += `</select>`;
-  html += `<button type="button" id="disable-btn" style="padding:0.5rem 1rem;background:#f55;color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Disable Selected</button>`;
-  html += `<button type="button" id="enable-btn" style="padding:0.5rem 1rem;background:#4f5;color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Enable Selected</button>`;
-  html += `<button type="button" id="save-all-btn" style="padding:0.5rem 1rem;background:linear-gradient(90deg,var(--accent),var(--accent2));color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Save All Changes</button>`;
-  html += `</form>`;
-  html += `<input type="hidden" id="current-disabled" value="${escapeHtml(disabled.join(','))}">`;
+  html += `<div class="card" style="padding:1.5rem;">`;
+
+  if (allCommands.length === 0) {
+    html += '<p>No commands available.</p>';
+  } else {
+    html += `<div style="display:grid;gap:0.75rem;">`;
+    allCommands.forEach(cmd => {
+      const isDisabled = disabled.includes(cmd);
+      const toggleId = `toggle-${cmd.replace(/\s/g, '-')}`;
+      html += `
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:0.75rem;background:rgba(255,255,255,0.03);border-radius:8px;">
+          <label for="${toggleId}" style="font-weight:500;cursor:pointer;flex:1;">${escapeHtml(cmd)}</label>
+          <label class="switch">
+            <input type="checkbox" id="${toggleId}" data-command="${escapeHtml(cmd)}" ${isDisabled ? 'checked' : ''}>
+            <span class="slider"></span>
+          </label>
+        </div>`;
+    });
+    html += `</div>`;
+  }
+
   html += `</div></div>`;
   return html;
 }
@@ -541,21 +545,6 @@ canvas#starfield { width: 100%; height: 100%; display: block; }
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0,0,0,0.3);
 }
-.nav-sidebar button:hover::after {
-  content: attr(data-tooltip);
-  position: absolute;
-  left: 100%;
-  top: 50%;
-  transform: translateY(-50%);
-  background: var(--panel);
-  color: var(--fg);
-  padding: 0.5rem;
-  border-radius: 4px;
-  font-size: 0.85rem;
-  white-space: nowrap;
-  z-index: 1000;
-  margin-left: 0.5rem;
-}
 .nav-sidebar button.active {
   background: linear-gradient(90deg, var(--accent), var(--accent2));
   color: white;
@@ -582,6 +571,46 @@ canvas#starfield { width: 100%; height: 100%; display: block; }
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
+
+/* Toggle Switch */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 48px;
+  height: 26px;
+  flex-shrink: 0;
+}
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: #444;
+  transition: .3s;
+  border-radius: 34px;
+}
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 20px;
+  width: 20px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: .3s;
+  border-radius: 50%;
+}
+input:checked + .slider {
+  background-color: #66bb6a;
+}
+input:checked + .slider:before {
+  transform: translateX(22px);
+}
+
 @media (max-width: 768px) {
   .page {
     flex-direction: column;
@@ -601,13 +630,6 @@ canvas#starfield { width: 100%; height: 100%; display: block; }
   .nav-sidebar button {
     flex: 1 1 45%;
     text-align: center;
-  }
-  .nav-sidebar button:hover::after {
-    top: 100%;
-    left: 50%;
-    transform: translateX(-50%);
-    margin-left: 0;
-    margin-top: 0.5rem;
   }
   .search-wrapper {
     width: 100%;
@@ -644,7 +666,7 @@ canvas#starfield { width: 100%; height: 100%; display: block; }
       <div class="auth-wrapper">
         <img src="${av}" alt="avatar"/>
         <div style="font-weight:600">${userDisplay}</div>
-        <a href="/logout" class="logout-btn" title="Logout">⎋</a>
+        <a href="/logout" class="logout-btn" title="Logout">Logout</a>
       </div>
     </div>
   </header>
@@ -652,10 +674,9 @@ canvas#starfield { width: 100%; height: 100%; display: block; }
   <main class="page" data-guild-id="${contentHtml.includes('No access') || contentHtml.includes('Error') ? '' : contentHtml.match(/\/dashboard\/(\d+)/)?.[1] || ''}">
     ${sidebarHtml}
     <div class="content-area" id="content-area">${searchBarHtml}${contentHtml}</div>
-    <div id="popup" class="popup">Saved changes</div>
+    <div id="popup" class="popup">Saved</div>
   </main>
 <script>
-/* client-side escapeHtml */
 function escapeHtml(str) {
   return String(str)
     .replace(/&/g, "&amp;")
@@ -664,7 +685,6 @@ function escapeHtml(str) {
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 }
-/* starfield animation */
 const canvas = document.getElementById('starfield');
 const ctx = canvas.getContext('2d');
 function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
@@ -698,14 +718,13 @@ function animate() {
 }
 createStars();
 animate();
-/* Tag input handling for roles */
+
 document.addEventListener('DOMContentLoaded', () => {
   const loadingScreen = document.getElementById('loading-screen');
   if (loadingScreen) {
-    setTimeout(() => {
-      loadingScreen.style.display = 'none';
-    }, 1000);
+    setTimeout(() => loadingScreen.style.display = 'none', 1000);
   }
+
   document.querySelectorAll('.tag-input-wrapper').forEach(wrapper => {
     const input = wrapper.querySelector('.tag-input');
     const tagsContainer = wrapper.querySelector('.tags');
@@ -715,297 +734,158 @@ document.addEventListener('DOMContentLoaded', () => {
     let roles = [];
     try {
       roles = JSON.parse(wrapper.closest('.config-item').dataset.roles || '[]');
-    } catch (e) {
-      console.error('Failed to parse roles:', e);
-    }
+    } catch (e) {}
     input.addEventListener('input', () => {
       const query = input.value.toLowerCase();
-      if (query.length < 1) {
-        dropdown.style.display = 'none';
-        return;
-      }
+      if (query.length < 1) { dropdown.style.display = 'none'; return; }
       const filtered = roles.filter(r => r.name.toLowerCase().includes(query));
-      dropdownOptions.innerHTML = filtered.map(r => '<div data-id="' + escapeHtml(r.id) + '">' + escapeHtml(r.name) + '</div>').join('');
+      dropdownOptions.innerHTML = filtered.map(r => `<div data-id="${escapeHtml(r.id)}">${escapeHtml(r.name)}</div>`).join('');
       dropdown.style.display = filtered.length > 0 ? 'block' : 'none';
     });
-    input.addEventListener('keydown', (e) => {
+    input.addEventListener('keydown', e => {
       if (e.key === 'Enter' && dropdown.querySelector('.dropdown-options div')) {
         e.preventDefault();
-        const firstOption = dropdown.querySelector('.dropdown-options div');
-        const id = firstOption.dataset.id;
-        const name = firstOption.textContent;
-        if (!tagsContainer.querySelector('.tag[data-id="' + escapeHtml(id) + '"]')) {
-          const tag = document.createElement('span');
-          tag.className = 'tag';
-          tag.dataset.id = id;
-          tag.innerHTML = escapeHtml(name) + ' <button type="button" class="remove-tag" style="margin-left:0.3rem;color:#f55;border:none;background:none;cursor:pointer;">x</button>';
-          tagsContainer.insertBefore(tag, input);
-          updateHiddenInput(tagsContainer, hiddenInput);
-        }
-        input.value = '';
-        dropdown.style.display = 'none';
+        const first = dropdown.querySelector('.dropdown-options div');
+        addTag(first.dataset.id, first.textContent);
       } else if (e.key === 'Backspace' && input.value === '' && tagsContainer.querySelectorAll('.tag').length > 0) {
-        const lastTag = tagsContainer.querySelector('.tag:last-of-type');
-        if (lastTag) lastTag.remove();
-        updateHiddenInput(tagsContainer, hiddenInput);
+        tagsContainer.querySelector('.tag:last-of-type')?.remove();
+        updateHidden();
       }
     });
-    dropdownOptions.addEventListener('click', (e) => {
-      const option = e.target.closest('div[data-id]');
-      if (!option) return;
-      const id = option.dataset.id;
-      const name = option.textContent;
-      if (!tagsContainer.querySelector('.tag[data-id="' + escapeHtml(id) + '"]')) {
-        const tag = document.createElement('span');
-        tag.className = 'tag';
-        tag.dataset.id = id;
-        tag.innerHTML = escapeHtml(name) + ' <button type="button" class="remove-tag" style="margin-left:0.3rem;color:#f55;border:none;background:none;cursor:pointer;">x</button>';
-        tagsContainer.insertBefore(tag, input);
-        updateHiddenInput(tagsContainer, hiddenInput);
-      }
-      input.value = '';
-      dropdown.style.display = 'none';
+    dropdownOptions.addEventListener('click', e => {
+      const div = e.target.closest('div[data-id]');
+      if (div) addTag(div.dataset.id, div.textContent);
     });
-    tagsContainer.addEventListener('click', (e) => {
+    tagsContainer.addEventListener('click', e => {
       if (e.target.classList.contains('remove-tag')) {
         e.target.parentElement.remove();
-        updateHiddenInput(tagsContainer, hiddenInput);
+        updateHidden();
       }
     });
-    input.addEventListener('blur', () => {
-      setTimeout(() => dropdown.style.display = 'none', 200);
-    });
+    function addTag(id, name) {
+      if (tagsContainer.querySelector(\`.tag[data-id="\${id}"]\`)) return;
+      const tag = document.createElement('span');
+      tag.className = 'tag';
+      tag.dataset.id = id;
+      tag.innerHTML = \`\${escapeHtml(name)} <button type="button" class="remove-tag" style="margin-left:0.3rem;color:#f55;border:none;background:none;cursor:pointer;">x</button>\`;
+      tagsContainer.insertBefore(tag, input);
+      input.value = '';
+      dropdown.style.display = 'none';
+      updateHidden();
+    }
+    function updateHidden() {
+      hiddenInput.value = Array.from(tagsContainer.querySelectorAll('.tag')).map(t => t.dataset.id).join(',');
+    }
+    input.addEventListener('blur', () => setTimeout(() => dropdown.style.display = 'none', 200));
   });
-  function updateHiddenInput(tagsContainer, hiddenInput) {
-    const ids = Array.from(tagsContainer.querySelectorAll('.tag')).map(tag => tag.dataset.id);
-    hiddenInput.value = ids.join(',');
-  }
-  /* Seamless form submission with popup */
+
   document.querySelectorAll('.config-form').forEach(form => {
-    form.addEventListener('submit', async (e) => {
+    form.addEventListener('submit', async e => {
       e.preventDefault();
-      const formData = new FormData(form);
-      const key = formData.get('key');
-      let value = formData.get('value');
-      if (!value && formData.getAll('value[]').length > 0) {
-        value = formData.getAll('value[]').join(',');
-      }
-      const guildId = form.closest('main').dataset.guildId;
-      if (!guildId) {
-        const popup = document.getElementById('popup');
-        popup.textContent = 'Error occurred';
-        popup.classList.add('show');
-        popup.style.color = '#f55';
-        setTimeout(() => {
-          popup.classList.remove('show');
-          popup.style.color = 'var(--fg)';
-        }, 2000);
-        return;
-      }
+      const fd = new FormData(form);
+      const key = fd.get('key');
+      let value = fd.get('value');
+      if (!value) value = fd.getAll('value[]').join(',');
+      const guildId = document.querySelector('main').dataset.guildId;
       try {
-        const res = await fetch('/dashboard/' + guildId + '/config', {
+        const res = await fetch(\`/dashboard/\${guildId}/config\`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ key, value })
         });
         const popup = document.getElementById('popup');
-        if (res.ok) {
-          popup.textContent = 'Saved changes';
-          popup.classList.add('show');
-          setTimeout(() => popup.classList.remove('show'), 2000);
-        } else {
-          popup.textContent = 'Error occurred';
-          popup.classList.add('show');
-          popup.style.color = '#f55';
-          setTimeout(() => {
-            popup.classList.remove('show');
-            popup.style.color = 'var(--fg)';
-          }, 2000);
-        }
-      } catch (err) {
-        const popup = document.getElementById('popup');
-        popup.textContent = 'Error occurred';
+        popup.textContent = res.ok ? 'Saved!' : 'Error';
+        popup.style.color = res.ok ? 'var(--fg)' : '#f55';
         popup.classList.add('show');
-        popup.style.color = '#f55';
-        setTimeout(() => {
-          popup.classList.remove('show');
-          popup.style.color = 'var(--fg)';
-        }, 2000);
+        setTimeout(() => popup.classList.remove('show'), 2000);
+      } catch (err) {
+        console.error(err);
       }
     });
   });
-  /* NEW: Command Management Handlers */
-  const commandsForm = document.getElementById('commands-form');
-  if (commandsForm) {
-    const guildId = document.querySelector('main').dataset.guildId;
-    const currentDisabledInput = document.getElementById('current-disabled');
-    let currentDisabled = currentDisabledInput ? currentDisabledInput.value.split(',') : [];
-    const disableBtn = document.getElementById('disable-btn');
-    const enableBtn = document.getElementById('enable-btn');
-    const saveAllBtn = document.getElementById('save-all-btn');
-    const select = commandsForm.querySelector('select[name="selected_commands[]"]');
-    async function showChanges(changes) {
-      const popup = document.getElementById('popup');
-      let msg = 'Success! ';
-      if (changes.disabled) msg += `Disabled: [${changes.disabled.join(', ')}] `;
-      if (changes.enabled) msg += `Enabled: [${changes.enabled.join(', ')}] `;
-      if (changes.already_disabled) msg += `Already disabled: [${changes.already_disabled.join(', ')}] `;
-      if (changes.already_enabled) msg += `Already enabled: [${changes.already_enabled.join(', ')}] `;
-      popup.textContent = msg;
-      popup.classList.add('show');
-      setTimeout(() => popup.classList.remove('show'), 4000);
-    }
-    disableBtn.addEventListener('click', async () => {
-      const selected = Array.from(select.selectedOptions).map(opt => opt.value).filter(v => v);
-      if (selected.length === 0) return;
-      try {
-        const res = await fetch(\`/dashboard/\${guildId}/disabled/disable\`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ commands: selected })
-        });
-        const data = await res.json();
-        if (data.success) {
-          currentDisabled = data.disabled;
-          currentDisabledInput.value = currentDisabled.join(',');
-          showChanges(data.changes);
-        } else {
-          const popup = document.getElementById('popup');
-          popup.textContent = 'Error disabling commands';
-          popup.classList.add('show');
-          popup.style.color = '#f55';
-          setTimeout(() => { popup.classList.remove('show'); popup.style.color = 'var(--fg)'; }, 2000);
-        }
-      } catch (err) {
-        console.error(err);
-      }
-    });
-    enableBtn.addEventListener('click', async () => {
-      const selected = Array.from(select.selectedOptions).map(opt => opt.value).filter(v => v);
-      if (selected.length === 0) return;
-      try {
-        const res = await fetch(\`/dashboard/\${guildId}/disabled/enable\`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ commands: selected })
-        });
-        const data = await res.json();
-        if (data.success) {
-          currentDisabled = data.disabled;
-          currentDisabledInput.value = currentDisabled.join(',');
-          showChanges(data.changes);
-        } else {
-          const popup = document.getElementById('popup');
-          popup.textContent = 'Error enabling commands';
-          popup.classList.add('show');
-          popup.style.color = '#f55';
-          setTimeout(() => { popup.classList.remove('show'); popup.style.color = 'var(--fg)'; }, 2000);
-        }
-      } catch (err) {
-        console.error(err);
-      }
-    });
-    saveAllBtn.addEventListener('click', async () => {
-      const selected = Array.from(select.selectedOptions).map(opt => opt.value).filter(v => v);
-      if (selected.length === 0) return;
-      try {
-        const res = await fetch(\`/dashboard/\${guildId}/disabled\`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ commands: selected })
-        });
-        const data = await res.json();
-        if (data.success) {
-          currentDisabled = data.disabled;
-          currentDisabledInput.value = currentDisabled.join(',');
-          showChanges(data.changes);
-        } else {
-          const popup = document.getElementById('popup');
-          popup.textContent = 'Error saving changes';
-          popup.classList.add('show');
-          popup.style.color = '#f55';
-          setTimeout(() => { popup.classList.remove('show'); popup.style.color = 'var(--fg)'; }, 2000);
-        }
-      } catch (err) {
-        console.error(err);
-      }
-    });
+
+  const guildId = document.querySelector('main').dataset.guildId;
+  const popup = document.getElementById('popup');
+
+  function showPopup(msg, isError = false) {
+    popup.textContent = msg;
+    popup.style.color = isError ? '#f55' : 'var(--fg)';
+    popup.classList.add('show');
+    setTimeout(() => popup.classList.remove('show'), 3000);
   }
-  /* Search bars with clear button */
-  const page = document.querySelector('.page');
+
+  document.querySelectorAll('#commands-section input[type="checkbox"]').forEach(cb => {
+    cb.addEventListener('change', async function() {
+      const command = this.dataset.command;
+      const disable = this.checked;
+      const endpoint = disable ? 'disable' : 'enable';
+      try {
+        const res = await fetch(\`/dashboard/\${guildId}/disabled/\${endpoint}\`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ commands: [command] })
+        });
+        const data = await res.json();
+        if (data.success) {
+          let msg = disable ? \`Disabled: \${command}\` : \`Enabled: \${command}\`;
+          if (data.changes.already_disabled) msg += \` (already disabled)\`;
+          if (data.changes.already_enabled) msg += \` (already enabled)\`;
+          showPopup(msg);
+        } else {
+          this.checked = !disable;
+          showPopup('Failed to update', true);
+        }
+      } catch (err) {
+        this.checked = !disable;
+        showPopup('Network error', true);
+      }
+    });
+  });
+
   const search = document.getElementById('search');
   const clearSearch = document.getElementById('clear-search');
   if (search && clearSearch) {
-    if (document.querySelector('.servers')) {
-      search.addEventListener('input', () => {
-        const query = search.value.toLowerCase();
-        const servers = document.querySelectorAll('.server');
-        servers.forEach(server => {
-          const name = server.querySelector('.server-name').textContent.toLowerCase();
-          server.style.display = name.includes(query) ? '' : 'none';
+    search.addEventListener('input', () => {
+      const q = search.value.toLowerCase();
+      if (document.querySelector('.servers')) {
+        document.querySelectorAll('.server').forEach(s => {
+          s.style.display = s.querySelector('.server-name').textContent.toLowerCase().includes(q) ? '' : 'none';
         });
-      });
-      clearSearch.addEventListener('click', () => {
-        search.value = '';
-        const servers = document.querySelectorAll('.server');
-        servers.forEach(server => server.style.display = '');
-      });
-    } else if (document.querySelector('.config-item')) {
-      search.addEventListener('input', () => {
-        const query = search.value.toLowerCase();
-        document.querySelectorAll('.config-item').forEach(item => {
-          const label = item.querySelector('label').textContent.toLowerCase();
-          item.style.display = label.includes(query) ? 'flex' : 'none';
+      } else {
+        document.querySelectorAll('.config-item').forEach(i => {
+          i.style.display = i.querySelector('label').textContent.toLowerCase().includes(q) ? 'flex' : 'none';
         });
-        document.querySelectorAll('.card').forEach(card => {
-          const items = card.querySelectorAll('.config-item');
-          const visible = Array.from(items).some(i => i.style.display !== 'none');
-          card.style.display = visible ? 'grid' : 'none';
-          card.previousElementSibling.style.display = visible ? 'block' : 'none';
+        document.querySelectorAll('.card').forEach(c => {
+          c.style.display = Array.from(c.querySelectorAll('.config-item')).some(i => i.style.display !== 'none') ? 'grid' : 'none';
         });
-      });
-      clearSearch.addEventListener('click', () => {
-        search.value = '';
-        document.querySelectorAll('.config-item').forEach(item => item.style.display = 'flex');
-        document.querySelectorAll('.card').forEach(card => card.style.display = 'grid');
-        document.querySelectorAll('.section h2').forEach(h2 => h2.style.display = 'block');
-      });
-    }
+      }
+    });
+    clearSearch.addEventListener('click', () => {
+      search.value = '';
+      document.querySelectorAll('.server, .config-item, .card').forEach(el => el.style.display = '');
+    });
   }
-  /* Sidebar navigation (only for server dashboard) */
-  const navSidebar = document.getElementById('nav-sidebar');
-  if (navSidebar && page.dataset.guildId) {
+
+  const nav = document.getElementById('nav-sidebar');
+  if (nav && guildId) {
     const sections = [
-      { id: 'settings-section', label: 'Settings', tooltip: 'Manage bot and server settings' },
-      { id: 'moderation-section', label: 'Moderation', tooltip: 'Configure moderation roles' },
-      { id: 'shop-section', label: 'Shop', tooltip: 'Manage shop items' },
-      { id: 'members-section', label: 'Member Lookup', tooltip: 'Search for server members' },
-      { id: 'commands-section', label: 'Commands', tooltip: 'Disable/enable commands' }
+      { id: 'settings-section', label: 'Settings' },
+      { id: 'moderation-section', label: 'Moderation' },
+      { id: 'shop-section', label: 'Shop' },
+      { id: 'members-section', label: 'Members' },
+      { id: 'commands-section', label: 'Commands' }
     ];
-    navSidebar.innerHTML = sections.map(function(section) {
-      return '<button data-section="' + section.id + '" data-tooltip="' + section.tooltip + '"' +
-        (section.id === 'settings-section' ? ' style="background:linear-gradient(90deg, var(--accent), var(--accent2));color:white"' : '') +
-        '>' + section.label + '</button>';
-    }).join('');
-   
-    document.querySelectorAll('.nav-sidebar button').forEach(button => {
-      button.addEventListener('click', () => {
-        const sectionId = button.dataset.section;
-        const contentArea = document.getElementById('content-area');
-        document.querySelectorAll('.section').forEach(section => {
-          section.style.display = section.id === sectionId ? 'block' : 'none';
-        });
-        document.querySelectorAll('.nav-sidebar button').forEach(btn => {
-          btn.style.background = '';
-          btn.style.color = '';
-        });
-        button.style.background = 'linear-gradient(90deg, var(--accent), var(--accent2))';
-        button.style.color = 'white';
-        contentArea.classList.add('hidden');
-        setTimeout(() => {
-          contentArea.classList.remove('hidden');
-        }, 300);
-      });
+    nav.innerHTML = sections.map(s => 
+      `<button data-section="\${s.id}" \${s.id === 'settings-section' ? 'class="active"' : ''}>\${s.label}</button>`
+    ).join('');
+    nav.addEventListener('click', e => {
+      const btn = e.target.closest('button');
+      if (!btn) return;
+      document.querySelectorAll('.section').forEach(sec => sec.style.display = 'none');
+      document.querySelectorAll('.nav-sidebar button').forEach(b => b.classList.remove('active'));
+      const target = document.getElementById(btn.dataset.section);
+      if (target) target.style.display = 'block';
+      btn.classList.add('active');
     });
     document.getElementById('settings-section').style.display = 'block';
   }
@@ -1015,7 +895,7 @@ document.addEventListener('DOMContentLoaded', () => {
 </html>`;
 }
 
-/* ---------------- OAuth ---------------- */
+/* ---------------- OAuth & Dashboard Routes ---------------- */
 app.get("/login", (req, res) => {
   const authorizeURL = `https://discord.com/oauth2/authorize?client_id=${CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(
     REDIRECT_URI
@@ -1042,13 +922,11 @@ app.get("/callback", async (req, res) => {
     });
     const tokenData = await tokenResponse.json();
     if (!tokenData.access_token) return res.status(500).send("Token error");
-    // Fetch user
     const userResp = await fetch("https://discord.com/api/users/@me", {
       headers: { Authorization: `Bearer ${tokenData.access_token}` },
     });
     const userData = await userResp.json();
     if (!userData.id) throw new Error("Failed to fetch user data");
-    // Mint JWT
     const myJwt = jwtLib.sign({ sub: userData.id }, JWT_SECRET, {
       algorithm: "HS256",
       expiresIn: "1h",
@@ -1056,14 +934,12 @@ app.get("/callback", async (req, res) => {
     req.session.jwt = myJwt;
     req.session.discordAccessToken = tokenData.access_token;
     req.session.user = userData;
-    // Fetch guilds
     const guildResp = await fetch("https://discord.com/api/users/@me/guilds", {
       headers: { Authorization: `Bearer ${tokenData.access_token}` },
     });
     let guilds = await guildResp.json();
     if (!Array.isArray(guilds)) guilds = [];
     req.session.guilds = guilds;
-    // Load bot guilds with fallback
     let botGuildIds = [];
     try {
       const botGuildsPath = path.join(__dirname, "bot_guilds.json");
@@ -1074,9 +950,7 @@ app.get("/callback", async (req, res) => {
       console.error("Failed to load bot_guilds.json:", err);
     }
     const botGuildSet = new Set(botGuildIds);
-    // Filter guilds
     const candidateGuilds = guilds.filter(g => botGuildSet.has(String(g.id)) && (parseInt(g.permissions || "0", 10) & 0x20) === 0x20);
-    // Single permission check
     let results = {};
     if (candidateGuilds.length > 0) {
       try {
@@ -1117,7 +991,6 @@ app.get("/callback", async (req, res) => {
   }
 });
 
-/* ---------------- Dashboard ---------------- */
 app.get("/dashboard", async (req, res) => {
   if (!req.session.user) return res.redirect("/login");
   const user = req.session.user;
@@ -1150,7 +1023,6 @@ app.get("/dashboard", async (req, res) => {
   res.send(renderLayout(user, `<h2>Your Servers</h2><div class="servers">${serversHtml}</div>`));
 });
 
-/* ---------------- Individual Server ---------------- */
 app.get("/dashboard/:id", async (req, res) => {
   if (!req.session.user) return res.redirect("/login");
   const user = req.session.user;
@@ -1211,37 +1083,27 @@ app.get("/dashboard/:id/members", async (req, res) => {
   }
 });
 
-/* ---------------- Config Updates ---------------- */
+/* ---------------- Config & Disabled Endpoints ---------------- */
 app.post("/dashboard/:id/config", async (req, res) => {
   if (!req.session.user) return res.status(401).json({ error: "Unauthorized" });
   const guildId = req.params.id;
   let { key, value } = req.body;
-  if (Array.isArray(value)) {
-    value = value.join(",");
-  }
+  if (Array.isArray(value)) value = value.join(",");
   value = String(value);
   try {
-    const headers = {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${req.session.jwt}`,
-    };
+    const headers = { "Content-Type": "application/json", Authorization: `Bearer ${req.session.jwt}` };
     const updateRes = await fetch(`${API_BASE}/dashboard/${guildId}/config`, {
       method: "PUT",
       headers,
       body: JSON.stringify({ key, value }),
     });
-    if (updateRes.ok) {
-      res.json({ success: true });
-    } else {
-      res.status(400).json({ error: "Error saving config" });
-    }
+    res.json(updateRes.ok ? { success: true } : { error: "Error saving config" });
   } catch (err) {
     console.error("Error in /dashboard/:id/config:", err);
     res.status(500).json({ error: "Internal error" });
   }
 });
 
-/* ---------------- NEW: Disabled Commands Endpoints ---------------- */
 app.get("/dashboard/:id/disabled", async (req, res) => {
   if (!req.session.user) return res.status(401).json({ error: "Unauthorized" });
   const guildId = req.params.id;
@@ -1262,10 +1124,7 @@ app.put("/dashboard/:id/disabled", async (req, res) => {
   const guildId = req.params.id;
   const { commands } = req.body;
   try {
-    const headers = {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${req.session.jwt}`,
-    };
+    const headers = { "Content-Type": "application/json", Authorization: `Bearer ${req.session.jwt}` };
     const apiRes = await fetch(`${API_BASE}/dashboard/${guildId}/disabled`, {
       method: "PUT",
       headers,
@@ -1285,10 +1144,7 @@ app.post("/dashboard/:id/disabled/disable", async (req, res) => {
   const guildId = req.params.id;
   const { commands } = req.body;
   try {
-    const headers = {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${req.session.jwt}`,
-    };
+    const headers = { "Content-Type": "application/json", Authorization: `Bearer ${req.session.jwt}` };
     const apiRes = await fetch(`${API_BASE}/dashboard/${guildId}/disabled/disable`, {
       method: "POST",
       headers,
@@ -1308,10 +1164,7 @@ app.post("/dashboard/:id/disabled/enable", async (req, res) => {
   const guildId = req.params.id;
   const { commands } = req.body;
   try {
-    const headers = {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${req.session.jwt}`,
-    };
+    const headers = { "Content-Type": "application/json", Authorization: `Bearer ${req.session.jwt}` };
     const apiRes = await fetch(`${API_BASE}/dashboard/${guildId}/disabled/enable`, {
       method: "POST",
       headers,
@@ -1332,20 +1185,14 @@ app.post("/dashboard/:id/shop", async (req, res) => {
   const guildId = req.params.id;
   const { role_id, name, price } = req.body;
   try {
-    const headers = {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${req.session.jwt}`,
-    };
+    const headers = { "Content-Type": "application/json", Authorization: `Bearer ${req.session.jwt}` };
     const addRes = await fetch(`${API_BASE}/dashboard/${guildId}/shop`, {
       method: "POST",
       headers,
       body: JSON.stringify({ role_id: String(role_id), name, price: String(price) }),
     });
-    if (addRes.ok) {
-      res.redirect(`/dashboard/${guildId}`);
-    } else {
-      res.status(400).send("Error adding item");
-    }
+    if (addRes.ok) res.redirect(`/dashboard/${guildId}`);
+    else res.status(400).send("Error adding item");
   } catch (err) {
     console.error("Error in /dashboard/:id/shop:", err);
     res.status(500).send("Internal error");
@@ -1358,20 +1205,14 @@ app.post("/dashboard/:id/shop/:item_id/update", async (req, res) => {
   const itemId = req.params.item_id;
   const { name, price } = req.body;
   try {
-    const headers = {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${req.session.jwt}`,
-    };
+    const headers = { "Content-Type": "application/json", Authorization: `Bearer ${req.session.jwt}` };
     const updateRes = await fetch(`${API_BASE}/dashboard/${guildId}/shop/${itemId}`, {
       method: "PUT",
       headers,
       body: JSON.stringify({ name, price: String(price) }),
     });
-    if (updateRes.ok) {
-      res.redirect(`/dashboard/${guildId}`);
-    } else {
-      res.status(400).send("Error updating item");
-    }
+    if (updateRes.ok) res.redirect(`/dashboard/${guildId}`);
+    else res.status(400).send("Error updating item");
   } catch (err) {
     console.error("Error in /dashboard/:id/shop/:item_id/update:", err);
     res.status(500).send("Internal error");
@@ -1388,11 +1229,8 @@ app.post("/dashboard/:id/shop/:item_id/toggle", async (req, res) => {
       method: "POST",
       headers,
     });
-    if (toggleRes.ok) {
-      res.redirect(`/dashboard/${guildId}`);
-    } else {
-      res.status(400).send("Error toggling item");
-    }
+    if (toggleRes.ok) res.redirect(`/dashboard/${guildId}`);
+    else res.status(400).send("Error toggling item");
   } catch (err) {
     console.error("Error in /dashboard/:id/shop/:item_id/toggle:", err);
     res.status(500).send("Internal error");
@@ -1409,23 +1247,19 @@ app.post("/dashboard/:id/shop/:item_id/delete", async (req, res) => {
       method: "DELETE",
       headers,
     });
-    if (deleteRes.ok) {
-      res.redirect(`/dashboard/${guildId}`);
-    } else {
-      res.status(400).send("Error deleting item");
-    }
+    if (deleteRes.ok) res.redirect(`/dashboard/${guildId}`);
+    else res.status(400).send("Error deleting item");
   } catch (err) {
     console.error("Error in /dashboard/:id/shop/:item_id/delete:", err);
     res.status(500).send("Internal error");
   }
 });
 
-/* ---------------- misc ---------------- */
+/* ---------------- Misc ---------------- */
 app.get("/logout", (req, res) => req.session.destroy(() => res.redirect("/")));
 app.get("/", (req, res) => res.redirect("/dashboard"));
 app.get("/me", (req, res) =>
   res.json(req.session.user ? { loggedIn: true, user: req.session.user } : { loggedIn: false })
 );
 
-/* ---------------- start ---------------- */
-app.listen(PORT, () => console.log(`Server running http://localhost:${PORT}`));
+app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
