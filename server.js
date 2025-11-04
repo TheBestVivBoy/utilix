@@ -1081,7 +1081,7 @@ input:checked + .slider:before { transform: translateX(24px); }
     <div class="header-left">
       <div class="logo-group">
         <div class="logo">Utilix</div>
-        <span class="logo-tagline">Control Center</span>
+        <span class="logo-tagline">Dashboard</span>
       </div>
       <nav class="header-nav" aria-label="Primary navigation">
         <ul>
