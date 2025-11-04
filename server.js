@@ -686,7 +686,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const tag = document.createElement('span');
       tag.className = 'tag';
       tag.dataset.id = id;
-      tag.innerHTML = \\`\${escapeHtml(name)} <button type="button" class="remove-tag" style="margin-left:0.3rem;color:#f55;border:none;background:none;cursor:pointer;">x</button>\\`;
+      tag.innerHTML = \`\${escapeHtml(name)} <button type="button" class="remove-tag" style="margin-left:0.3rem;color:#f55;border:none;background:none;cursor:pointer;">x</button>\`;
       tagsContainer.insertBefore(tag, input);
       input.value = '';
       dropdown.style.display = 'none';
