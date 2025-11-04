@@ -658,7 +658,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const query = input.value.toLowerCase();
       if (query.length < 1) { dropdown.style.display = 'none'; return; }
       const filtered = roles.filter(r => r.name.toLowerCase().includes(query));
-      dropdownOptions.innerHTML = filtered.map(r => `<div data-id="${escapeHtml(r.id)}">${escapeHtml(r.name)}</div>`).join('');
+      dropdownOptions.innerHTML = filtered.map(r => \`<div data-id="\${escapeHtml(r.id)}">\${escapeHtml(r.name)}</div>\`).join('');
       dropdown.style.display = filtered.length > 0 ? 'block' : 'none';
     });
     input.addEventListener('keydown', e => {
@@ -686,7 +686,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const tag = document.createElement('span');
       tag.className = 'tag';
       tag.dataset.id = id;
-      tag.innerHTML = \`\${escapeHtml(name)} <button type="button" class="remove-tag" style="margin-left:0.3rem;color:#f55;border:none;background:none;cursor:pointer;">x</button>\`;
+      tag.innerHTML = \\`\${escapeHtml(name)} <button type="button" class="remove-tag" style="margin-left:0.3rem;color:#f55;border:none;background:none;cursor:pointer;">x</button>\\`;
       tagsContainer.insertBefore(tag, input);
       input.value = '';
       dropdown.style.display = 'none';
@@ -793,7 +793,7 @@ document.addEventListener('DOMContentLoaded', () => {
       { id: 'members-section', label: 'Members' }
     ];
     nav.innerHTML = sections.map(s => 
-      `<button data-section="\${s.id}" \${s.id === 'settings-section' ? 'class="active"' : ''}>\${s.label}</button>`
+      \\`<button data-section="\${s.id}" \${s.id === 'settings-section' ? 'class="active"' : ''}>\${s.label}</button>\\`
     ).join('');
     nav.addEventListener('click', e => {
       const btn = e.target.closest('button');
