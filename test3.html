@@ -3,7 +3,17 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Utilix — Home</title>
+  <title>Utilix — Credits</title>
+
+  <meta property="og:title" content="Utilix — Credits" />
+  <meta property="og:description" content="Meet the team behind Utilix — developers, designers, and contributors." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://utilix.support/credits" />
+  <meta property="og:image" content="https://utilix.support/assets/utilixbanner.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta name="twitter:card" content="summary_large_image" />
+
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <style>
     :root{
@@ -18,7 +28,6 @@
     a{color:inherit;text-decoration:none;transition:all var(--transition)}
     a:hover{color:var(--accent)}
 
-  
     header{position:fixed;top:0;left:0;right:0;height:80px;padding:0 2.4rem;display:flex;align-items:center;justify-content:space-between;background:rgba(8,4,22,0.78);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);box-shadow:0 12px 45px rgba(5,3,18,0.45);z-index:1200}
     .header-left{display:flex;align-items:center;gap:1.8rem}
     .logo-group{display:flex;flex-direction:column;gap:2px}
@@ -29,13 +38,11 @@
     .header-nav a.active{background:linear-gradient(90deg,rgba(178,102,242,.22),rgba(108,63,246,.22));color:var(--fg);box-shadow:0 12px 30px rgba(108,63,246,.25)}
     .header-nav a:hover{color:var(--fg)}
 
- 
     .header-right{display:flex;align-items:center;gap:1rem}
     .auth-wrapper{display:flex;align-items:center;gap:.75rem;padding:.35rem .65rem;border-radius:999px;background:rgba(255,255,255,.05);border:1px solid var(--border)}
     .user-display{font-weight:600;font-size:.85rem}
     .logout-btn{color:#ff7b9c;font-weight:600;font-size:.85rem}
     .logout-btn:hover{opacity:.8}
-
 
     .discord-btn{padding:.55rem 1.15rem;border-radius:999px;background:linear-gradient(120deg,var(--accent),var(--accent2));color:#fff;font-weight:600;font-size:.85rem;box-shadow:0 12px 38px rgba(108,63,246,.35);text-decoration:none;transition:all var(--transition)}
     .discord-btn:hover{transform:translateY(-1px);box-shadow:0 15px 40px rgba(108,63,246,.4)}
@@ -47,33 +54,39 @@
     .discord-btn--login::after{content:"";position:absolute;inset:-2px;border-radius:999px;background:linear-gradient(120deg,var(--accent),var(--accent2));opacity:0;filter:blur(12px);transition:opacity .4s;z-index:-2}
     .discord-btn--login:hover::after{opacity:.6}
 
-    /* ───── CONTENT ───── */
     .canvas-wrap{position:fixed;inset:0;z-index:0;pointer-events:none}
     canvas#starfield{width:100%;height:100%;display:block}
-    .page{flex:1;width:min(1180px,calc(100% - 48px));margin:0 auto;padding:140px 0 72px;display:flex;flex-direction:column;gap:2.4rem;position:relative;z-index:1}
-    .hero{text-align:center;padding:3rem 2rem;background:var(--panel);border-radius:var(--radius-lg);border:1px solid var(--border);box-shadow:var(--shadow-sm);backdrop-filter:blur(12px)}
-    .hero h1{font-size:3.2rem;font-weight:800;background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:.5rem}
-    .hero h2{font-size:1.6rem;font-weight:600;color:var(--fg);margin-bottom:1rem}
-    .hero p{color:var(--fg-muted);font-size:1.05rem;max-width:720px;margin:0 auto 1.8rem;line-height:1.6}
-    .hero-buttons{display:flex;justify-content:center;gap:1rem;flex-wrap:wrap}
-    .features{display:grid;gap:1.6rem;grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
-    .feature{background:var(--panel);border-radius:var(--radius-lg);padding:1.8rem;border:1px solid var(--border);box-shadow:var(--shadow-sm);transition:transform var(--transition),box-shadow var(--transition)}
-    .feature:hover{transform:translateY(-6px);box-shadow:0 22px 60px rgba(7,4,25,.45)}
-    .feature span{font-size:2.2rem;display:block;margin-bottom:.8rem}
-    .feature h3{font-size:1.25rem;font-weight:700;background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:.5rem}
-    .feature p{color:var(--fg-muted);font-size:.95rem;line-height:1.5}
+    .page{flex:1;width:min(1180px,calc(100% - 48px));margin:0 auto;padding:140px 0 72px;display:flex;flex-direction:column;gap:3rem;position:relative;z-index:1}
+
+    .credits-header{text-align:center;margin-bottom:1.5rem}
+    .credits-header h1{font-size:3.4rem;font-weight:800;background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:.6rem}
+    .credits-header p{color:var(--fg-muted);font-size:1.1rem;max-width:720px;margin:0 auto;line-height:1.6}
+
+    .credits-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:2rem}
+    .credit-card{background:var(--panel);border-radius:var(--radius-lg);padding:2rem;border:1px solid var(--border);box-shadow:var(--shadow-sm);backdrop-filter:blur(12px);transition:all .3s ease;position:relative;overflow:hidden}
+    .credit-card::before{content:"";position:absolute;inset:0;background:linear-gradient(135deg,rgba(178,102,242,.15),transparent 70%);opacity:0;transition:opacity .4s;z-index:-1}
+    .credit-card:hover::before{opacity:1}
+    .credit-card:hover{transform:translateY(-8px);box-shadow:0 22px 45px rgba(108,63,246,.25);border-color:rgba(178,102,242,.3)}
+
+    .credit-avatar{width:88px;height:88px;border-radius:50%;object-fit:cover;border:3px solid var(--accent2);margin-bottom:1.2rem;box-shadow:0 0 20px rgba(178,102,242,.4);transition:transform .3s}
+    .credit-card:hover .credit-avatar{transform:scale(1.1) rotate(6deg)}
+
+    .credit-role{font-size:1.35rem;font-weight:700;background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:.8rem;text-transform:uppercase;letter-spacing:.5px}
+    .credit-info{font-size:.98rem;line-height:1.7;color:var(--fg-muted)}
+    .credit-info strong{color:var(--fg)}
+    .credit-info a{color:var(--accent);font-weight:600}
+    .credit-info a:hover{color:#fff;text-shadow:0 0 10px rgba(178,102,242,.6)}
 
     @media(max-width:768px){
       header{padding:0 1.2rem}
       .page{width:calc(100% - 32px);padding-top:140px}
-      .hero h1{font-size:2.4rem}
-      .hero h2{font-size:1.3rem}
-      .hero-buttons{flex-direction:column;align-items:center}
+      .credits-header h1{font-size:2.6rem}
+      .credit-card{padding:1.8rem}
+      .credit-avatar{width:76px;height:76px}
     }
   </style>
 </head>
 <body>
-
 
   <header>
     <div class="header-left">
@@ -83,43 +96,49 @@
       </div>
       <nav class="header-nav" aria-label="Primary navigation">
         <ul>
-          <li><a href="/index" class="active">Home</a></li>
+          <li><a href="/index">Home</a></li>
           <li><a href="/setup">Setup</a></li>
           <li><a href="/faq">FAQ</a></li>
           <li><a href="/changelog">Changelog</a></li>
         </ul>
       </nav>
     </div>
-
-    <div class="header-right" id="header-right">
-      <!-- Auth content injected by JS -->
-    </div>
+    <div class="header-right" id="header-right"></div>
   </header>
 
-  <!-- Starfield Background -->
   <div class="canvas-wrap"><canvas id="starfield"></canvas></div>
 
-  <!-- Main Content -->
   <main class="page">
-    <section class="hero">
-      <div>
-        <h1>Utilix</h1>
-        <h2>Upgrade your server, elevate your community.</h2>
-        <p>Utilix is the ultimate all-in-one Discord bot for moderation, tickets, utilities, and customization. Manage your server effortlessly with powerful tools, advanced moderation, and a fully customizable, intuitive dashboard, both in and outside of Discord.</p>
-        <div class="hero-buttons">
-          <a href="https://discord.com/oauth2/authorize?client_id=1392737327125762199&permissions=8&scope=bot%20applications.commands" class="discord-btn">Invite Bot</a>
-          <a href="https://discord.gg/support-server" class="discord-btn discord-btn--ghost">Join Support</a>
+    <div class="credits-header">
+      <h1>Credits</h1>
+      <p>Meet the people who make Utilix possible</p>
+    </div>
+
+    <div class="credits-grid">
+ 
+      <div class="credit-card">
+        <img src="https://utilix.support/assets/avatar1.png" alt="thebestvivboy" class="credit-avatar" data-id="896616448628228096" />
+        <div class="credit-role">Owner</div>
+        <div class="credit-info">
+          <p><strong>Username:</strong> thebestvivboy</p>
+          <p><strong>Discord ID:</strong> 896616448628228096</p>
+          <p><strong>Role:</strong> Bot Developer</p>
+          <p><strong>Contact:</strong> <a href="mailto:itsviv@utilix.support">itsviv@utilix.support</a></p>
         </div>
       </div>
-    </section>
 
-    <section class="features">
-      <div class="feature"><span>🎫</span><h3>Ticket System</h3><p>Create and manage support tickets with panels, permissions, and quick actions.</p></div>
-      <div class="feature"><span>🛡️</span><h3>Moderation Tools</h3><p>Kick, ban, mute, and manage users with transparent logs and history tracking.</p></div>
-      <div class="feature"><span>🕵️</span><h3>Scam Database</h3><p>Community-powered reports and checks to protect your server from scams and malicious links.</p></div>
-      <div class="feature"><span>🛠️</span><h3>Utilities & Tools</h3><p>Handy automation and server management tools designed for admins.</p></div>
-      <div class="feature"><span>🎮</span><h3>Minigames</h3><p>Fun interactive games to keep your community engaged and entertained.</p></div>
-    </section>
+ 
+      <div class="credit-card">
+        <img src="https://utilix.support/assets/avatar.png" alt="infinityforlife_" class="credit-avatar" data-id="1289785877010321418" />
+        <div class="credit-role">Co-Owner</div>
+        <div class="credit-info">
+          <p><strong>Username:</strong> infinityforlife_</p>
+          <p><strong>Discord ID:</strong> 1289785877010321418</p>
+          <p><strong>Role:</strong> Website Design</p>
+          <p><strong>Contact:</strong> <a href="mailto:infinity@utilix.support">infinity@utilix.support</a></p>
+        </div>
+      </div>
+    </div>
   </main>
 
   <script>
@@ -153,7 +172,17 @@
     }
     animate();
 
-    // Auth UI — 100% matches server.js
+    document.querySelectorAll('.credit-avatar').forEach(img => {
+      const id = img.dataset.id;
+      if (!id) return;
+      const av = `https://cdn.discordapp.com/avatars/${id}/${Math.floor(Math.random()*100000)}.webp?size=256`;
+      const fallback = `https://cdn.discordapp.com/embed/avatars/${id % 5}.png`;
+      const test = new Image();
+      test.onload = () => img.src = av;
+      test.onerror = () => img.src = fallback;
+      test.src = av;
+    });
+
     const right = document.getElementById('header-right');
     async function updateAuth() {
       try {
@@ -169,7 +198,7 @@
         const name = `${u.username}#${u.discriminator}`;
 
         right.innerHTML = `
-          <a href="/dashboard" class="discord-btn discord-btn--ghost">Servers</a>
+          <a href="/dashboard" class="discord-btn discord-btn--ghost">Dashboard</a>
           <a href="https://discord.com/oauth2/authorize?client_id=1392737327125762199&permissions=8&scope=bot%20applications.commands" class="discord-btn" target="_blank" rel="noopener">Add Bot</a>
           <div class="auth-wrapper">
             <img src="${av}" alt="Avatar" style="width:40px;height:40px;border-radius:50%;border:2px solid rgba(255,255,255,.2);">
@@ -182,42 +211,5 @@
     }
     updateAuth();
   </script>
-   <script>
-document.addEventListener('DOMContentLoaded', async () => {
-  const paths = ['/footer.html', '/public/footer.html', './footer.html'];
-  for (const p of paths) {
-    try {
-      console.log('[footer] trying', p);
-      const resp = await fetch(new URL(p, location.origin).href, { cache: 'no-store' });
-      console.log('[footer] response', p, resp.status);
-      if (!resp.ok) {
-        console.warn('[footer] not ok, skipping', p);
-        continue;
-      }
-      const html = await resp.text();
-      console.log('[footer] fetched length', html.length, 'from', p);
-
-      if (document.querySelector('.site-footer')) {
-        console.log('[footer] already present - skipping insertion');
-        return;
-      }
-
-      const tmp = document.createElement('div');
-      tmp.innerHTML = html.trim();
-      const footerEl = tmp.querySelector('.site-footer') || tmp.firstElementChild;
-      if (footerEl) {
-        document.body.appendChild(footerEl);
-        console.log('[footer] appended footer from', p);
-        return;
-      } else {
-        console.warn('[footer] fetched HTML did not contain .site-footer', p);
-      }
-    } catch (err) {
-      console.warn('[footer] fetch failed for', p, err);
-    }
-  }
-  console.error('[footer] could not load footer from any tested path. Open /footer.html directly to verify it is being served.');
-});
-</script>
 </body>
 </html>
