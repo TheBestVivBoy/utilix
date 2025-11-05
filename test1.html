@@ -14,14 +14,9 @@
       --accent: #b266f2;
       --accent2: #6c3ff6;
       --panel: rgba(17,11,35,0.84);
-      --panel-alt: rgba(22,15,45,0.76);
       --border: rgba(255,255,255,0.08);
-      --border-strong: rgba(255,255,255,0.16);
-      --shadow-lg: 0 22px 60px rgba(7,4,25,0.45);
       --shadow-sm: 0 18px 30px rgba(9,5,27,0.32);
       --radius-lg: 18px;
-      --radius-md: 12px;
-      --radius-sm: 8px;
       --transition: 220ms ease;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -46,132 +41,6 @@
       pointer-events: none;
       z-index: 0;
     }
-    a { color: inherit; text-decoration: none; transition: color var(--transition), opacity var(--transition); }
-    a:hover { color: var(--accent); }
-    button { font-family: inherit; border: none; background: none; color: inherit; cursor: pointer; transition: all var(--transition); }
-
-    /* HEADER - 1:1 with server.js */
-    header {
-      position: fixed;
-      top: 0; left: 0; right: 0;
-      height: 80px;
-      padding: 0 2.4rem;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      background: rgba(8,4,22,0.78);
-      backdrop-filter: blur(16px);
-      border-bottom: 1px solid var(--border);
-      box-shadow: 0 12px 45px rgba(5,3,18,0.45);
-      z-index: 1200;
-    }
-    .header-left { display: flex; align-items: center; gap: 1.8rem; }
-    .logo-group { display: flex; flex-direction: column; gap: 2px; }
-    .logo {
-      font-size: 1.45rem;
-      font-weight: 800;
-      letter-spacing: 0.04em;
-      background: linear-gradient(90deg, var(--accent), var(--accent2));
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-    .logo-tagline {
-      font-size: 0.75rem;
-      text-transform: uppercase;
-      letter-spacing: 0.18em;
-      color: var(--fg-muted);
-    }
-    .header-nav ul {
-      display: flex;
-      gap: 1rem;
-      list-style: none;
-      padding: 0.35rem 0.6rem;
-      border-radius: 999px;
-      background: rgba(255,255,255,0.04);
-      border: 1px solid var(--border);
-    }
-    .header-nav a {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.35rem;
-      padding: 0.45rem 0.95rem;
-      border-radius: 999px;
-      font-weight: 600;
-      font-size: 0.82rem;
-      color: var(--fg-muted);
-    }
-    .header-nav a.active {
-      background: linear-gradient(90deg, rgba(178,102,242,0.22), rgba(108,63,246,0.22));
-      color: var(--fg);
-      box-shadow: 0 12px 30px rgba(108,63,246,0.25);
-    }
-    .header-nav a:hover { color: var(--fg); }
-
-    /* AUTH - EXACTLY as in renderLayout() */
-    .header-right {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-      flex-shrink: 0;
-    }
-    .discord-btn {
-      padding: 0.55rem 1.15rem;
-      border-radius: 999px;
-      background: linear-gradient(120deg, var(--accent), var(--accent2));
-      color: #fff;
-      font-weight: 600;
-      font-size: 0.85rem;
-      box-shadow: 0 12px 38px rgba(108,63,246,0.35);
-      text-decoration: none;
-      white-space: nowrap;
-    }
-    .discord-btn:hover { transform: translateY(-1px); box-shadow: 0 15px 40px rgba(108,63,246,0.4); }
-    .discord-btn--ghost {
-      background: rgba(255,255,255,0.06);
-      color: var(--fg);
-      box-shadow: none;
-      border: 1px solid rgba(255,255,255,0.08);
-    }
-    .discord-btn--ghost:hover { background: rgba(255,255,255,0.12); }
-
-    /* FIXED: auth-wrapper – no overflow, centered, responsive */
-    .auth-wrapper {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      padding: 0.35rem 0.65rem;
-      border-radius: 999px;
-      background: rgba(255,255,255,0.05);
-      border: 1px solid var(--border);
-      max-width: 260px;
-      overflow: hidden;
-      white-space: nowrap;
-    }
-    .auth-wrapper img {
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      border: 2px solid rgba(255,255,255,0.2);
-      flex-shrink: 0;
-    }
-    .user-display {
-      font-weight: 600;
-      font-size: 0.85rem;
-      color: var(--fg);
-      overflow: hidden;
-      text-overflow: ellipsis;
-      min-width: 0;
-    }
-    .logout-btn {
-      color: #ff7b9c;
-      font-size: 0.85rem;
-      font-weight: 600;
-      white-space: nowrap;
-      flex-shrink: 0;
-    }
-    .logout-btn:hover { opacity: 0.8; }
-
-    /* MAIN CONTENT */
     .canvas-wrap { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
     canvas#starfield { width: 100%; height: 100%; display: block; }
     .page {
@@ -205,64 +74,34 @@
     .hero h2 { font-size: 1.6rem; font-weight: 600; color: var(--fg); margin-bottom: 1rem; }
     .hero p { color: var(--fg-muted); font-size: 1.05rem; max-width: 720px; margin: 0 auto 1.8rem; line-height: 1.6; }
     .hero-buttons { display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap; }
+    .discord-btn {
+      padding: 0.55rem 1.15rem;
+      border-radius: 999px;
+      background: linear-gradient(120deg, var(--accent), var(--accent2));
+      color: #fff;
+      font-weight: 600;
+      font-size: 0.85rem;
+      box-shadow: 0 12px 38px rgba(108,63,246,0.35);
+      text-decoration: none;
+    }
+    .discord-btn:hover { transform: translateY(-1px); box-shadow: 0 15px 40px rgba(108,63,246,0.4); }
+    .discord-btn--ghost { background: rgba(255,255,255,0.06); color: var(--fg); box-shadow: none; border: 1px solid rgba(255,255,255,0.08); }
+    .discord-btn--ghost:hover { background: rgba(255,255,255,0.12); }
 
-    /* RESPONSIVE */
     @media (max-width: 768px) {
-      header { padding: 0 1.2rem; height: auto; flex-wrap: wrap; gap: 1rem; padding-top: 1rem; padding-bottom: 1rem; }
-      .header-left { width: 100%; justify-content: space-between; }
-      .header-nav ul { width: 100%; justify-content: space-between; }
-      .header-right { width: 100%; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem; }
-      .auth-wrapper { max-width: 200px; padding: 0.3rem 0.5rem; }
-      .auth-wrapper img { width: 32px; height: 32px; }
-      .user-display, .logout-btn { font-size: 0.8rem; }
       .page { width: calc(100% - 32px); padding-top: 160px; }
       .hero h1 { font-size: 2.4rem; }
       .hero h2 { font-size: 1.3rem; }
       .hero-buttons { flex-direction: column; align-items: center; }
     }
-    @media (max-width: 520px) {
-      .logo-group { flex-direction: row; align-items: center; gap: 0.5rem; }
-      .logo-tagline { letter-spacing: 0.12em; }
-      .auth-wrapper { max-width: 160px; }
-      .user-display { display: none; }
-      .logout-btn { font-size: 0.75rem; }
-    }
   </style>
 </head>
 <body>
-  <!-- Starfield Background -->
   <div class="canvas-wrap"><canvas id="starfield"></canvas></div>
 
-  <!-- Header - 1:1 with renderLayout() -->
-  <header>
-    <div class="header-left">
-      <div class="logo-group">
-        <div class="logo">Utilix</div>
-        <span class="logo-tagline"></span>
-      </div>
-      <nav class="header-nav" aria-label="Primary navigation">
-        <ul>
-          <li><a href="/index" class="active">Home</a></li>
-          <li><a href="/setup">Setup</a></li>
-          <li><a href="/faq">FAQ</a></li>
-          <li><a href="/changelog">Changelog</a></li>
-        </ul>
-      </nav>
-    </div>
-    <div class="header-right">
-      <!-- Will be filled by server.js renderLayout() -->
-      <!-- Example when logged in: -->
-      <!-- <a class="discord-btn discord-btn--ghost" href="/dashboard">Servers</a> -->
-      <!-- <a class="discord-btn" href="..." target="_blank" rel="noopener">Add Bot</a> -->
-      <!-- <div class="auth-wrapper"> -->
-      <!--   <img src="..." alt="User avatar"/> -->
-      <!--   <span class="user-display">username#0000</span> -->
-      <!--   <a href="/logout" class="logout-btn">Logout</a> -->
-      <!-- </div> -->
-    </div>
-  </header>
+  <!-- HEADER WILL BE INJECTED BY SERVER -->
+  <div id="header-placeholder"></div>
 
-  <!-- Main Content -->
   <main class="page">
     <section class="hero">
       <div>
