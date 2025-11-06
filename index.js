@@ -12,10 +12,12 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
+// Middleware
 app.use(express.json());
 app.use(cors());
-app.use(express.static(path.join(__dirname, "public")));
+app.use(express.static(path.join(__dirname, "public"))); // Serve static files
 
+// Stripe API routes
 app.get("/api/products", async (req, res) => {
   try {
     const products = await stripe.products.list({ limit: 50 });
@@ -51,14 +53,17 @@ app.post("/api/create-checkout-session", async (req, res) => {
   }
 });
 
-// Default route → testshop.html
+// Default route → serve testshop.html
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "testshop.html"));
 });
 
-// Handle 404
+// Handle all other unknown routes → 404
 app.use((req, res) => {
   res.status(404).sendFile(path.join(__dirname, "public", "404.html"));
 });
 
-app.listen(4242, () => console.log("🛍️ Utilix Test Shop running at http://localhost:4242"));
+// Start server
+app.listen(4242, () =>
+  console.log("🛍️ Utilix Shop running at http://localhost:4242")
+);
