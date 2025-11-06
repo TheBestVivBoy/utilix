@@ -13,7 +13,7 @@ async function loadShop() {
 
     shopEl.innerHTML = products.map(p => `
       <div class="shop-item">
-        <img src="${p.img}" alt="${p.name}" class="shop-img"/>
+        <img src="${p.img || 'https://via.placeholder.com/300'}" alt="${p.name}" />
         <h2>${p.name}</h2>
         <p>${p.desc || "No description."}</p>
         <div class="shop-price">$${p.price}</div>
@@ -27,12 +27,12 @@ async function loadShop() {
 
 async function checkout(priceId) {
   const res = await fetch("/api/create-checkout-session", {
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({priceId})
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ priceId })
   });
   const data = await res.json();
-  if(data.url) window.location = data.url;
+  if (data.url) window.location = data.url;
 }
 
 loadShop();
