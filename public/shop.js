@@ -1,38 +1,34 @@
-async function loadShop() {
-  const shopEl = document.getElementById("shop");
-  shopEl.innerHTML = `<p>Loading products...</p>`;
+async function loadProducts() {
+  const res = await fetch("/api/products");
+  const products = await res.json();
+  const container = document.getElementById("products");
 
-  try {
-    const res = await fetch("/api/products");
-    const products = await res.json();
-
-    if (!products.length) {
-      shopEl.innerHTML = `<p>No products found.</p>`;
-      return;
-    }
-
-    shopEl.innerHTML = products.map(p => `
-      <div class="shop-item">
-        <img src="${p.img || 'https://via.placeholder.com/300'}" alt="${p.name}" />
-        <h2>${p.name}</h2>
-        <p>${p.desc || "No description."}</p>
-        <div class="shop-price">$${p.price}</div>
-        <button onclick="checkout('${p.priceId}')">Buy Now</button>
-      </div>
-    `).join("");
-  } catch {
-    shopEl.innerHTML = `<p>Failed to load products.</p>`;
-  }
-}
-
-async function checkout(priceId) {
-  const res = await fetch("/api/create-checkout-session", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ priceId })
+  products.forEach(p => {
+    const card = document.createElement("div");
+    card.className = "product-card";
+    card.innerHTML = `
+      <img src="${p.image || 'https://utilix.support/assets/placeholder.png'}" alt="${p.name}">
+      <h3>${p.name}</h3>
+      <p>${p.description || 'No description'}</p>
+      <div class="price">$${p.price.toFixed(2)}</div>
+      <button class="discord-btn" data-price-id="${p.priceId}">Buy Now</button>
+    `;
+    container.appendChild(card);
   });
-  const data = await res.json();
-  if (data.url) window.location = data.url;
-}
 
-loadShop();
+  document.querySelectorAll("button").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      btn.disabled = true;
+      btn.textContent = "Loading...";
+      const priceId = btn.dataset.priceId;
+      const res = await fetch("/api/create-checkout-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ priceId })
+      });
+      const { url } = await res.json();
+      window.location = url;
+    });
+  });
+}
+loadProducts();
