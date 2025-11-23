@@ -85,7 +85,7 @@ function isUrlKey(key) {
 function slugifyLabel(label = "") {
   return label
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/[^\p{L}\p{N}]+/gu, "-")
     .replace(/^-+|-+$/g, "")
     .trim() || "general";
 }
@@ -523,12 +523,15 @@ function renderCommandItems(commands, disabledSet) {
   if (!commands.length) {
     return '<p class="empty-state">No commands to manage.</p>';
   }
+
+
   const formatLabel = (label) =>
     label
       .replace(/[_-]+/g, " ")
-      .replace(/\s+/g, " ")
+      .replace(/\\s+/g, " ")
       .trim()
       .replace(/\b\w/g, (char) => char.toUpperCase());
+
   return commands
     .map(({ command, label }) => {
       const slug = command.trim();
@@ -543,6 +546,7 @@ function renderCommandItems(commands, disabledSet) {
     })
     .join("");
 }
+
 
 function renderCommandSection(guildId, disabled) {
   const disabledList = Array.isArray(disabled?.disabled) ? disabled.disabled.map((value) => String(value)) : [];
@@ -834,6 +838,9 @@ function renderLayout(user, contentHtml, isServerDashboard = false, activeGuildI
 <title>Utilix Dashboard</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
 <style>
+* {
+  font-family: Arial, sans-serif !important;
+}
 :root {
   --bg: #050114;
   --bg-alt: #120b2c;
@@ -2329,22 +2336,32 @@ function renderCommandItemsClient(commands, disabledSet) {
   if (!commands.length) {
     return '<p class="empty-state">No commands to manage.</p>';
   }
+
   const formatLabel = (label) =>
     label
       .replace(/[_-]+/g, ' ')
-      .replace(/\s+/g, ' ')
+      .replace(/\\s+/g, " ")
       .trim()
       .replace(/\b\w/g, (char) => char.toUpperCase());
+
   return commands
     .map(({ command, label }) => {
       const slug = command.trim();
       if (!slug) return '';
       const friendly = formatLabel(label || slug);
       const isDisabled = disabledSet.has(slug);
-      return '<div class="command-item"><div class="command-info"><span class="command-name">' + escapeHtml(friendly) + '</span><span class="command-slug">' + escapeHtml(slug) + '</span></div><div class="config-toggle"><label class="switch"><input type="checkbox" data-command="' + escapeHtml(slug) + '"' + (isDisabled ? ' checked' : '') + '><span class="slider"></span></label></div></div>';
+      return (
+        '<div class="command-item">' +
+        '<div class="command-info">' +
+        '<span class="command-name">' + escapeHtml(friendly) + '</span>' +
+        '<span class="command-slug">' + escapeHtml(slug) + '</span>' +
+        '</div>' +
+        '</div>'
+      );
     })
     .join('');
 }
+
 
 function setupCommandsSection(guildId, notify) {
   const section = document.getElementById('commands-section');
