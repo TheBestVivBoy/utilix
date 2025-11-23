@@ -1,12 +1,16 @@
-require("dotenv").config();
-const express = require("express");
-const bodyParser = require("body-parser");
-const session = require("express-session");
-const path = require("path");
-const fs = require("fs");
-const jwtLib = require("jsonwebtoken");
-const fetch = (...args) =>
-  import("node-fetch").then(({ default: fetch }) => fetch(...args));
+import dotenv from "dotenv";
+import express from "express";
+import bodyParser from "body-parser";
+import session from "express-session";
+import path from "path";
+import fs from "fs";
+import jwtLib from "jsonwebtoken";
+import fetch from "node-fetch";
+import { fileURLToPath } from "url";
+
+dotenv.config();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 const app = express();
 
 app.use(bodyParser.json());
@@ -62,6 +66,7 @@ function isRoleKey(key) {
 }
 
 function isChannelKey(key) {
+  if (channelKeyExclusions.has(key)) return false;
   return key.endsWith("_channel_id") || /channel/i.test(key);
 }
 
@@ -75,6 +80,23 @@ function isNumberKey(key) {
 
 function isUrlKey(key) {
   return /url/i.test(key);
+}
+
+function slugifyLabel(label = "") {
+  return label
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .trim() || "general";
+}
+
+function normalizeDiscordId(value) {
+  if (value === undefined || value === null) return "";
+  const str = String(value).trim();
+  if (!str) return "";
+  if (/^\d+$/.test(str)) return str;
+  const match = str.match(/(\d{6,})/);
+  return match ? match[1] : str;
 }
 
 const prettyNames = {
@@ -127,6 +149,22 @@ const multiKeys = [
   "greeting_channel_id", "auto_roles_on_join", "log_events",
 ];
 
+const channelKeyExclusions = new Set(["ai_channel_retain_mode", "ai_channel_retain_value"]);
+
+const aiModelOptions = [
+  { value: "auto", label: "Auto (best available)" },
+  { value: "gpt-5", label: "gpt-5" },
+  { value: "gpt-5-mini", label: "gpt-5-mini" },
+  { value: "gpt-4.1-mini", label: "gpt-4.1-mini" },
+  { value: "gpt-5-nano", label: "gpt-5-nano" },
+];
+
+const aiRetainModeOptions = [
+  { value: "off", label: "Off" },
+  { value: "minutes", label: "Minutes" },
+  { value: "messages", label: "Messages" },
+];
+
 // Map role keys to command names
 const roleToCommand = {
   ban_role_id: "ban",
@@ -159,32 +197,31 @@ async function parseApiResponseBody(response) {
   }
 }
 
-async function fetchGuildData(guildId, jwt, extra = {}) {
-  const headers = { Authorization: `Bearer ${jwt}` };
-  try {
-    const [
-      configRes,
-      shopRes,
-      rolesRes,
-      channelsRes,
-      logEventsRes,
-      disabledRes
-    ] = await Promise.all([
-      fetch(`${API_BASE}/dashboard/${guildId}`, { headers }).catch(() => ({ ok: false })),
-      fetch(`${API_BASE}/dashboard/${guildId}/shop`, { headers }).catch(() => ({ ok: false })),
-      fetch(`${API_BASE}/dashboard/${guildId}/roles`, { headers }).catch(() => ({ ok: false })),
-      fetch(`${API_BASE}/dashboard/${guildId}/channels`, { headers }).catch(() => ({ ok: false })),
-      fetch(`${API_BASE}/dashboard/${guildId}/log_events`, { headers }).catch(() => ({ ok: false })),
-      fetch(`${API_BASE}/dashboard/${guildId}/disabled`, { headers }).catch(() => ({ ok: false }))
-    ]);
+function responseUnauthorized(res) {
+  if (!res) return false;
+  return res.status === 401 || res.status === 403;
+}
 
+async function fetchGuildData(guildId, jwt, extra = {}) {
+  const headers = { Authorization: `Bearer ${jwt}`, Accept: "application/json" };
+  try {
+    const response = await fetch(`${API_BASE}/dashboard/${guildId}/bundle`, { headers });
+    if (responseUnauthorized(response)) {
+      return { unauthorized: true };
+    }
+    const text = await response.text();
+    if (!response.ok) {
+      console.error("Failed to load dashboard bundle", response.status, text);
+      return { error: true };
+    }
+    const payload = text ? JSON.parse(text, jsonReviver) : {};
     const data = {
-      config: configRes.ok ? JSON.parse(await configRes.text(), jsonReviver) : { allowed: false, config: {} },
-      shop: shopRes.ok ? JSON.parse(await shopRes.text(), jsonReviver) : { success: false, items: [] },
-      roles: rolesRes.ok ? JSON.parse(await rolesRes.text(), jsonReviver) : { success: false, roles: [] },
-      channels: channelsRes.ok ? JSON.parse(await channelsRes.text(), jsonReviver) : { success: false, channels: [] },
-      logEvents: logEventsRes.ok ? JSON.parse(await logEventsRes.text(), jsonReviver) : { success: false, events: [] },
-      disabled: disabledRes.ok ? JSON.parse(await disabledRes.text(), jsonReviver) : { disabled: [], available: [] },
+      config: payload.config || { allowed: false, config: {} },
+      shop: payload.shop || { success: false, items: [] },
+      roles: payload.roles || { success: false, roles: [] },
+      channels: payload.channels || { success: false, channels: [] },
+      logEvents: payload.logEvents || { success: false, events: [] },
+      disabled: payload.disabled || { disabled: [], available: [] },
       ...extra,
     };
     return data;
@@ -206,9 +243,7 @@ function renderConfigSections(guildId, config, roles, channels, logEvents, disab
     JSON.stringify((roles.roles || []).map((role) => ({ id: String(role.id), name: role.name || "" })))
   );
   const isSettingsSection = sectionType === "settings";
-
-  let html = `<section class="section" id="${sectionType}-section"${isSettingsSection ? "" : ' style="display:none;"'}>`;
-
+  const categoryEntries = [];
   for (const title of targetGroups) {
     const baseKeys = sectionGroups[title] || [];
     let sectionKeys;
@@ -226,97 +261,225 @@ function renderConfigSections(guildId, config, roles, channels, logEvents, disab
     sectionKeys = Array.from(new Set(sectionKeys)).filter((key) => key !== "guild_id" && key !== "allowed");
 
     if (sectionKeys.length === 0) continue;
-
-    html += `<h2 class="section-title">${escapeHtml(title)}</h2>`;
-    html += `<div class="card settings-card">`;
+    const categorySlug = slugifyLabel(`${sectionType}-${title}`);
+    let block = `<h2 class="section-title">${escapeHtml(title)}</h2>`;
+    block += `<div class="card settings-card">`;
 
     sectionKeys.forEach((key) => {
       const roleAttr = isRoleKey(key) ? ` data-roles="${roleDatasetValue}"` : "";
       const value = Object.prototype.hasOwnProperty.call(configPayload, key) ? configPayload[key] : "";
-      html += `<div class="config-item" data-key="${escapeHtml(key)}"${roleAttr}>`;
-      html += renderConfigItem(guildId, key, value, roles, channels, logEvents);
-      html += `</div>`;
+      block += `<div class="config-item" data-key="${escapeHtml(key)}"${roleAttr}>`;
+      block += renderConfigItem(guildId, key, value, roles, channels, logEvents);
+      block += `</div>`;
     });
 
-    html += `</div>`;
+    block += `</div>`;
+    categoryEntries.push({ slug: categorySlug, title, content: block });
   }
 
-  html += `</section>`;
-  return html;
+  const sectionAttr = isSettingsSection ? "" : ' style="display:none;"';
+  if (!categoryEntries.length) {
+    return `<section class="section" id="${sectionType}-section"${sectionAttr}></section>`;
+  }
+
+  const navHtml =
+    categoryEntries.length > 1
+      ? `<div class="category-tabs" data-section="${sectionType}">
+          ${categoryEntries
+            .map(
+              (entry, index) =>
+                `<button type="button" data-category="${entry.slug}"${index === 0 ? ' class="active"' : ""}>${escapeHtml(entry.title)}</button>`
+            )
+            .join("")}
+          <span class="category-tabs__slider"></span>
+        </div>`
+      : "";
+
+  const categoriesHtml = categoryEntries
+    .map(
+      (entry, index) =>
+        `<div class="config-category${index === 0 ? " is-active" : ""}" data-category="${entry.slug}">${entry.content}</div>`
+    )
+    .join("");
+
+  return `<section class="section" id="${sectionType}-section"${sectionAttr}>${navHtml}${categoriesHtml}</section>`;
+}
+
+function parseMultiValues(raw) {
+  if (Array.isArray(raw)) {
+    return raw
+      .map((item) => (item === null || item === undefined ? "" : String(item)))
+      .map((item) => item.trim())
+      .filter((item) => item.length > 0);
+  }
+  if (raw === undefined || raw === null) return [];
+  const stringRaw = String(raw).trim();
+  if (!stringRaw) return [];
+  if (
+    (stringRaw.startsWith("[") && stringRaw.endsWith("]")) ||
+    (stringRaw.startsWith("{") && stringRaw.endsWith("}"))
+  ) {
+    try {
+      const parsed = JSON.parse(stringRaw);
+      if (Array.isArray(parsed)) return parsed;
+    } catch (err) {
+      // fall through
+    }
+  }
+  const normalized = stringRaw.replace(/^\[|\]$/g, "");
+  const hasDelimiter = /,|\n/.test(normalized);
+  if (!hasDelimiter) {
+    return [normalized.replace(/^["'\s]+|["'\s]+$/g, "")].filter(Boolean);
+  }
+  return normalized
+    .split(/[,\n]+/)
+    .map((segment) => segment.trim().replace(/^["']+|["']+$/g, ""))
+    .filter(Boolean);
 }
 
 function renderConfigItem(guildId, key, value, roles, channels, logEvents) {
   const isMulti = multiKeys.includes(key);
   const normalizedValue = value === undefined || value === null ? "" : value;
-  const stringValue = Array.isArray(normalizedValue) ? normalizedValue.join(",") : String(normalizedValue);
-  const values = isMulti
-    ? (Array.isArray(normalizedValue) ? normalizedValue : stringValue.split(",")).map((v) => String(v).trim()).filter((v) => v)
-    : [stringValue];
+  const rawStringValue = Array.isArray(normalizedValue) ? normalizedValue.join(",") : String(normalizedValue);
+  const stringValue = rawStringValue.trim().replace(/^["']+|["']+$/g, "");
+  const roleList = Array.isArray(roles?.roles) ? roles.roles : [];
+  const roleMap = new Map(roleList.map((role) => [String(role.id), role]));
+  const channelList = Array.isArray(channels?.channels) ? channels.channels : [];
+  const channelMap = new Map(channelList.map((channel) => [String(channel.id), channel]));
+  const parsedValues = parseMultiValues(normalizedValue).map((v) => String(v).trim()).filter((v) => v);
+  const values = isMulti ? parsedValues : [stringValue];
   const pretty = getPrettyName(key);
   let inputHtml = "";
 
   if (isRoleKey(key) && isMulti) {
+    const normalizedPairs = values.map((raw) => {
+      const normalized = normalizeDiscordId(raw);
+      return { raw, normalized: normalized || raw };
+    });
+    const normalizedValues = normalizedPairs.map((pair) => pair.normalized).filter(Boolean);
+    const tagsHtml = normalizedPairs
+      .map(({ raw, normalized }) => {
+        if (!normalized) return "";
+        const role = roleMap.get(String(normalized));
+        const label = role?.name || `Unresolved Role (${normalized})`;
+        const extraClass = role ? "" : " tag--missing";
+        return `<span class="tag${extraClass}" data-id="${escapeHtml(String(normalized))}"><span class="tag-text">${escapeHtml(
+          label
+        )}</span><button type="button" class="tag-remove" aria-label="Remove ${escapeHtml(label)}">&times;</button></span>`;
+      })
+      .join("");
     inputHtml = `
       <div class="tag-input-wrapper">
         <div class="tags">
-          ${values
-            .map((v) => {
-              const role = (roles.roles || []).find((r) => String(r.id) === String(v));
-              return role
-                ? `<span class="tag" data-id="${escapeHtml(String(v))}"><span class="tag-text">${escapeHtml(
-                    role.name
-                  )}</span><button type="button" class="tag-remove" aria-label="Remove ${escapeHtml(
-                    role.name || ""
-                  )}">&times;</button></span>`
-                : "";
-            })
-            .join("")}
+          ${tagsHtml}
           <input type="text" class="tag-input" placeholder="Search role...">
         </div>
         <div class="dropdown">
           <div class="dropdown-options"></div>
         </div>
-        <input type="hidden" name="value" value="${escapeHtml(values.join(","))}">
+        <input type="hidden" name="value" value="${escapeHtml(normalizedValues.join(","))}">
       </div>`;
   } else if (isRoleKey(key)) {
+    const normalizedSingle = normalizeDiscordId(stringValue);
+    const missingRoleOption =
+      normalizedSingle && !roleMap.has(String(normalizedSingle))
+        ? `<option value="${escapeHtml(String(normalizedSingle))}" selected class="option-missing">Unresolved Role (${escapeHtml(
+            stringValue || normalizedSingle
+          )})</option>`
+        : "";
     inputHtml = `<select name="value" class="form-control">
       <option value="">None</option>
-      ${(roles.roles || [])
+      ${roleList
         .map(
           (r) =>
-            `<option value="${escapeHtml(String(r.id))}" ${String(r.id) === stringValue ? "selected" : ""}>${escapeHtml(
+            `<option value="${escapeHtml(String(r.id))}" ${String(r.id) === normalizedSingle ? "selected" : ""}>${escapeHtml(
               r.name || ""
             )}</option>`
         )
         .join("")}
+      ${missingRoleOption}
     </select>`;
+  } else if (key === "ai_enabled") {
+    inputHtml = `<select name="value" class="form-control">
+      <option value="1" ${stringValue === "1" ? "selected" : ""}>Enabled</option>
+      <option value="0" ${stringValue === "0" ? "selected" : ""}>Disabled</option>
+    </select>`;
+  } else if (key === "ai_model") {
+    inputHtml = `<select name="value" class="form-control">
+      ${aiModelOptions
+        .map(
+          (option) =>
+            `<option value="${escapeHtml(option.value)}" ${option.value === stringValue ? "selected" : ""}>${escapeHtml(
+              option.label
+            )}</option>`
+        )
+        .join("")}
+    </select>`;
+  } else if (key === "ai_channel_retain_mode") {
+    inputHtml = `<select name="value" class="form-control">
+      ${aiRetainModeOptions
+        .map(
+          (option) =>
+            `<option value="${escapeHtml(option.value)}" ${option.value === stringValue ? "selected" : ""}>${escapeHtml(
+              option.label
+            )}</option>`
+        )
+        .join("")}
+    </select>`;
+  } else if (key === "ai_channel_retain_value") {
+    inputHtml = `<input type="number" min="0" max="500" name="value" value="${escapeHtml(stringValue)}" class="form-control">`;
+  } else if (key === "ai_max_output_tokens") {
+    inputHtml = `<input type="number" min="1" max="5000" name="value" value="${escapeHtml(stringValue)}" class="form-control">`;
   } else if (isChannelKey(key)) {
     const isMultiChannel = key === "greeting_channel_id";
     const channelValues = isMultiChannel ? values : [stringValue];
+    const normalizedChannelValues = channelValues
+      .map((raw) => normalizeDiscordId(raw) || raw)
+      .filter((value) => value !== "");
+    const channelSet = new Set(normalizedChannelValues);
+    const normalizedSingleChannel = normalizeDiscordId(stringValue);
+    const missingChannels = isMultiChannel
+      ? normalizedChannelValues.filter((v) => v && !channelMap.has(String(v)))
+      : normalizedSingleChannel && !channelMap.has(String(normalizedSingleChannel))
+        ? [normalizedSingleChannel]
+        : [];
+    const missingChannelOptions = missingChannels
+      .map(
+        (value) =>
+          `<option value="${escapeHtml(String(value))}" selected class="option-missing">Unresolved Channel (${escapeHtml(
+            String(value)
+          )})</option>`
+      )
+      .join("");
     inputHtml = `<select name="value" class="form-control${isMultiChannel ? " form-control--multi" : ""}" ${
       isMultiChannel ? "multiple size='4'" : ""
     }>
       <option value="">None</option>
-      ${(channels.channels || [])
+      ${channelList
         .filter((c) => c.type !== "category")
         .map((c) => {
           const selected = isMultiChannel
-            ? channelValues.includes(String(c.id))
-            : String(c.id) === stringValue;
+            ? channelSet.has(String(c.id))
+            : String(c.id) === normalizedSingleChannel;
           return `<option value="${escapeHtml(String(c.id))}" ${selected ? "selected" : ""}>${escapeHtml(
             c.name || ""
           )} (${escapeHtml(c.type || "")})</option>`;
         })
         .join("")}
+      ${missingChannelOptions}
     </select>`;
   } else if (key === "log_events") {
-    inputHtml = `<select name="value[]" multiple size="5" class="form-control form-control--multi">
-      ${(logEvents.events || [])
-        .map((event) => {
-          const id = String(event.id);
-          return `<option value="${escapeHtml(id)}" ${values.includes(id) ? "selected" : ""}>${escapeHtml(
-            event.name || ""
-          )}</option>`;
+    const options = Array.isArray(logEvents?.events)
+      ? logEvents.events.map((event) => ({
+          id: String(event.value ?? event.id ?? event.key ?? ""),
+          name: event.label || event.name || event.value || "",
+        }))
+      : [];
+    inputHtml = `<select name="value[]" multiple size="6" class="form-control form-control--multi">
+      ${options
+        .map(({ id, name }) => {
+          if (!id) return "";
+          return `<option value="${escapeHtml(id)}" ${values.includes(id) ? "selected" : ""}>${escapeHtml(name)}</option>`;
         })
         .join("")}
     </select>`;
@@ -338,12 +501,10 @@ function renderConfigItem(guildId, key, value, roles, channels, logEvents) {
       <button type="submit" class="primary-btn save-btn">Save</button>
     </form>`;
 }
-function renderCommandSection(disabled) {
-  const disabledList = Array.isArray(disabled?.disabled) ? disabled.disabled.map((value) => String(value)) : [];
-  const availableRaw = Array.isArray(disabled?.available) ? disabled.available : [];
-  const fallback = Array.from(new Set(Object.values(roleToCommand)));
-  const merged = availableRaw.length ? availableRaw : fallback;
-  const commands = merged
+
+function normalizeCommandEntries(entries) {
+  if (!Array.isArray(entries)) return [];
+  return entries
     .map((entry) => {
       if (entry && typeof entry === "object") {
         const command = entry.id || entry.command || entry.name || entry.value;
@@ -354,78 +515,143 @@ function renderCommandSection(disabled) {
       if (!entry) return null;
       return { command: String(entry), label: String(entry) };
     })
-    .filter(Boolean);
+    .filter(Boolean)
+    .sort((a, b) => a.label.localeCompare(b.label));
+}
 
-  commands.sort((a, b) => a.label.localeCompare(b.label));
-
-  if (!commands.length) return "";
-
-  const disabledSet = new Set(disabledList);
-
-  const formatLabel = (label) => {
-    return label
+function renderCommandItems(commands, disabledSet) {
+  if (!commands.length) {
+    return '<p class="empty-state">No commands to manage.</p>';
+  }
+  const formatLabel = (label) =>
+    label
       .replace(/[_-]+/g, " ")
       .replace(/\s+/g, " ")
       .trim()
       .replace(/\b\w/g, (char) => char.toUpperCase());
-  };
+  return commands
+    .map(({ command, label }) => {
+      const slug = command.trim();
+      if (!slug) return "";
+      const friendly = formatLabel(label || slug);
+      const isDisabled = disabledSet.has(slug);
+      return `<div class="command-item"><div class="command-info"><span class="command-name">${escapeHtml(
+        friendly
+      )}</span><span class="command-slug">${escapeHtml(slug)}</span></div><div class="config-toggle"><label class="switch"><input type="checkbox" data-command="${escapeHtml(
+        slug
+      )}" ${isDisabled ? "checked" : ""}><span class="slider"></span></label></div></div>`;
+    })
+    .join("");
+}
 
-  let html = `<section class="section" id="commands-section" style="display:none;">`;
+function renderCommandSection(guildId, disabled) {
+  const disabledList = Array.isArray(disabled?.disabled) ? disabled.disabled.map((value) => String(value)) : [];
+  const availableRaw = Array.isArray(disabled?.available) ? disabled.available : [];
+  const baseCommands = normalizeCommandEntries(availableRaw);
+  const commands = baseCommands;
+
+  if (!commands.length) {
+    return `<section class="section" id="commands-section" style="display:none;">
+      <h2 class="section-title">Command Access</h2>
+      <div class="card command-card">
+        <p class="section-description">We could not load commands for this guild. Try refreshing or re-linking your session.</p>
+      </div>
+    </section>`;
+  }
+
+  const disabledSet = new Set(disabledList);
+  const payload = escapeHtml(JSON.stringify({ commands: baseCommands, disabled: disabledList }));
+
+  let html = `<section class="section" id="commands-section" style="display:none;" data-command-payload="${payload}">`;
   html += '<h2 class="section-title">Command Access</h2>';
   html += '<div class="card command-card">';
-  html += '<p class="section-description">Toggle which moderation commands should be unavailable. Leave a command on to keep it active for members with the correct roles.</p>';
+  html +=
+    '<p class="section-description">Disable commands across your entire guild. Turn a toggle off to block it everywhere.</p>';
   html += '<div class="command-grid">';
-
-  commands.forEach(({ command, label }) => {
-    const slug = command.trim();
-    if (!slug) return;
-    const friendly = formatLabel(label || slug);
-    const isDisabled = disabledSet.has(slug);
-    html += `<div class="command-item">`;
-    html += `<div class="command-info"><span class="command-name">${escapeHtml(friendly)}</span><span class="command-slug">${escapeHtml(slug)}</span></div>`;
-    html += `<div class="config-toggle"><label class="switch"><input type="checkbox" data-command="${escapeHtml(slug)}" ${isDisabled ? "checked" : ""}><span class="slider"></span></label></div>`;
-    html += `</div>`;
-  });
-
+  html += renderCommandItems(commands, disabledSet);
   html += '</div></div></section>';
   return html;
 }
 
-function renderShopItemsHtml(guildId, items = [], roles = {}) {
+function formatShopField(value, fallback = "—") {
+  if (value === null || value === undefined || value === "") return fallback;
+  return String(value);
+}
+
+function renderShopItemCard(guildId, item, roleMap) {
   const safeGuildId = escapeHtml(String(guildId));
-  const roleMap = new Map((roles.roles || []).map((role) => [String(role.id), role.name || 'Unknown Role']));
+  const safeId = escapeHtml(String(item.id));
+  const roleName = roleMap.get(String(item.role_id)) || "Unknown Role";
+  const active = Boolean(item.active ?? item.is_active);
+  const stock = item.stock === null || item.stock === undefined ? "∞" : String(item.stock);
+  const maxPerUser = item.max_per_user === null || item.max_per_user === undefined ? "∞" : String(item.max_per_user);
+  const expiresAfter = item.expires_after ? `${item.expires_after} min` : "Never";
+  const cooldown = item.cooldown ? `${item.cooldown} min` : "None";
+  const giftable = item.giftable ? "Yes" : "No";
+  const description = item.description ? `<div class="shop-item-card__description">${escapeHtml(item.description)}</div>` : "";
+
+  return `<div class="shop-item-card" data-item-id="${safeId}">
+    <div class="shop-item-card__header">
+      <div>
+        <div class="shop-item-card__headline">${escapeHtml(item.name || "Untitled Item")}</div>
+        <div class="shop-item-card__role">${escapeHtml(roleName)}</div>
+      </div>
+      <div class="shop-item-card__price">
+        <span>${escapeHtml(String(item.price ?? 0))}</span>
+        <small>credits</small>
+      </div>
+      <span class="status-chip ${active ? "status-chip--success" : "status-chip--muted"}">${active ? "Active" : "Hidden"}</span>
+    </div>
+    <div class="shop-item-card__meta">
+      <div><span>Stock</span>${escapeHtml(stock)}</div>
+      <div><span>Per User</span>${escapeHtml(maxPerUser)}</div>
+      <div><span>Cooldown</span>${escapeHtml(cooldown)}</div>
+      <div><span>Expires After</span>${escapeHtml(expiresAfter)}</div>
+      <div><span>Giftable</span>${escapeHtml(giftable)}</div>
+    </div>
+    ${description}
+    <div class="shop-item-card__actions">
+      <form action="/dashboard/${safeGuildId}/shop/${safeId}/update" method="POST" data-shop-form="update" data-item-id="${safeId}">
+        <div class="form-row form-row--split">
+          <input name="name" value="${escapeHtml(item.name || "")}" class="form-control" placeholder="Name">
+          <input name="price" value="${escapeHtml(String(item.price ?? ""))}" type="number" step="any" class="form-control" placeholder="Price">
+        </div>
+        <div class="form-row form-row--split">
+          <input name="stock" value="${item.stock ?? ""}" type="number" min="0" class="form-control" placeholder="Stock (blank = ∞)">
+          <input name="max_per_user" value="${item.max_per_user ?? ""}" type="number" min="0" class="form-control" placeholder="Per user limit">
+          <input name="cooldown" value="${item.cooldown ?? ""}" type="number" min="0" class="form-control" placeholder="Cooldown (min)">
+          <input name="expires_after" value="${item.expires_after ?? ""}" type="number" min="0" class="form-control" placeholder="Expires after (min)">
+        </div>
+        <div class="form-row">
+          <textarea name="description" class="form-control form-control--textarea" placeholder="Description">${escapeHtml(item.description || "")}</textarea>
+        </div>
+        <div class="form-row form-row--inline">
+          <input type="hidden" name="giftable" value="off">
+          <label class="checkbox-input"><input type="checkbox" name="giftable" value="on" ${item.giftable ? "checked" : ""}>Giftable</label>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="ghost-btn">Save Changes</button>
+        </div>
+      </form>
+      <div class="action-buttons">
+        <form action="/dashboard/${safeGuildId}/shop/${safeId}/toggle" method="POST" data-shop-form="toggle" data-item-id="${safeId}">
+          <button type="submit" class="secondary-btn">${active ? "Disable" : "Enable"}</button>
+        </form>
+        <form action="/dashboard/${safeGuildId}/shop/${safeId}/delete" method="POST" data-shop-form="delete" data-item-id="${safeId}">
+          <button type="submit" class="danger-btn">Delete</button>
+        </form>
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderShopItemsHtml(guildId, items = [], roles = {}) {
+  const roleMap = new Map((roles.roles || []).map((role) => [String(role.id), role.name || "Unknown Role"]));
   if (!Array.isArray(items) || items.length === 0) {
     return '<p class="empty-state">No items yet. Start by adding your first reward above.</p>';
   }
-  const rows = items
-    .map((item) => {
-      const roleName = roleMap.get(String(item.role_id)) || 'Unknown Role';
-      const active = Boolean(item.active ?? item.is_active);
-      return `
-      <tr data-item-id="${escapeHtml(String(item.id))}">
-        <td>${escapeHtml(item.name || '')}</td>
-        <td>${escapeHtml(roleName)}</td>
-        <td>${escapeHtml(String(item.price ?? '0'))}</td>
-        <td><span class="status-chip ${active ? 'status-chip--success' : 'status-chip--muted'}">${active ? 'Active' : 'Hidden'}</span></td>
-        <td class="actions-cell">
-          <div class="action-buttons">
-            <form action="/dashboard/${safeGuildId}/shop/${escapeHtml(String(item.id))}/update" method="POST" class="inline-form" data-shop-form="update" data-item-id="${escapeHtml(String(item.id))}">
-              <input name="name" value="${escapeHtml(item.name || '')}" class="form-control form-control--compact" placeholder="Name">
-              <input name="price" value="${escapeHtml(String(item.price ?? ''))}" type="number" step="any" class="form-control form-control--compact" placeholder="0">
-              <button type="submit" class="ghost-btn">Update</button>
-            </form>
-            <form action="/dashboard/${safeGuildId}/shop/${escapeHtml(String(item.id))}/toggle" method="POST" class="inline-form" data-shop-form="toggle" data-item-id="${escapeHtml(String(item.id))}">
-              <button type="submit" class="secondary-btn">${active ? 'Disable' : 'Enable'}</button>
-            </form>
-            <form action="/dashboard/${safeGuildId}/shop/${escapeHtml(String(item.id))}/delete" method="POST" class="inline-form" data-shop-form="delete" data-item-id="${escapeHtml(String(item.id))}">
-              <button type="submit" class="danger-btn">Delete</button>
-            </form>
-          </div>
-        </td>
-      </tr>`;
-    })
-    .join('');
-  return `<div class="table-wrap"><table class="data-table"><thead><tr><th>Name</th><th>Role</th><th>Price</th><th>Status</th><th class="actions-heading">Actions</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  const cards = items.map((item) => renderShopItemCard(guildId, item, roleMap)).join("");
+  return `<div class="shop-items-grid">${cards}</div>`;
 }
 
 function renderShopSection(guildId, shop, roles) {
@@ -449,6 +675,38 @@ function renderShopSection(guildId, shop, roles) {
     <label class="field-label">Price</label>
     <input name="price" type="number" step="any" required class="form-control" placeholder="0">
   </div>`;
+  html += `<div class="form-row">
+    <label class="field-label">Description</label>
+    <textarea name="description" class="form-control form-control--textarea" placeholder="Optional description shown to customers"></textarea>
+  </div>`;
+  html += `<div class="form-row form-row--split">
+    <div>
+      <label class="field-label">Stock</label>
+      <input name="stock" type="number" min="0" class="form-control" placeholder="Unlimited">
+    </div>
+    <div>
+      <label class="field-label">Per User Limit</label>
+      <input name="max_per_user" type="number" min="0" class="form-control" placeholder="Unlimited">
+    </div>
+    <div>
+      <label class="field-label">Cooldown (min)</label>
+      <input name="cooldown" type="number" min="0" class="form-control" placeholder="0">
+    </div>
+    <div>
+      <label class="field-label">Expires After (min)</label>
+      <input name="expires_after" type="number" min="0" class="form-control" placeholder="Never">
+    </div>
+  </div>`;
+  html += `<div class="form-row form-row--inline">
+    <div>
+      <input type="hidden" name="giftable" value="off">
+      <label class="checkbox-input"><input type="checkbox" name="giftable" value="on" checked>Giftable</label>
+    </div>
+    <div>
+      <input type="hidden" name="is_active" value="off">
+      <label class="checkbox-input"><input type="checkbox" name="is_active" value="on" checked>Active</label>
+    </div>
+  </div>`;
   html += `<div class="form-actions">
     <button type="submit" class="primary-btn">Add Item</button>
   </div>`;
@@ -460,12 +718,90 @@ function renderShopSection(guildId, shop, roles) {
   return html;
 }
 
+function formatMemberTimestamp(value) {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return escapeHtml(String(value));
+  return date.toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" });
+}
+
+function roleColorHex(value) {
+  const numeric = Number(value);
+  if (!numeric || numeric <= 0) return "#99aab5";
+  const clamped = Math.max(0, Math.min(0xffffff, Math.floor(numeric)));
+  return `#${clamped.toString(16).padStart(6, "0")}`;
+}
+
+function renderMemberCard(member) {
+  if (!member) return "";
+  const primaryName = member.display_name || member.global_name || member.username || "Member";
+  const discriminator =
+    member.discriminator && member.discriminator !== "0" ? `#${member.discriminator}` : "";
+  const tagLine = member.username ? `${member.username}${discriminator}` : "";
+  const avatar = member.avatar_url
+    ? `<img src="${escapeHtml(member.avatar_url)}" alt="${escapeHtml(primaryName)}" class="member-avatar">`
+    : `<div class="member-avatar member-avatar--fallback">${escapeHtml(primaryName.charAt(0).toUpperCase())}</div>`;
+  const roles = Array.isArray(member.roles) ? member.roles : [];
+  const highest =
+    member.highest_role_id && roles.find((role) => String(role.id) === String(member.highest_role_id));
+  const stats = [
+    { label: "User ID", value: member.id || "Unknown" },
+    { label: "Account Created", value: formatMemberTimestamp(member.created_at) },
+    { label: "Joined Server", value: formatMemberTimestamp(member.joined_at) },
+    { label: "Highest Role", value: highest?.name || "None" },
+  ];
+  if (member.communication_disabled_until) {
+    stats.push({
+      label: "Timeout Ends",
+      value: formatMemberTimestamp(member.communication_disabled_until),
+    });
+  }
+  const badges = [];
+  if (member.bot) badges.push("Bot Account");
+  if (member.pending) badges.push("Pending Approval");
+  const badgeHtml = badges.length
+    ? `<div class="member-badges">${badges.map((badge) => `<span class="member-badge">${escapeHtml(badge)}</span>`).join("")}</div>`
+    : "";
+  const rolesHtml = roles.length
+    ? roles
+        .map(
+          (role) =>
+            `<span class="role-chip" style="--role-color:${roleColorHex(role.color)}">${escapeHtml(role.name)}</span>`
+        )
+        .join("")
+    : '<span class="empty-state">No roles assigned</span>';
+  const statsHtml = stats
+    .map(
+      (stat) =>
+        `<div class="member-stat"><span class="member-stat__label">${escapeHtml(
+          stat.label
+        )}</span><span class="member-stat__value">${escapeHtml(String(stat.value))}</span></div>`
+    )
+    .join("");
+
+  return `<div class="member-card">
+    <div class="member-card__header">
+      ${avatar}
+      <div>
+        <div class="member-card__name">${escapeHtml(primaryName)}</div>
+        <div class="member-card__tag">${escapeHtml(tagLine)}</div>
+      </div>
+    </div>
+    ${badgeHtml}
+    <div class="member-card__grid">${statsHtml}</div>
+    <div class="member-card__roles">
+      <div class="member-card__roles-label">Roles (${roles.length})</div>
+      <div class="member-card__roles-list">${rolesHtml}</div>
+    </div>
+  </div>`;
+}
+
 function renderMemberSearchSection(guildId, member = null) {
   const safeGuildId = escapeHtml(String(guildId));
   let resultHtml = '<p class="empty-state">Search by user ID or username to explore member details.</p>';
   if (member) {
     if (member.in_guild && member.member) {
-      resultHtml = `<pre class="code-block">${escapeHtml(JSON.stringify(member.member, null, 2))}</pre>`;
+      resultHtml = renderMemberCard(member.member);
     } else {
       resultHtml = '<p class="empty-state">Member not found.</p>';
     }
@@ -483,10 +819,12 @@ function renderMemberSearchSection(guildId, member = null) {
 }
 
 
-function renderLayout(user, contentHtml, isServerDashboard = false) {
+function renderLayout(user, contentHtml, isServerDashboard = false, activeGuildId = null) {
   const av = escapeHtml(avatarUrl(user || {}));
   const userDisplay = user ? `${escapeHtml(user.username || '')}#${escapeHtml(user.discriminator || '')}` : "";
   const addBotUrl = `https://discord.com/oauth2/authorize?client_id=${encodeURIComponent(CLIENT_ID || "")}&permissions=8&scope=bot%20applications.commands`;
+  const guildAttr = ` data-guild-id="${activeGuildId ? escapeHtml(String(activeGuildId)) : ""}"`;
+  const pageClass = `page${isServerDashboard ? " page--with-nav" : ""}`;
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -730,9 +1068,83 @@ canvas#starfield { width: 100%; height: 100%; display: block; }
   backdrop-filter: blur(12px);
 }
 .stack-form { display: flex; flex-direction: column; gap: 1rem; }
+.form-row--inline { display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; }
+.form-row--split { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 0.85rem; }
+.checkbox-input {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 600;
+  color: var(--fg);
+}
 .form-row { display: flex; flex-direction: column; gap: 0.35rem; }
 .field-label { font-size: 0.78rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--fg-muted); font-weight: 600; }
 .form-actions { display: flex; justify-content: flex-end; }
+.shop-items-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  margin-top: 1.2rem;
+}
+.shop-item-card {
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: var(--radius-lg);
+  padding: 1.2rem;
+  background: rgba(255,255,255,0.02);
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02);
+}
+.shop-item-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+.shop-item-card__headline {
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: var(--fg);
+}
+.shop-item-card__role { color: var(--fg-muted); font-size: 0.85rem; }
+.shop-item-card__price {
+  text-align: right;
+  margin-right: 0.5rem;
+}
+.shop-item-card__price span {
+  display: block;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--fg);
+}
+.shop-item-card__price small {
+  text-transform: uppercase;
+  font-size: 0.7rem;
+  letter-spacing: 0.15em;
+  color: var(--fg-muted);
+}
+.shop-item-card__meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.6rem;
+  font-size: 0.85rem;
+}
+.shop-item-card__meta span { color: var(--fg-muted); font-size: 0.75rem; letter-spacing: 0.1em; text-transform: uppercase; display: block; margin-bottom: 0.2rem; }
+.shop-item-card__description {
+  font-size: 0.9rem;
+  color: var(--fg);
+  background: rgba(255,255,255,0.03);
+  border-radius: var(--radius-md);
+  padding: 0.75rem;
+}
+.shop-item-card__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.shop-item-card form { width: 100%; }
+
 .member-search-form { gap: 0.75rem; flex-wrap: nowrap; }
 .member-search-form .form-control { flex: 1; }
 h1 { font-size: 1.9rem; font-weight: 700; letter-spacing: 0.02em; color: var(--fg); }
@@ -744,8 +1156,22 @@ p { line-height: 1.6; color: var(--fg-muted); }
 .command-item { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 0.9rem 1rem; border-radius: var(--radius-md); background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.04); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02); transition: transform var(--transition), border-color var(--transition), box-shadow var(--transition); }
 .command-item:hover { border-color: rgba(178,102,242,0.35); box-shadow: 0 18px 32px rgba(108,63,246,0.18); transform: translateY(-2px); }
 .command-info { display: flex; flex-direction: column; gap: 0.25rem; }
-.command-name { font-weight: 600; letter-spacing: 0.01em; color: var(--fg); }
-.command-slug { font-size: 0.7rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--fg-muted); }
+.command-name {
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--fg);
+  font-variant-ligatures: none;
+  text-transform: none;
+}
+.command-slug {
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+  color: var(--fg-muted);
+  font-family: "JetBrains Mono","Fira Code",monospace;
+  font-variant-ligatures: none;
+  text-transform: none;
+  white-space: nowrap;
+}
 .settings-card { display: grid; gap: 1rem; }
 .config-item {
   display: flex;
@@ -863,6 +1289,10 @@ p { line-height: 1.6; color: var(--fg-muted); }
   font-size: 0.85rem;
   box-shadow: inset 0 0 0 1px rgba(178,102,242,0.4);
 }
+.tag--missing {
+  background: rgba(255,128,159,0.25);
+  box-shadow: inset 0 0 0 1px rgba(255,128,159,0.5);
+}
 .tag-text { font-weight: 600; }
 .tag-remove {
   width: 20px;
@@ -892,6 +1322,7 @@ p { line-height: 1.6; color: var(--fg-muted); }
 }
 .dropdown-options div { padding: 0.55rem 0.75rem; cursor: pointer; transition: background var(--transition); }
 .dropdown-options div:hover { background: rgba(178,102,242,0.25); }
+.option-missing { color: #ff9fbd; font-style: italic; }
 .table-wrap { overflow-x: auto; margin-top: 1.2rem; border-radius: var(--radius-lg); border: 1px solid var(--border); }
 .data-table { width: 100%; border-collapse: separate; border-spacing: 0; background: rgba(255,255,255,0.02); }
 .data-table th, .data-table td { padding: 0.85rem 1rem; border-bottom: 1px solid rgba(255,255,255,0.06); text-align: left; font-size: 0.9rem; }
@@ -912,6 +1343,168 @@ p { line-height: 1.6; color: var(--fg-muted); }
   overflow: auto;
   border: 1px solid rgba(255,255,255,0.08);
   box-shadow: inset 0 0 0 1px rgba(0,0,0,0.2);
+}
+.category-tabs {
+  display: inline-flex;
+  gap: 0.4rem;
+  padding: 0.4rem;
+  border-radius: 999px;
+  background: rgba(12,8,32,0.85);
+  border: 1px solid rgba(255,255,255,0.08);
+  position: relative;
+  margin-bottom: 1.25rem;
+  box-shadow: 0 10px 25px rgba(5,3,18,0.35);
+}
+.category-tabs button {
+  position: relative;
+  z-index: 2;
+  border-radius: 999px;
+  padding: 0.55rem 1.1rem;
+  font-weight: 600;
+  color: var(--fg-muted);
+  transition: color var(--transition);
+}
+.category-tabs button.active {
+  color: #fff;
+}
+.category-tabs__slider {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 4px;
+  width: 120px;
+  border-radius: 999px;
+  background: linear-gradient(120deg, rgba(178,102,242,0.35), rgba(108,63,246,0.6));
+  box-shadow: 0 12px 30px rgba(108,63,246,0.35);
+  transition: transform 250ms ease, width 250ms ease;
+  z-index: 1;
+}
+.config-category {
+  display: none;
+}
+.config-category.is-active {
+  display: block;
+  animation: fadeInUp 0.5s ease;
+}
+.section.search-active .category-tabs {
+  opacity: 0.5;
+  pointer-events: none;
+}
+.section.search-active .config-category {
+  display: block !important;
+}
+.member-result { margin-top: 1.2rem; }
+.member-card {
+  background: rgba(6,4,24,0.9);
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(255,255,255,0.08);
+  padding: 1.2rem;
+  box-shadow: var(--shadow-sm);
+}
+.member-card__header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+.member-avatar {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid rgba(255,255,255,0.15);
+  box-shadow: 0 8px 22px rgba(0,0,0,0.45);
+}
+.member-avatar--fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.08);
+  font-size: 1.6rem;
+  font-weight: 700;
+}
+.member-card__name {
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+.member-card__tag {
+  color: var(--fg-muted);
+  font-size: 0.95rem;
+}
+.member-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+.member-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.2);
+  font-size: 0.8rem;
+  background: rgba(255,255,255,0.05);
+}
+.member-card__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.8rem;
+  margin-bottom: 1rem;
+}
+.member-stat {
+  padding: 0.75rem;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255,255,255,0.07);
+  background: rgba(255,255,255,0.03);
+  min-height: 72px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.member-stat__label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--fg-muted);
+}
+.member-stat__value {
+  font-weight: 600;
+  margin-top: 0.3rem;
+}
+.member-card__roles {
+  margin-top: 0.5rem;
+}
+.member-card__roles-label {
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  color: var(--fg-muted);
+  letter-spacing: 0.14em;
+  margin-bottom: 0.4rem;
+}
+.member-card__roles-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.role-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  background: rgba(255,255,255,0.06);
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.2);
+  border: 1px solid rgba(255,255,255,0.12);
+  position: relative;
+}
+.role-chip::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--role-color, #99aab5);
+  border: 1px solid rgba(0,0,0,0.3);
 }
 .servers {
   display: grid;
@@ -1013,6 +1606,20 @@ p { line-height: 1.6; color: var(--fg-muted); }
   animation: spin 1s linear infinite;
 }
 .loading-copy { font-weight: 600; color: var(--fg); letter-spacing: 0.04em; }
+.server-loading {
+  position: fixed;
+  inset: 0;
+  background: rgba(5,1,20,0.92);
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  z-index: 1800;
+  transition: opacity 0.45s ease;
+}
+.server-loading.is-visible { display: flex; }
+.server-loading.is-ready { opacity: 0; pointer-events: none; }
 .switch { position: relative; width: 54px; height: 28px; display: inline-block; }
 .switch input { opacity: 0; width: 0; height: 0; }
 .slider {
@@ -1103,7 +1710,7 @@ input:checked + .slider:before { transform: translateX(24px); }
     </div>
   </header>
   <div class="canvas-wrap"><canvas id="starfield"></canvas></div>
-  <main class="page${isServerDashboard ? " page--with-nav" : ""}" data-guild-id="${contentHtml.includes('No access') ? '' : contentHtml.match(/\/dashboard\/(\d+)/)?.[1] || ''}">
+<main class="${pageClass}"${guildAttr}>
     ${isServerDashboard ? `<nav class="nav-sidebar" id="nav-sidebar" aria-label="Dashboard navigation"></nav>` : ''}
     <div class="content-area">
       <div class="search-wrapper">
@@ -1115,6 +1722,10 @@ input:checked + .slider:before { transform: translateX(24px); }
       <div id="popup" class="popup">Saved</div>
     </div>
   </main>
+  ${isServerDashboard ? `<div id="server-loading" class="server-loading" aria-live="polite">
+    <div class="loading-spinner"></div>
+    <p class="loading-copy">Preparing server dashboard...</p>
+  </div>` : ''}
 
 <script>
 function escapeHtml(str) {
@@ -1273,29 +1884,50 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   const guildId = document.querySelector('main.page')?.dataset.guildId;
-  document.querySelectorAll('input[data-command]').forEach((checkbox) => {
-    checkbox.addEventListener('change', async function () {
-      const cmd = this.dataset.command;
-      const disable = this.checked;
-      if (!guildId) return;
-      try {
-        const res = await fetch('/dashboard/' + guildId + '/disabled/' + (disable ? 'disable' : 'enable'), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ commands: [cmd] })
-        });
-        const data = await res.json();
-        if (data.success) {
-          showPopup((disable ? 'Disabled: ' : 'Enabled: ') + cmd);
-        } else {
-          this.checked = !disable;
-          showPopup('Unable to update command', true);
-        }
-      } catch (err) {
-        console.error(err);
-        this.checked = !disable;
-        showPopup('Network error', true);
-      }
+
+  document.querySelectorAll('.category-tabs').forEach((tabs) => {
+    const buttons = Array.from(tabs.querySelectorAll('button[data-category]'));
+    if (!buttons.length) return;
+    const section = tabs.closest('.section');
+    const categories = section ? Array.from(section.querySelectorAll('.config-category')) : [];
+    const slider = tabs.querySelector('.category-tabs__slider');
+
+    const activateCategory = (slug) => {
+      categories.forEach((category) => {
+        category.classList.toggle('is-active', category.dataset.category === slug);
+      });
+    };
+
+    const moveSlider = (button) => {
+      if (!slider || !button) return;
+      const offset = button.offsetLeft;
+      slider.style.width = button.offsetWidth + 'px';
+      slider.style.transform = 'translateX(' + offset + 'px)';
+    };
+
+    buttons.forEach((button) => {
+      button.addEventListener('click', () => {
+        if (button.classList.contains('active')) return;
+        buttons.forEach((btn) => btn.classList.toggle('active', btn === button));
+        activateCategory(button.dataset.category);
+        requestAnimationFrame(() => moveSlider(button));
+      });
+    });
+
+    const initial = tabs.querySelector('button.active') || buttons[0];
+    if (initial) {
+      activateCategory(initial.dataset.category);
+      requestAnimationFrame(() => moveSlider(initial));
+    }
+  });
+
+  window.addEventListener('resize', () => {
+    document.querySelectorAll('.category-tabs').forEach((tabs) => {
+      const active = tabs.querySelector('button.active');
+      const slider = tabs.querySelector('.category-tabs__slider');
+      if (!active || !slider) return;
+      slider.style.width = active.offsetWidth + 'px';
+      slider.style.transform = 'translateX(' + active.offsetLeft + 'px)';
     });
   });
 
@@ -1320,21 +1952,39 @@ document.addEventListener('DOMContentLoaded', () => {
       });
       document.querySelector('.servers')?.classList.toggle('has-results', matches > 0);
     } else {
-      const cards = Array.from(document.querySelectorAll('.settings-card'));
-      cards.forEach((card) => {
+      const categories = Array.from(document.querySelectorAll('.config-category'));
+      categories.forEach((category) => {
         let visibleItems = 0;
-        card.querySelectorAll('.config-item').forEach((item) => {
+        category.querySelectorAll('.config-item').forEach((item) => {
           const label = item.querySelector('.config-label')?.textContent.toLowerCase() || '';
           const match = !q || label.includes(q);
-          item.style.display = match ? 'flex' : 'none';
+          if (q) {
+            item.style.display = match ? 'flex' : 'none';
+          } else {
+            item.style.display = '';
+          }
           if (match) visibleItems += 1;
         });
-        card.style.display = visibleItems > 0 ? 'grid' : 'none';
-        const title = card.previousElementSibling;
-        if (title && title.classList.contains('section-title')) {
-          title.style.display = visibleItems > 0 ? '' : 'none';
+        category.classList.toggle('category-has-results', visibleItems > 0);
+      });
+
+      const configSections = Array.from(document.querySelectorAll('.section')).filter((section) =>
+        section.querySelector('.config-category')
+      );
+      configSections.forEach((section) => {
+        if (q) {
+          section.classList.add('search-active');
+          section.querySelectorAll('.config-category').forEach((category) => {
+            category.style.display = category.classList.contains('category-has-results') ? 'block' : 'none';
+          });
+        } else {
+          section.classList.remove('search-active');
+          section.querySelectorAll('.config-category').forEach((category) => {
+            category.style.display = '';
+          });
         }
       });
+
       const commandCards = Array.from(document.querySelectorAll('.command-card'));
       commandCards.forEach((card) => {
         let visibleItems = 0;
@@ -1415,8 +2065,30 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  setupShopSection(guildId);
+  const shopReady = setupShopSection(guildId, showPopup);
+  const commandsReady = setupCommandsSection(guildId, showPopup);
   setupMemberSearch(guildId);
+
+  const readinessTasks = [];
+  [shopReady, commandsReady].forEach((task) => {
+    if (task && typeof task.then === 'function') {
+      readinessTasks.push(task);
+    }
+  });
+  if (!readinessTasks.length) {
+    readinessTasks.push(Promise.resolve());
+  }
+
+  const serverLoading = document.getElementById('server-loading');
+  if (guildId && serverLoading) {
+    serverLoading.classList.add('is-visible');
+    Promise.all(readinessTasks)
+      .catch(() => {})
+      .finally(() => {
+        serverLoading.classList.add('is-ready');
+        setTimeout(() => serverLoading.remove(), 600);
+      });
+  }
 });
 function parseJsonResponse(responseText) {
   if (!responseText) return {};
@@ -1427,49 +2099,81 @@ function parseJsonResponse(responseText) {
   }
 }
 
+function renderShopItemCardClient(guildId, item, roleMap) {
+  const safeGuildId = escapeHtml(String(guildId));
+  const safeId = escapeHtml(String(item.id));
+  const roleName = roleMap.get(String(item.role_id)) || 'Unknown Role';
+  const active = Boolean(item.active ?? item.is_active);
+  const stock = item.stock === null || item.stock === undefined ? '∞' : escapeHtml(String(item.stock));
+  const maxPerUser = item.max_per_user === null || item.max_per_user === undefined ? '∞' : escapeHtml(String(item.max_per_user));
+  const cooldown = item.cooldown ? escapeHtml(String(item.cooldown)) + ' min' : 'None';
+  const expiresAfter = item.expires_after ? escapeHtml(String(item.expires_after)) + ' min' : 'Never';
+  const giftable = item.giftable ? 'Yes' : 'No';
+  const description = item.description
+    ? '<div class="shop-item-card__description">' + escapeHtml(item.description) + '</div>'
+    : '';
+
+  return [
+    '<div class="shop-item-card" data-item-id="', safeId, '">',
+    '<div class="shop-item-card__header"><div>',
+    '<div class="shop-item-card__headline">', escapeHtml(item.name || 'Untitled Item'), '</div>',
+    '<div class="shop-item-card__role">', escapeHtml(roleName), '</div>',
+    '</div>',
+    '<div class="shop-item-card__price"><span>', escapeHtml(String(item.price ?? 0)), '</span><small>credits</small></div>',
+    '<span class="status-chip ', active ? 'status-chip--success' : 'status-chip--muted', '">', active ? 'Active' : 'Hidden', '</span></div>',
+    '<div class="shop-item-card__meta">',
+    '<div><span>Stock</span>', stock, '</div>',
+    '<div><span>Per User</span>', maxPerUser, '</div>',
+    '<div><span>Cooldown</span>', cooldown, '</div>',
+    '<div><span>Expires After</span>', expiresAfter, '</div>',
+    '<div><span>Giftable</span>', giftable, '</div>',
+    '</div>',
+    description,
+    '<div class="shop-item-card__actions">',
+    '<form action="/dashboard/', safeGuildId, '/shop/', safeId, '/update" method="POST" data-shop-form="update" data-item-id="', safeId, '">',
+    '<div class="form-row form-row--split">',
+    '<input name="name" value="', escapeHtml(item.name || ''), '" class="form-control" placeholder="Name">',
+    '<input name="price" value="', escapeHtml(String(item.price ?? '')), '" type="number" step="any" class="form-control" placeholder="Price">',
+    '</div>',
+    '<div class="form-row form-row--split">',
+    '<input name="stock" value="', escapeHtml(String(item.stock ?? '')), '" type="number" min="0" class="form-control" placeholder="Stock">',
+    '<input name="max_per_user" value="', escapeHtml(String(item.max_per_user ?? '')), '" type="number" min="0" class="form-control" placeholder="Per user">',
+    '<input name="cooldown" value="', escapeHtml(String(item.cooldown ?? '')), '" type="number" min="0" class="form-control" placeholder="Cooldown (min)">',
+    '<input name="expires_after" value="', escapeHtml(String(item.expires_after ?? '')), '" type="number" min="0" class="form-control" placeholder="Expires after (min)">',
+    '</div>',
+    '<div class="form-row">',
+    '<textarea name="description" class="form-control form-control--textarea" placeholder="Description">', escapeHtml(item.description || ''), '</textarea>',
+    '</div>',
+    '<div class="form-row form-row--inline">',
+    '<input type="hidden" name="giftable" value="off"><label class="checkbox-input"><input type="checkbox" name="giftable" value="on"', item.giftable ? ' checked' : '', '>Giftable</label>',
+    '</div>',
+    '<div class="form-actions"><button type="submit" class="ghost-btn">Save Changes</button></div>',
+    '</form>',
+    '<div class="action-buttons">',
+    '<form action="/dashboard/', safeGuildId, '/shop/', safeId, '/toggle" method="POST" data-shop-form="toggle" data-item-id="', safeId, '">',
+    '<button type="submit" class="secondary-btn">', active ? 'Disable' : 'Enable', '</button>',
+    '</form>',
+    '<form action="/dashboard/', safeGuildId, '/shop/', safeId, '/delete" method="POST" data-shop-form="delete" data-item-id="', safeId, '">',
+    '<button type="submit" class="danger-btn">Delete</button>',
+    '</form>',
+    '</div>',
+    '</div>',
+    '</div>'
+  ].join('');
+}
+
 function renderShopItemsClient(guildId, items, roleMap) {
   if (!Array.isArray(items) || items.length === 0) {
     return '<p class="empty-state">No items yet. Start by adding your first reward above.</p>';
   }
-  const safeGuildId = escapeHtml(String(guildId));
-  const rows = items
-    .map((item) => {
-      const roleName = roleMap.get(String(item.role_id)) || 'Unknown Role';
-      const active = Boolean(item.active ?? item.is_active);
-      const statusClass = active ? 'status-chip--success' : 'status-chip--muted';
-      const statusLabel = active ? 'Active' : 'Hidden';
-      const toggleLabel = active ? 'Disable' : 'Enable';
-      const priceValue = item.price ?? '0';
-      const safeId = escapeHtml(String(item.id));
-      const parts = [
-        '<tr data-item-id="', safeId, '">',
-        '<td>', escapeHtml(item.name || ''), '</td>',
-        '<td>', escapeHtml(roleName), '</td>',
-        '<td>', escapeHtml(String(priceValue)), '</td>',
-        '<td><span class="status-chip ', statusClass, '">', statusLabel, '</span></td>',
-        '<td class="actions-cell"><div class="action-buttons">',
-        '<form action="/dashboard/', safeGuildId, '/shop/', safeId, '/update" method="POST" class="inline-form" data-shop-form="update" data-item-id="', safeId, '">',
-        '<input name="name" value="', escapeHtml(item.name || ''), '" class="form-control form-control--compact" placeholder="Name">',
-        '<input name="price" value="', escapeHtml(String(item.price ?? '')), '" type="number" step="any" class="form-control form-control--compact" placeholder="0">',
-        '<button type="submit" class="ghost-btn">Update</button>',
-        '</form>',
-        '<form action="/dashboard/', safeGuildId, '/shop/', safeId, '/toggle" method="POST" class="inline-form" data-shop-form="toggle" data-item-id="', safeId, '">',
-        '<button type="submit" class="secondary-btn">', toggleLabel, '</button>',
-        '</form>',
-        '<form action="/dashboard/', safeGuildId, '/shop/', safeId, '/delete" method="POST" class="inline-form" data-shop-form="delete" data-item-id="', safeId, '">',
-        '<button type="submit" class="danger-btn">Delete</button>',
-        '</form>',
-        '</div></td></tr>'
-      ];
-      return parts.join('');
-    })
-    .join('');
-  return '<div class="table-wrap"><table class="data-table"><thead><tr><th>Name</th><th>Role</th><th>Price</th><th>Status</th><th class="actions-heading">Actions</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+  const cards = items.map((item) => renderShopItemCardClient(guildId, item, roleMap)).join('');
+  return '<div class="shop-items-grid">' + cards + '</div>';
 }
 
-function setupShopSection(guildId) {
+function setupShopSection(guildId, notify) {
   const section = document.getElementById('shop-section');
-  if (!section || !guildId) return;
+  if (!section || !guildId) return Promise.resolve();
+  const notifyUser = typeof notify === 'function' ? notify : () => {};
   const itemsContainer = section.querySelector('[data-shop-items]');
   const roleOptions = (() => {
     try {
@@ -1483,6 +2187,20 @@ function setupShopSection(guildId) {
   const renderItems = (items) => {
     if (!itemsContainer) return;
     itemsContainer.innerHTML = renderShopItemsClient(guildId, items, roleMap);
+  };
+
+  const parseNumberField = (formData, key) => {
+    const raw = formData.get(key);
+    if (raw === null || raw === undefined || raw === '') return undefined;
+    const num = Number(raw);
+    if (Number.isNaN(num)) return undefined;
+    return num;
+  };
+
+  const parseBooleanField = (formData, key) => {
+    const values = formData.getAll(key);
+    if (!values.length) return undefined;
+    return values[values.length - 1] === 'on';
   };
 
   const requestShopUpdate = async (form, payload, method = 'POST') => {
@@ -1530,9 +2248,23 @@ function setupShopSection(guildId) {
           name,
           price: Number(priceValue),
         };
+        const description = (formData.get('description') || '').toString().trim();
+        if (description) payload.description = description;
+        const stock = parseNumberField(formData, 'stock');
+        if (stock !== undefined) payload.stock = stock;
+        const maxPerUser = parseNumberField(formData, 'max_per_user');
+        if (maxPerUser !== undefined) payload.max_per_user = maxPerUser;
+        const cooldown = parseNumberField(formData, 'cooldown');
+        if (cooldown !== undefined) payload.cooldown = cooldown;
+        const expiresAfter = parseNumberField(formData, 'expires_after');
+        if (expiresAfter !== undefined) payload.expires_after = expiresAfter;
+        const giftable = parseBooleanField(formData, 'giftable');
+        if (giftable !== undefined) payload.giftable = giftable;
+        const isActive = parseBooleanField(formData, 'is_active');
+        if (isActive !== undefined) payload.is_active = isActive;
         await requestShopUpdate(form, payload, 'POST');
         form.reset();
-        showPopup('Item added to shop');
+        notifyUser('Item added to shop');
       } else if (actionType === 'update') {
         const formData = new FormData(form);
         const payload = {};
@@ -1542,23 +2274,223 @@ function setupShopSection(guildId) {
         if (priceValue !== null && priceValue !== undefined && priceValue !== '') {
           payload.price = Number(priceValue);
         }
+        const stock = parseNumberField(formData, 'stock');
+        if (stock !== undefined) payload.stock = stock;
+        const maxPerUser = parseNumberField(formData, 'max_per_user');
+        if (maxPerUser !== undefined) payload.max_per_user = maxPerUser;
+        const cooldown = parseNumberField(formData, 'cooldown');
+        if (cooldown !== undefined) payload.cooldown = cooldown;
+        const expiresAfter = parseNumberField(formData, 'expires_after');
+        if (expiresAfter !== undefined) payload.expires_after = expiresAfter;
+        const description = formData.get('description');
+        if (description !== null && description !== undefined) {
+          payload.description = description.toString();
+        }
+        const giftable = parseBooleanField(formData, 'giftable');
+        if (giftable !== undefined) payload.giftable = giftable;
         await requestShopUpdate(form, payload, 'POST');
-        showPopup('Shop item updated');
+        notifyUser('Shop item updated');
       } else if (actionType === 'toggle') {
         await requestShopUpdate(form, {}, 'POST');
-        showPopup('Shop item toggled');
+        notifyUser('Shop item toggled');
       } else if (actionType === 'delete') {
         if (!window.confirm('Delete this shop item?')) return;
         await requestShopUpdate(form, {}, 'POST');
-        showPopup('Shop item deleted');
+        notifyUser('Shop item deleted');
       }
     } catch (err) {
       console.error(err);
-      showPopup(err.message || 'Shop update failed', true);
+      notifyUser(err.message || 'Shop update failed', true);
     } finally {
       if (submitButton) submitButton.disabled = false;
     }
   });
+  return Promise.resolve();
+}
+
+function normalizeCommandEntriesClient(entries) {
+  if (!Array.isArray(entries)) return [];
+  return entries
+    .map((entry) => {
+      if (entry && typeof entry === 'object') {
+        const command = entry.id || entry.command || entry.name || entry.value;
+        const label = entry.label || entry.name || entry.title || command;
+        if (!command) return null;
+        return { command: String(command), label: String(label || command) };
+      }
+      if (!entry) return null;
+      return { command: String(entry), label: String(entry) };
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.label.localeCompare(b.label));
+}
+
+function renderCommandItemsClient(commands, disabledSet) {
+  if (!commands.length) {
+    return '<p class="empty-state">No commands to manage.</p>';
+  }
+  const formatLabel = (label) =>
+    label
+      .replace(/[_-]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .replace(/\b\w/g, (char) => char.toUpperCase());
+  return commands
+    .map(({ command, label }) => {
+      const slug = command.trim();
+      if (!slug) return '';
+      const friendly = formatLabel(label || slug);
+      const isDisabled = disabledSet.has(slug);
+      return '<div class="command-item"><div class="command-info"><span class="command-name">' + escapeHtml(friendly) + '</span><span class="command-slug">' + escapeHtml(slug) + '</span></div><div class="config-toggle"><label class="switch"><input type="checkbox" data-command="' + escapeHtml(slug) + '"' + (isDisabled ? ' checked' : '') + '><span class="slider"></span></label></div></div>';
+    })
+    .join('');
+}
+
+function setupCommandsSection(guildId, notify) {
+  const section = document.getElementById('commands-section');
+  if (!section || !guildId) return null;
+  const grid = section.querySelector('.command-grid');
+  if (!grid) return null;
+  const notifyUser = typeof notify === 'function' ? notify : () => {};
+  const initialPayload = (() => {
+    try {
+      return JSON.parse(section.dataset.commandPayload || '{}');
+    } catch (err) {
+      return {};
+    }
+  })();
+  let commands = normalizeCommandEntriesClient(initialPayload.commands || []);
+  let disabled = Array.isArray(initialPayload.disabled) ? initialPayload.disabled.map((value) => String(value)) : [];
+
+  const render = () => {
+    const disabledSet = new Set(disabled);
+    grid.innerHTML = renderCommandItemsClient(commands, disabledSet);
+  };
+
+  const refreshFromApi = async () => {
+    try {
+      const response = await fetch('/dashboard/' + guildId + '/disabled', {
+        headers: {
+          'Accept': 'application/json',
+          'X-Requested-With': 'fetch',
+        },
+        credentials: 'same-origin',
+      });
+      const text = await response.text();
+      const data = parseJsonResponse(text);
+      if (!response.ok) throw new Error(data?.detail || data?.error || 'Unable to load commands');
+      if (Array.isArray(data.available)) {
+        commands = normalizeCommandEntriesClient(data.available);
+      }
+      if (Array.isArray(data.disabled)) {
+        disabled = data.disabled.map((value) => String(value));
+      }
+      render();
+      return true;
+    } catch (err) {
+      console.error('Unable to refresh commands', err);
+      return false;
+    }
+  };
+
+  section.addEventListener('change', async (event) => {
+    const checkbox = event.target.closest('input[data-command]');
+    if (!checkbox) return;
+    const cmd = checkbox.dataset.command;
+    const disable = checkbox.checked;
+    try {
+      const response = await fetch('/dashboard/' + guildId + '/disabled/' + (disable ? 'disable' : 'enable'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ commands: [cmd] }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || data.success === false) {
+        checkbox.checked = !disable;
+        notifyUser(data?.detail || data?.error || 'Unable to update command', true);
+        return;
+      }
+      if (Array.isArray(data.disabled)) {
+        disabled = data.disabled.map((value) => String(value));
+      } else {
+        if (disable && !disabled.includes(cmd)) disabled.push(cmd);
+        if (!disable) disabled = disabled.filter((value) => value !== cmd);
+      }
+      notifyUser((disable ? 'Disabled: ' : 'Enabled: ') + cmd);
+    } catch (err) {
+      console.error(err);
+      checkbox.checked = !disable;
+      notifyUser('Network error', true);
+    }
+  });
+
+  render();
+  return refreshFromApi();
+}
+
+function formatMemberTimestampClient(value) {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return escapeHtml(String(value));
+  try {
+    return date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+  } catch {
+    return date.toISOString();
+  }
+}
+
+function roleColorHexClient(value) {
+  const numeric = Number(value);
+  if (!numeric || numeric <= 0) return '#99aab5';
+  const clamped = Math.max(0, Math.min(0xffffff, Math.floor(numeric)));
+  return '#' + clamped.toString(16).padStart(6, '0');
+}
+
+function renderMemberCardClient(member) {
+  if (!member) return '';
+  const primaryName = member.display_name || member.global_name || member.username || 'Member';
+  const discriminator = member.discriminator && member.discriminator !== '0' ? '#' + member.discriminator : '';
+  const tagLine = member.username ? escapeHtml(member.username + discriminator) : '';
+  const avatar = member.avatar_url
+    ? '<img src="' + escapeHtml(member.avatar_url) + '" alt="' + escapeHtml(primaryName) + '" class="member-avatar">'
+    : '<div class="member-avatar member-avatar--fallback">' + escapeHtml(primaryName.charAt(0).toUpperCase()) + '</div>';
+  const roles = Array.isArray(member.roles) ? member.roles : [];
+  const highest = member.highest_role_id ? roles.find((role) => String(role.id) === String(member.highest_role_id)) : null;
+  const stats = [
+    { label: 'User ID', value: member.id || 'Unknown' },
+    { label: 'Account Created', value: formatMemberTimestampClient(member.created_at) },
+    { label: 'Joined Server', value: formatMemberTimestampClient(member.joined_at) },
+    { label: 'Highest Role', value: highest?.name || 'None' },
+  ];
+  if (member.communication_disabled_until) {
+    stats.push({
+      label: 'Timeout Ends',
+      value: formatMemberTimestampClient(member.communication_disabled_until),
+    });
+  }
+  const badges = [];
+  if (member.bot) badges.push('Bot Account');
+  if (member.pending) badges.push('Pending Approval');
+  const badgeHtml = badges.length
+    ? '<div class="member-badges">' + badges.map((badge) => '<span class="member-badge">' + escapeHtml(badge) + '</span>').join('') + '</div>'
+    : '';
+  const rolesHtml = roles.length
+    ? roles
+        .map((role) => '<span class="role-chip" style="--role-color:' + roleColorHexClient(role.color) + '">' + escapeHtml(role.name) + '</span>')
+        .join('')
+    : '<span class="empty-state">No roles assigned</span>';
+  const statsHtml = stats
+    .map(
+      (stat) =>
+        '<div class="member-stat"><span class="member-stat__label">' +
+        escapeHtml(stat.label) +
+        '</span><span class="member-stat__value">' +
+        escapeHtml(String(stat.value)) +
+        '</span></div>'
+    )
+    .join('');
+
+  return '<div class="member-card"><div class="member-card__header">' + avatar + '<div><div class="member-card__name">' + escapeHtml(primaryName) + '</div><div class="member-card__tag">' + tagLine + '</div></div></div>' + badgeHtml + '<div class="member-card__grid">' + statsHtml + '</div><div class="member-card__roles"><div class="member-card__roles-label">Roles (' + roles.length + ')</div><div class="member-card__roles-list">' + rolesHtml + '</div></div></div>';
 }
 
 function setupMemberSearch(guildId) {
@@ -1595,9 +2527,10 @@ function setupMemberSearch(guildId) {
         throw new Error(data?.detail || data?.error || 'Lookup failed');
       }
       if (data.in_guild && data.member) {
-        renderMemberResult('<pre class="code-block">' + escapeHtml(JSON.stringify(data.member, null, 2)) + '</pre>');
+        renderMemberResult(renderMemberCardClient(data.member));
       } else {
-        renderMemberResult('<p class="empty-state">Member not found.</p>');
+        const reason = data?.reason ? escapeHtml(data.reason) : 'Member not found.';
+        renderMemberResult('<p class="empty-state">' + reason + '</p>');
       }
     } catch (err) {
       console.error(err);
@@ -1759,13 +2692,17 @@ app.get("/dashboard/:id", async (req, res) => {
   }
   try {
     const data = await fetchGuildData(guildId, jwt);
+    if (data?.unauthorized) {
+      req.session.jwt = null;
+      return res.redirect("/login");
+    }
     let contentHtml = `<h1>${escapeHtml(guild.name || '')}</h1>`;
     contentHtml += renderConfigSections(guildId, data.config, data.roles, data.channels, data.logEvents, data.disabled, 'settings');
     contentHtml += renderConfigSections(guildId, data.config, data.roles, data.channels, data.logEvents, data.disabled, 'moderation');
-    contentHtml += renderCommandSection(data.disabled);
+    contentHtml += renderCommandSection(guildId, data.disabled);
     contentHtml += renderShopSection(guildId, data.shop, data.roles);
     contentHtml += renderMemberSearchSection(guildId);
-    res.send(renderLayout(user, contentHtml, true));
+    res.send(renderLayout(user, contentHtml, true, guildId));
   } catch (err) {
     console.error("Error in /dashboard/:id:", err);
     res.send(renderLayout(user, `<div class="card"><h2>Error</h2></div>`, false));
@@ -1794,14 +2731,18 @@ app.get("/dashboard/:id/members", async (req, res) => {
     }
     const member = memberRes.ok ? memberData : { success: false };
     const data = await fetchGuildData(guildId, req.session.jwt, { member: member.success ? member : null });
+    if (data?.unauthorized) {
+      req.session.jwt = null;
+      return res.redirect("/login");
+    }
     const guild = (req.session.guilds || []).find((g) => g.id === guildId) || {};
     let contentHtml = `<h1>${escapeHtml(guild.name || '')}</h1>`;
     contentHtml += renderConfigSections(guildId, data.config, data.roles, data.channels, data.logEvents, data.disabled, 'settings');
     contentHtml += renderConfigSections(guildId, data.config, data.roles, data.channels, data.logEvents, data.disabled, 'moderation');
-    contentHtml += renderCommandSection(data.disabled);
+    contentHtml += renderCommandSection(guildId, data.disabled);
     contentHtml += renderShopSection(guildId, data.shop, data.roles);
     contentHtml += renderMemberSearchSection(guildId, data.member);
-    res.send(renderLayout(req.session.user, contentHtml, true));
+    res.send(renderLayout(req.session.user, contentHtml, true, guildId));
   } catch (err) {
     console.error("Error in /dashboard/:id/members:", err);
     if (wantsJson) return res.status(500).json({ success: false, error: "Internal error" });
@@ -1908,13 +2849,35 @@ app.post("/dashboard/:id/disabled/enable", async (req, res) => {
 app.post("/dashboard/:id/shop", async (req, res) => {
   if (!req.session.user) return res.redirect("/login");
   const guildId = req.params.id;
-  const { role_id, name, price } = req.body;
+  const {
+    role_id,
+    name,
+    price,
+    description,
+    stock,
+    max_per_user,
+    cooldown,
+    expires_after,
+    giftable,
+    is_active,
+  } = req.body;
   const wantsJson = clientWantsJson(req);
+  const toNumber = (value) =>
+    value === undefined || value === null || value === "" ? undefined : Number(value);
+  const toBoolean = (value) =>
+    value === undefined || value === null ? undefined : value === true || value === "true" || value === "on";
   try {
     const payload = {
       role_id: role_id !== undefined ? Number(role_id) : undefined,
-      name,
-      price: price !== undefined && price !== null && price !== "" ? Number(price) : undefined,
+      name: typeof name === "string" ? name.trim() : undefined,
+      price: toNumber(price),
+      description: typeof description === "string" ? description : undefined,
+      stock: toNumber(stock),
+      max_per_user: toNumber(max_per_user),
+      cooldown: toNumber(cooldown),
+      expires_after: toNumber(expires_after),
+      giftable: toBoolean(giftable),
+      is_active: toBoolean(is_active),
     };
     const headers = { "Content-Type": "application/json", Authorization: `Bearer ${req.session.jwt}` };
     const apiRes = await fetch(`${API_BASE}/dashboard/${guildId}/shop`, {
@@ -1941,12 +2904,29 @@ app.post("/dashboard/:id/shop/:item_id/update", async (req, res) => {
   if (!req.session.user) return res.redirect("/login");
   const guildId = req.params.id;
   const itemId = req.params.item_id;
-  const { name, price } = req.body;
+  const { name, price, description, stock, max_per_user, cooldown, expires_after, giftable } = req.body;
   const wantsJson = clientWantsJson(req);
+  const toNumber = (value) =>
+    value === undefined || value === null || value === "" ? undefined : Number(value);
+  const toBoolean = (value) =>
+    value === undefined || value === null ? undefined : value === true || value === "true" || value === "on";
   try {
     const payload = {};
     if (typeof name === "string" && name.trim()) payload.name = name.trim();
-    if (price !== undefined && price !== null && price !== "") payload.price = Number(price);
+    const parsedPrice = toNumber(price);
+    if (parsedPrice !== undefined) payload.price = parsedPrice;
+    const parsedDescription = typeof description === "string" ? description : undefined;
+    if (parsedDescription !== undefined) payload.description = parsedDescription;
+    const parsedStock = toNumber(stock);
+    if (parsedStock !== undefined) payload.stock = parsedStock;
+    const parsedPerUser = toNumber(max_per_user);
+    if (parsedPerUser !== undefined) payload.max_per_user = parsedPerUser;
+    const parsedCooldown = toNumber(cooldown);
+    if (parsedCooldown !== undefined) payload.cooldown = parsedCooldown;
+    const parsedExpires = toNumber(expires_after);
+    if (parsedExpires !== undefined) payload.expires_after = parsedExpires;
+    const parsedGiftable = toBoolean(giftable);
+    if (parsedGiftable !== undefined) payload.giftable = parsedGiftable;
     const headers = { "Content-Type": "application/json", Authorization: `Bearer ${req.session.jwt}` };
     const apiRes = await fetch(`${API_BASE}/dashboard/${guildId}/shop/${itemId}`, {
       method: "PUT",
