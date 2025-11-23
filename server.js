@@ -29,6 +29,7 @@ const REDIRECT_URI = process.env.DISCORD_REDIRECT_URI;
 const JWT_SECRET = process.env.JWT_SECRET;
 const PORT = process.env.PORT || 3000;
 const API_BASE = "https://api.utilix.support";
+const OWNER_ID = process.env.OWNER_ID || "896616448628228096";
 
 /* ---------------- helpers ---------------- */
 function escapeHtml(str = "") {
@@ -1882,7 +1883,9 @@ document.addEventListener('DOMContentLoaded', () => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ key, value })
         });
-        showPopup(res.ok ? 'Saved!' : 'Error saving', !res.ok);
+        const needsDelayMessage = key === 'bot_profile_avatar_url' || key === 'bot_profile_banner_url';
+        const successMsg = needsDelayMessage ? 'Saved, changes may take up to 24 hours to apply' : 'Saved!';
+        showPopup(res.ok ? successMsg : 'Error saving', !res.ok);
       } catch (err) {
         console.error(err);
         showPopup('Network error', true);
@@ -2617,7 +2620,7 @@ app.get("/callback", async (req, res) => {
       console.error("Failed to load bot_guilds.json:", err);
     }
     const botGuildSet = new Set(botGuildIds);
-    const candidateGuilds = guilds.filter(g => botGuildSet.has(String(g.id)) && (parseInt(g.permissions || "0", 10) & 0x20) === 0x20);
+    const candidateGuilds = guilds.filter((g) => botGuildSet.has(String(g.id)));
     let results = {};
     if (candidateGuilds.length > 0) {
       try {
@@ -2638,20 +2641,14 @@ app.get("/callback", async (req, res) => {
         console.error("Error calling /checkPermsBatch:", err);
       }
     }
+    const isOwner = userData.id === OWNER_ID;
+    if (isOwner) {
+      for (const guild of candidateGuilds) {
+        results[guild.id] = { allowed: true };
+      }
+    }
     req.session.perms = results;
-    const filteredGuilds = candidateGuilds.filter(g => results[g.id]?.allowed);
-    const serversHtml = filteredGuilds
-      .map((g) => {
-        const name = truncateName(g.name || "");
-        const icon = guildIconUrl(g);
-        return `<div class="server"><a href="/dashboard/${g.id}">${
-          icon
-            ? `<img src="${escapeHtml(icon)}"/>`
-            : `<div class="server-icon">${escapeHtml(name.charAt(0))}</div>`
-        }<div class="server-name">${escapeHtml(name)}</div></a></div>`;
-      })
-      .join('');
-    res.send(renderLayout(userData, `<h2>Your Servers</h2><div class="servers">${serversHtml}</div>`));
+    return res.redirect("/dashboard");
   } catch (err) {
     console.error("Callback error:", err);
     res.status(500).send("Internal Error");
@@ -2663,6 +2660,7 @@ app.get("/dashboard", async (req, res) => {
   const user = req.session.user;
   const perms = req.session.perms || {};
   const guilds = req.session.guilds || [];
+  const isOwner = user && user.id === OWNER_ID;
   let botGuildIds = [];
   try {
     const botGuildsPath = path.join(__dirname, "bot_guilds.json");
@@ -2674,8 +2672,8 @@ app.get("/dashboard", async (req, res) => {
     botGuildIds = [];
   }
   const botGuildSet = new Set(botGuildIds);
-  const candidateGuilds = guilds.filter(g => botGuildSet.has(String(g.id)) && (parseInt(g.permissions || "0", 10) & 0x20) === 0x20);
-  const filteredGuilds = candidateGuilds.filter(g => perms[g.id]?.allowed);
+  const candidateGuilds = guilds.filter((g) => botGuildSet.has(String(g.id)));
+  const filteredGuilds = isOwner ? candidateGuilds : candidateGuilds.filter((g) => perms[g.id]?.allowed);
   const serversHtml = filteredGuilds
     .map((g) => {
       const name = truncateName(g.name || "");
@@ -2695,14 +2693,16 @@ app.get("/dashboard/:id", async (req, res) => {
   const user = req.session.user;
   const jwt = req.session.jwt;
   const guildId = req.params.id;
-  const guild = (req.session.guilds || []).find((g) => g.id === guildId);
   const perms = req.session.perms || {};
+  const isOwner = user && user.id === OWNER_ID;
+  let guild = (req.session.guilds || []).find((g) => g.id === guildId);
+  if (!guild && isOwner) {
+    guild = { id: guildId, name: `Server ${guildId}` };
+  }
   if (!guild) {
     return res.send(renderLayout(user, `<div class="card"><h2>No access</h2></div>`, false));
   }
-  const MANAGE_GUILD = 0x20;
-  const hasManage = (parseInt(guild.permissions || "0", 10) & MANAGE_GUILD) === MANAGE_GUILD;
-  if (!hasManage || !perms[guildId]?.allowed) {
+  if (!isOwner && !perms[guildId]?.allowed) {
     return res.send(
       renderLayout(user, `<div class="card"><h2>${escapeHtml(guild.name || '')}</h2><p>No permission</p></div>`, false)
     );
