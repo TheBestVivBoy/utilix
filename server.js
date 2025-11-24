@@ -240,8 +240,9 @@ function renderConfigSections(guildId, config, roles, channels, logEvents, disab
     sectionType === "moderation"
       ? ["Moderation Roles"]
       : ["Bot Administrator Permissions", "Bot Customization", "Join / Leaves", "Logging", "Economy", "General"];
+  const safeRoles = Array.isArray(roles?.roles) ? roles.roles : [];
   const roleDatasetValue = escapeHtml(
-    JSON.stringify((roles.roles || []).map((role) => ({ id: String(role.id), name: role.name || "" })))
+    JSON.stringify(safeRoles.map((role) => ({ id: String(role.id), name: role.name || "" })))
   );
   const isSettingsSection = sectionType === "settings";
   const categoryEntries = [];
@@ -529,7 +530,7 @@ function renderCommandItems(commands, disabledSet) {
   const formatLabel = (label) =>
     label
       .replace(/[_-]+/g, " ")
-      .replace(/\\s+/g, " ")
+      .replace(/\s+/g, " ")
       .trim()
       .replace(/\b\w/g, (char) => char.toUpperCase());
 
@@ -537,13 +538,13 @@ function renderCommandItems(commands, disabledSet) {
     .map(({ command, label }) => {
       const slug = command.trim();
       if (!slug) return "";
-      const friendly = formatLabel(label || slug);
+      const friendly = label || slug;
       const isDisabled = disabledSet.has(slug);
       return `<div class="command-item"><div class="command-info"><span class="command-name">${escapeHtml(
         friendly
       )}</span><span class="command-slug">${escapeHtml(slug)}</span></div><div class="config-toggle"><label class="switch"><input type="checkbox" data-command="${escapeHtml(
         slug
-      )}" ${isDisabled ? "checked" : ""}><span class="slider"></span></label></div></div>`;
+      )}" ${isDisabled ? "" : "checked"}><span class="slider"></span></label></div></div>`;
     })
     .join("");
 }
@@ -2342,8 +2343,8 @@ function renderCommandItemsClient(commands, disabledSet) {
 
   const formatLabel = (label) =>
     label
-      .replace(/[_-]+/g, ' ')
-      .replace(/\\s+/g, " ")
+      .replace(/[_-]+/g, " ")
+      .replace(/\s+/g, " ")
       .trim()
       .replace(/\b\w/g, (char) => char.toUpperCase());
 
@@ -2351,13 +2352,19 @@ function renderCommandItemsClient(commands, disabledSet) {
     .map(({ command, label }) => {
       const slug = command.trim();
       if (!slug) return '';
-      const friendly = formatLabel(label || slug);
+      const friendly = label || slug;
       const isDisabled = disabledSet.has(slug);
       return (
         '<div class="command-item">' +
         '<div class="command-info">' +
         '<span class="command-name">' + escapeHtml(friendly) + '</span>' +
         '<span class="command-slug">' + escapeHtml(slug) + '</span>' +
+        '</div>' +
+        '<div class="config-toggle">' +
+        '<label class="switch">' +
+        '<input type="checkbox" data-command="' + escapeHtml(slug) + '" ' + (isDisabled ? '' : 'checked') + '>' +
+        '<span class="slider"></span>' +
+        '</label>' +
         '</div>' +
         '</div>'
       );
@@ -2417,7 +2424,7 @@ function setupCommandsSection(guildId, notify) {
     const checkbox = event.target.closest('input[data-command]');
     if (!checkbox) return;
     const cmd = checkbox.dataset.command;
-    const disable = checkbox.checked;
+    const disable = !checkbox.checked;
     try {
       const response = await fetch('/dashboard/' + guildId + '/disabled/' + (disable ? 'disable' : 'enable'), {
         method: 'POST',
