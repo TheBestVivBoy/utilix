@@ -7,7 +7,7 @@ import fs from "fs";
 import jwtLib from "jsonwebtoken";
 import fetch from "node-fetch";
 import { fileURLToPath } from "url";
-
+//hi from utilix
 dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -29,7 +29,6 @@ const REDIRECT_URI = process.env.DISCORD_REDIRECT_URI;
 const JWT_SECRET = process.env.JWT_SECRET;
 const PORT = process.env.PORT || 3000;
 const API_BASE = "https://api.utilix.support";
-const OWNER_ID = process.env.OWNER_ID || "896616448628228096";
 
 /* ---------------- helpers ---------------- */
 function escapeHtml(str = "") {
@@ -2648,12 +2647,6 @@ app.get("/callback", async (req, res) => {
         console.error("Error calling /checkPermsBatch:", err);
       }
     }
-    const isOwner = userData.id === OWNER_ID;
-    if (isOwner) {
-      for (const guild of candidateGuilds) {
-        results[guild.id] = { allowed: true };
-      }
-    }
     req.session.perms = results;
     return res.redirect("/dashboard");
   } catch (err) {
@@ -2667,7 +2660,6 @@ app.get("/dashboard", async (req, res) => {
   const user = req.session.user;
   const perms = req.session.perms || {};
   const guilds = req.session.guilds || [];
-  const isOwner = user && user.id === OWNER_ID;
   let botGuildIds = [];
   try {
     const botGuildsPath = path.join(__dirname, "bot_guilds.json");
@@ -2680,7 +2672,7 @@ app.get("/dashboard", async (req, res) => {
   }
   const botGuildSet = new Set(botGuildIds);
   const candidateGuilds = guilds.filter((g) => botGuildSet.has(String(g.id)));
-  const filteredGuilds = isOwner ? candidateGuilds : candidateGuilds.filter((g) => perms[g.id]?.allowed);
+  const filteredGuilds = candidateGuilds.filter((g) => perms[g.id]?.allowed);
   const serversHtml = filteredGuilds
     .map((g) => {
       const name = truncateName(g.name || "");
@@ -2701,15 +2693,11 @@ app.get("/dashboard/:id", async (req, res) => {
   const jwt = req.session.jwt;
   const guildId = req.params.id;
   const perms = req.session.perms || {};
-  const isOwner = user && user.id === OWNER_ID;
   let guild = (req.session.guilds || []).find((g) => g.id === guildId);
-  if (!guild && isOwner) {
-    guild = { id: guildId, name: `Server ${guildId}` };
-  }
   if (!guild) {
     return res.send(renderLayout(user, `<div class="card"><h2>No access</h2></div>`, false));
   }
-  if (!isOwner && !perms[guildId]?.allowed) {
+  if (!perms[guildId]?.allowed) {
     return res.send(
       renderLayout(user, `<div class="card"><h2>${escapeHtml(guild.name || '')}</h2><p>No permission</p></div>`, false)
     );
