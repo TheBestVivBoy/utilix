@@ -3014,10 +3014,10 @@ app.post("/dashboard/:id/shop/:item_id/delete", async (req, res) => {
 
 
 
-/ TICKET TRANSCRIPTS
-// Route: view a ticket transcript (canonical)
+
+// Route: view ticket transcript (canonical)
+// Put this below your other app.get handlers
 app.get("/dashboard/tickets/:guild_id/:uuid", async (req, res) => {
-  // small server-side HTML escape helper
   function esc(s) {
     if (s === undefined || s === null) return "";
     return String(s)
@@ -3028,7 +3028,7 @@ app.get("/dashboard/tickets/:guild_id/:uuid", async (req, res) => {
       .replace(/'/g, "&#39;");
   }
 
-  // require login / session
+  // require login
   if (!req.session || !req.session.user) {
     req.session.returnTo = req.originalUrl;
     return res.redirect("/login");
@@ -3039,36 +3039,50 @@ app.get("/dashboard/tickets/:guild_id/:uuid", async (req, res) => {
   const uuid = req.params.uuid;
   if (!guildId || !uuid) return res.status(400).send("Missing guild id or ticket uuid");
 
-  // ensure server JWT
+  // quick guild/perms check similar to dashboard/:id
+  const perms = req.session.perms || {};
+  const guild = (req.session.guilds || []).find((g) => g.id === guildId);
+  if (!guild) {
+    // user does not have this guild in their list
+    return res.send(renderLayout(user, `<div class="card"><h2>No access</h2><p>You are not in that server.</p></div>`, false));
+  }
+  if (!perms[guildId]?.allowed) {
+    return res.send(
+      renderLayout(user, `<div class="card"><h2>${esc(guild.name || "")}</h2><p>No permission</p></div>`, false)
+    );
+  }
+
+  // ensure we have the server-side JWT (from /callback)
   const jwt = req.session.jwt;
   if (!jwt) {
     req.session.returnTo = req.originalUrl;
     return res.redirect("/login");
   }
 
-  // call backend API with JWT
+  // call backend API
   let apiStatus = null;
-  let apiBodyText = null;
+  let apiBody = null;
   let ticketData = null;
   try {
     const apiRes = await fetch(`${API_BASE}/dashboard/tickets/${encodeURIComponent(guildId)}/${encodeURIComponent(uuid)}`, {
+      method: "GET",
       headers: {
         Authorization: `Bearer ${jwt}`,
-        Accept: "application/json",
+        Accept: "application/json"
       },
     });
 
     apiStatus = apiRes.status;
-    apiBodyText = await apiRes.text().catch(() => "");
+    apiBody = await apiRes.text().catch(() => "");
 
     if (apiRes.status === 200) {
       try {
-        ticketData = JSON.parse(apiBodyText);
+        ticketData = JSON.parse(apiBody);
       } catch (err) {
         ticketData = await apiRes.json().catch(() => null);
       }
     } else if (apiRes.status === 401) {
-      // token invalid or expired -> force re-login
+      // token invalid/expired -> force re-login
       req.session.jwt = null;
       req.session.returnTo = req.originalUrl;
       return res.redirect("/login");
@@ -3076,32 +3090,32 @@ app.get("/dashboard/tickets/:guild_id/:uuid", async (req, res) => {
   } catch (err) {
     console.error("Error fetching ticket API:", err);
     apiStatus = 500;
-    apiBodyText = String(err);
+    apiBody = String(err);
   }
 
   const debug = req.query.debug === "1";
 
-  // handle non-200
+  // Handle non-200 replies
   if (!ticketData) {
     if (apiStatus === 403) {
-      const body = `<div class="card"><h2>Forbidden</h2><p>You do not have permission to view this ticket in that guild.</p></div>` +
-                   (debug ? `<pre style="white-space:pre-wrap;margin-top:12px;background:#111;padding:12px;border-radius:8px;color:#ddd">API status: ${esc(apiStatus)}\nAPI body: ${esc(apiBodyText)}</pre>` : "");
+      const body = `<div class="card"><h2>Forbidden</h2><p>You do not have permission to view this ticket.</p></div>` +
+        (debug ? `<pre style="white-space:pre-wrap;margin-top:12px;background:#111;padding:12px;border-radius:8px;color:#ddd">API status: ${esc(apiStatus)}\nAPI body: ${esc(apiBody)}</pre>` : "");
       return res.status(403).send(renderLayout(user, body, false));
     }
 
     if (apiStatus === 404) {
       const body = `<div class="card"><h2>Not found</h2><p>Ticket not found for guild ${esc(guildId)} and uuid ${esc(uuid)}.</p></div>` +
-                   (debug ? `<pre style="white-space:pre-wrap;margin-top:12px;background:#111;padding:12px;border-radius:8px;color:#ddd">API status: ${esc(apiStatus)}\nAPI body: ${esc(apiBodyText)}</pre>` : "");
+        (debug ? `<pre style="white-space:pre-wrap;margin-top:12px;background:#111;padding:12px;border-radius:8px;color:#ddd">API status: ${esc(apiStatus)}\nAPI body: ${esc(apiBody)}</pre>` : "");
       return res.status(404).send(renderLayout(user, body, false));
     }
 
     // generic error
     const body = `<div class="card"><h2>Error</h2><p>Unable to fetch ticket (status: ${esc(apiStatus)}).</p></div>` +
-                 (debug ? `<pre style="white-space:pre-wrap;margin-top:12px;background:#111;padding:12px;border-radius:8px;color:#ddd">API status: ${esc(apiStatus)}\nAPI body: ${esc(apiBodyText)}</pre>` : "");
+      (debug ? `<pre style="white-space:pre-wrap;margin-top:12px;background:#111;padding:12px;border-radius:8px;color:#ddd">API status: ${esc(apiStatus)}\nAPI body: ${esc(apiBody)}</pre>` : "");
     return res.status(apiStatus || 500).send(renderLayout(user, body, false));
   }
 
-  // Normalize messages: prefer "messages", else parse transcript_json, else []
+  // Normalize messages
   let parsedMessages = [];
   if (Array.isArray(ticketData.messages)) {
     parsedMessages = ticketData.messages;
@@ -3115,7 +3129,7 @@ app.get("/dashboard/tickets/:guild_id/:uuid", async (req, res) => {
     parsedMessages = [];
   }
 
-  // If no structured messages but transcript_text exists, render readable preformatted transcript
+  // If no structured messages but transcript_text exists, show nice preformatted transcript
   if (parsedMessages.length === 0 && ticketData.transcript_text) {
     const bodyHtml = `
       <div class="card">
@@ -3132,11 +3146,11 @@ app.get("/dashboard/tickets/:guild_id/:uuid", async (req, res) => {
     return res.send(renderLayout(user, bodyHtml, true, guildId));
   }
 
-  // Prepare client payload
+  // Prepare payload for client
   const ticketForClient = Object.assign({}, ticketData, { messages: parsedMessages });
   const payloadJsonSafe = JSON.stringify(ticketForClient).replace(/</g, "\\u003c");
 
-  // Build body HTML (client renderer + CSS; integrated into your dashboard via renderLayout)
+  // Build body HTML using your existing client renderer structure
   const bodyHtml = `
     <div class="app-shell">
       <section class="header-card">
@@ -3169,53 +3183,33 @@ app.get("/dashboard/tickets/:guild_id/:uuid", async (req, res) => {
     </div>
 
     <style>
-      /* minimal CSS copied from your transcript UI so layout inside renderLayout looks correct */
+      /* craft a compact CSS snippet so the transcript fits your layout inside renderLayout */
       :root { color-scheme: dark; --bg:#0f172a; --border:#1e293b; --accent:#6366f1; --accent-soft:rgba(99,102,241,0.25); --text:#e5e7eb; --text-soft:#9ca3af; }
-      .app-shell { max-width:1200px; margin:0 auto; padding:16px 10px 32px; display:flex; flex-direction:column; gap:10px; color:var(--text); }
-      .header-card { background:rgba(15,23,42,0.95); border-radius:16px; border:1px solid var(--border); padding:14px 18px; display:flex; flex-direction:column; gap:6px; box-shadow:0 18px 60px rgba(0,0,0,0.7); }
-      .header-title{font-size:16px;font-weight:600;} .header-meta{display:flex;flex-wrap:wrap;gap:10px 18px;font-size:12px;color:var(--text-soft);margin-top:4px;}
-      .header-meta .label{ text-transform:uppercase; font-size:11px; color:var(--text-soft); } .header-meta .value{ color:var(--text); }
-      .header-pill-row{ display:flex; gap:6px; margin-top:4px; } .pill { padding:2px 8px; border-radius:999px; background:rgba(15,23,42,0.85); border:1px solid var(--border); font-size:11px; color:var(--text-soft); }
-      .pill-strong { border-color:var(--accent-soft); color:var(--accent); }
-      .transcript-shell{ background:rgba(15,23,42,0.98); border-radius:16px; border:1px solid var(--border); box-shadow:0 18px 60px rgba(0,0,0,0.9); display:flex; flex-direction:column; overflow:hidden; }
-      .chat-pane{ flex:1; display:flex; flex-direction:column; max-height:calc(100vh - 130px); }
-      .chat-header{ padding:8px 12px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--border); background:rgba(15,23,42,0.95); }
-      .chat-header-main{ display:flex; align-items:center; gap:6px; font-size:14px; } .chat-header-name{ font-weight:600; } .chat-header-tag{ font-size:11px; color:var(--text-soft); }
-      .chat-scroll{ padding:10px 12px 14px; overflow-y:auto; scroll-behavior:smooth; }
-      .message{ display:flex; gap:10px; padding:3px 2px; margin-bottom:4px; } .message-avatar img{ width:40px; height:40px; border-radius:999px; object-fit:cover; background:#020617; }
-      .message-body{ flex:1; } .message-header{ display:flex; align-items:center; gap:6px; font-size:13px; } .message-author{ font-weight:600; } .message-author.bot{ color:#57F287; }
-      .message-bot-pill{ font-size:10px; text-transform:uppercase; letter-spacing:0.12em; border-radius:3px; padding:1px 4px; background:#5865F2; color:white; font-weight:600; }
-      .message-timestamp{ font-size:11px; color:var(--text-soft); } .message-content{ font-size:14px; margin-top:1px; white-space:pre-wrap; word-wrap:break-word; }
-      .message-embed{ margin-top:4px; border-left:3px solid var(--accent-soft); background:rgba(15,23,42,0.9); border-radius:4px; padding:6px 8px; font-size:13px; } .embed-title{ font-weight:600; margin-bottom:3px; }
-      .embed-description{ color:var(--text-soft); } .embed-footer{ margin-top:4px; font-size:11px; color:var(--text-soft); }
-      .lazy-sentinel{ height:24px; } .empty-state{ font-size:13px; color:var(--text-soft); padding:10px 12px 14px; }
-      @media (max-width:720px){ .app-shell{ padding:10px 6px 22px; } .transcript-shell{ border-radius:12px; } .chat-pane{ max-height:none; } }
+      .app-shell{max-width:1200px;margin:0 auto;padding:16px 10px 32px;display:flex;flex-direction:column;gap:10px;color:var(--text);}
+      .header-card{background:rgba(15,23,42,0.95);border-radius:16px;border:1px solid var(--border);padding:14px 18px;display:flex;flex-direction:column;gap:6px;box-shadow:0 18px 60px rgba(0,0,0,0.7);}
+      .header-title{font-size:16px;font-weight:600}.header-meta{display:flex;flex-wrap:wrap;gap:10px 18px;font-size:12px;color:var(--text-soft);margin-top:4px}
+      .pill{padding:2px 8px;border-radius:999px;background:rgba(15,23,42,0.85);border:1px solid var(--border);font-size:11px;color:var(--text-soft)}.pill-strong{border-color:var(--accent-soft);color:var(--accent)}
+      .transcript-shell{background:rgba(15,23,42,0.98);border-radius:16px;border:1px solid var(--border);box-shadow:0 18px 60px rgba(0,0,0,0.9);display:flex;flex-direction:column;overflow:hidden}
+      .chat-pane{flex:1;display:flex;flex-direction:column;max-height:calc(100vh - 130px)}.chat-header{padding:8px 12px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);background:rgba(15,23,42,0.95)}
+      .chat-scroll{padding:10px 12px 14px;overflow-y:auto;scroll-behavior:smooth}.message{display:flex;gap:10px;padding:3px 2px;margin-bottom:4px}.message-avatar img{width:40px;height:40px;border-radius:999px;object-fit:cover;background:#020617}.message-body{flex:1}.message-header{display:flex;align-items:center;gap:6px;font-size:13px}.message-author{font-weight:600}.message-author.bot{color:#57F287}.message-bot-pill{font-size:10px;text-transform:uppercase;letter-spacing:0.12em;border-radius:3px;padding:1px 4px;background:#5865F2;color:white;font-weight:600}.message-timestamp{font-size:11px;color:var(--text-soft)}.message-content{font-size:14px;margin-top:1px;white-space:pre-wrap;word-wrap:break-word}.message-embed{margin-top:4px;border-left:3px solid var(--accent-soft);background:rgba(15,23,42,0.9);border-radius:4px;padding:6px 8px;font-size:13px}.embed-title{font-weight:600;margin-bottom:3px}.embed-description{color:var(--text-soft)}.lazy-sentinel{height:24px}.empty-state{font-size:13px;color:var(--text-soft);padding:10px 12px 14px}
+      @media (max-width:720px){.app-shell{padding:10px 6px 22px}.transcript-shell{border-radius:12px}.chat-pane{max-height:none}}
     </style>
 
     <script>
       window.__TICKET__ = ${payloadJsonSafe};
 
-      (function() {
+      (function(){
         const data = window.__TICKET__ || {};
         const messages = Array.isArray(data.messages) ? data.messages : [];
         const META = {
-          uuid: data.uuid,
-          guild_id: data.guild_id,
-          guild_name: data.guild_name,
-          channel_id: data.channel_id,
-          channel_name: data.channel_name,
-          owner_id: data.owner_id,
-          owner_name: data.owner_name,
-          category_name: data.category_name,
-          reason: data.reason,
-          closed_at: data.closed_at,
-          closed_by: data.closed_by,
-          message_count: data.message_count || messages.length,
-          unique_authors: Array.from(new Set(messages.map(m => m.author_id))).length
+          uuid: data.uuid, guild_id: data.guild_id, guild_name: data.guild_name, channel_id: data.channel_id, channel_name: data.channel_name,
+          owner_id: data.owner_id, owner_name: data.owner_name, category_name: data.category_name, reason: data.reason, closed_at: data.closed_at,
+          closed_by: data.closed_by, message_count: data.message_count || messages.length,
+          unique_authors: Array.from(new Set(messages.map(m=>m.author_id))).length
         };
         const PAYLOAD = { messages };
 
-        // populate header
+        // header
         document.getElementById("meta-uuid").textContent = META.uuid || "";
         document.getElementById("meta-guild").textContent = META.guild_name || META.guild_id || "";
         document.getElementById("meta-channel").textContent = META.channel_name || META.channel_id || "";
@@ -3223,31 +3217,16 @@ app.get("/dashboard/tickets/:guild_id/:uuid", async (req, res) => {
         document.getElementById("meta-channel-tag").textContent = META.channel_name || META.channel_id || "";
         document.getElementById("message-count").textContent = (PAYLOAD.messages.length || 0) + " messages in this ticket";
         const closedEl = document.getElementById("closed-at");
-        if (META.closed_at) {
-          const d = new Date(META.closed_at);
-          closedEl.textContent = isNaN(d.getTime()) ? META.closed_at : d.toLocaleString();
-        }
+        if (META.closed_at) { const d = new Date(META.closed_at); closedEl.textContent = isNaN(d.getTime())? META.closed_at : d.toLocaleString(); }
 
-        function escapeHtml(str) {
-          if (str === null || str === undefined) return "";
-          return String(str).replace(/[&<>"']/g, function(ch) {
-            switch (ch) {
-              case "&": return "&amp;";
-              case "<": return "&lt;";
-              case ">": return "&gt;";
-              case '"': return "&quot;";
-              case "'": return "&#39;";
-              default: return ch;
-            }
-          });
-        }
+        function escapeHtml(str){ if (str===null || str===undefined) return ""; return String(str).replace(/[&<>"']/g, function(ch){ switch(ch){ case "&": return "&amp;"; case "<": return "&lt;"; case ">": return "&gt;"; case '"': return "&quot;"; case "'": return "&#39;"; default: return ch; } }); }
 
-        function renderEmbed(embed) {
-          if (!embed || typeof embed !== "object") return "";
+        function renderEmbed(embed){
+          if(!embed || typeof embed !== "object") return "";
           const title = embed.title ? '<div class="embed-title">' + escapeHtml(embed.title) + '</div>' : '';
-          const desc = embed.description ? '<div class="embed-description">' + escapeHtml(embed.description) + '</div>' : '';
+          const desc  = embed.description ? '<div class="embed-description">' + escapeHtml(embed.description) + '</div>' : '';
           let fieldsHtml = '';
-          if (Array.isArray(embed.fields)) {
+          if(Array.isArray(embed.fields)){
             fieldsHtml = embed.fields.map(f => {
               const n = f.name ? escapeHtml(f.name) : '';
               const v = f.value ? escapeHtml(f.value) : '';
@@ -3255,8 +3234,8 @@ app.get("/dashboard/tickets/:guild_id/:uuid", async (req, res) => {
               return '<div class="embed-field"><div class="embed-field-name">' + n + '</div><div class="embed-field-value">' + v + '</div></div>';
             }).join('');
           }
-          const footerText = embed.footer && embed.footer.text ? escapeHtml(embed.footer.text) : '';
-          const footerHtml = footerText ? '<div class="embed-footer">' + footerText + '</div>' : '';
+          const footerTxt = embed.footer && embed.footer.text ? escapeHtml(embed.footer.text) : '';
+          const footerHtml = footerTxt ? '<div class="embed-footer">' + footerTxt + '</div>' : '';
           if (!title && !desc && !fieldsHtml && !footerHtml) return '';
           return '<div class="message-embed">' + title + desc + fieldsHtml + footerHtml + '</div>';
         }
@@ -3266,11 +3245,10 @@ app.get("/dashboard/tickets/:guild_id/:uuid", async (req, res) => {
         const BATCH_SIZE = 40;
         let index = 0;
 
-        function renderBatch() {
+        function renderBatch(){
           const end = Math.min(index + BATCH_SIZE, PAYLOAD.messages.length);
           const frag = document.createDocumentFragment();
-
-          for (let i = index; i < end; i++) {
+          for(let i = index; i < end; i++){
             const msg = PAYLOAD.messages[i] || {};
             const authorName = msg.author_name || msg.author || "Unknown";
             const avatarUrl = msg.author_avatar_url || msg.author_avatar || 'https://cdn.discordapp.com/embed/avatars/0.png';
@@ -3296,35 +3274,34 @@ app.get("/dashboard/tickets/:guild_id/:uuid", async (req, res) => {
             authorEl.textContent = authorName;
             header.appendChild(authorEl);
 
-            if (isBot) {
+            if(isBot){
               const botPill = document.createElement('span');
               botPill.className = 'message-bot-pill';
               botPill.textContent = 'BOT';
               header.appendChild(botPill);
             }
 
-            if (timestamp) {
+            if(timestamp){
               const timeEl = document.createElement('span');
               timeEl.className = 'message-timestamp';
               const d = new Date(timestamp);
-              timeEl.textContent = isNaN(d.getTime()) ? (' ' + timestamp) : (' ' + d.toLocaleString());
+              timeEl.textContent = isNaN(d.getTime())? (' ' + timestamp) : (' ' + d.toLocaleString());
               header.appendChild(timeEl);
             }
 
             body.appendChild(header);
 
             const content = (msg.content || msg.text || '') + '';
-            if (content) {
+            if(content){
               const contentEl = document.createElement('div');
               contentEl.className = 'message-content';
               contentEl.innerHTML = escapeHtml(content);
               body.appendChild(contentEl);
             }
 
-            const embeds = Array.isArray(msg.embeds) ? msg.embeds : [];
-            embeds.forEach(e => {
+            (Array.isArray(msg.embeds) ? msg.embeds : []).forEach(e => {
               const html = renderEmbed(e);
-              if (html) {
+              if(html){
                 const div = document.createElement('div');
                 div.innerHTML = html;
                 body.appendChild(div.firstChild);
@@ -3334,37 +3311,26 @@ app.get("/dashboard/tickets/:guild_id/:uuid", async (req, res) => {
             wrapper.appendChild(body);
             frag.appendChild(wrapper);
           }
-
           container.appendChild(frag);
           index = end;
-
-          if (index >= PAYLOAD.messages.length) {
-            if (sentinel && sentinel.parentNode) sentinel.parentNode.removeChild(sentinel);
+          if(index >= PAYLOAD.messages.length){
+            if(sentinel && sentinel.parentNode) sentinel.parentNode.removeChild(sentinel);
             observer.disconnect();
           }
         }
 
         const observer = new IntersectionObserver(entries => {
-          for (const entry of entries) {
-            if (entry.isIntersecting) {
-              renderBatch();
-            }
+          for(const entry of entries){
+            if(entry.isIntersecting) renderBatch();
           }
-        }, {
-          root: document.getElementById('chat-scroll'),
-          rootMargin: '0px 0px 180px 0px',
-          threshold: 0.1
-        });
+        }, { root: document.getElementById('chat-scroll'), rootMargin: '0px 0px 180px 0px', threshold: 0.1 });
 
         observer.observe(sentinel);
-        // initial batch render
         renderBatch();
-
       })();
     </script>
   `;
 
-  // send the page wrapped in your site's layout to keep header/nav
   return res.send(renderLayout(user, bodyHtml, true, guildId));
 });
 
