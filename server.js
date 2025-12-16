@@ -3014,10 +3014,9 @@ app.post("/dashboard/:id/shop/:item_id/delete", async (req, res) => {
 
 
 
-
-// Route: view ticket transcript (canonical)
-// Put this below your other app.get handlers
+// COMPLETE transcript route — drop into server.js below other app.get handlers
 app.get("/dashboard/tickets/:guild_id/:uuid", async (req, res) => {
+  // small HTML escape helper for server-side strings
   function esc(s) {
     if (s === undefined || s === null) return "";
     return String(s)
@@ -3039,27 +3038,24 @@ app.get("/dashboard/tickets/:guild_id/:uuid", async (req, res) => {
   const uuid = req.params.uuid;
   if (!guildId || !uuid) return res.status(400).send("Missing guild id or ticket uuid");
 
-  // quick guild/perms check similar to dashboard/:id
+  // quick guild membership + perms check similar to /dashboard/:id
   const perms = req.session.perms || {};
   const guild = (req.session.guilds || []).find((g) => g.id === guildId);
   if (!guild) {
-    // user does not have this guild in their list
     return res.send(renderLayout(user, `<div class="card"><h2>No access</h2><p>You are not in that server.</p></div>`, false));
   }
   if (!perms[guildId]?.allowed) {
-    return res.send(
-      renderLayout(user, `<div class="card"><h2>${esc(guild.name || "")}</h2><p>No permission</p></div>`, false)
-    );
+    return res.send(renderLayout(user, `<div class="card"><h2>${esc(guild.name || "")}</h2><p>No permission</p></div>`, false));
   }
 
-  // ensure we have the server-side JWT (from /callback)
+  // ensure server JWT to call API
   const jwt = req.session.jwt;
   if (!jwt) {
     req.session.returnTo = req.originalUrl;
     return res.redirect("/login");
   }
 
-  // call backend API
+  // call backend API with Authorization: Bearer <jwt>
   let apiStatus = null;
   let apiBody = null;
   let ticketData = null;
@@ -3068,7 +3064,7 @@ app.get("/dashboard/tickets/:guild_id/:uuid", async (req, res) => {
       method: "GET",
       headers: {
         Authorization: `Bearer ${jwt}`,
-        Accept: "application/json"
+        Accept: "application/json",
       },
     });
 
@@ -3082,7 +3078,7 @@ app.get("/dashboard/tickets/:guild_id/:uuid", async (req, res) => {
         ticketData = await apiRes.json().catch(() => null);
       }
     } else if (apiRes.status === 401) {
-      // token invalid/expired -> force re-login
+      // token invalid/expired -> re-login
       req.session.jwt = null;
       req.session.returnTo = req.originalUrl;
       return res.redirect("/login");
@@ -3095,27 +3091,23 @@ app.get("/dashboard/tickets/:guild_id/:uuid", async (req, res) => {
 
   const debug = req.query.debug === "1";
 
-  // Handle non-200 replies
   if (!ticketData) {
     if (apiStatus === 403) {
       const body = `<div class="card"><h2>Forbidden</h2><p>You do not have permission to view this ticket.</p></div>` +
         (debug ? `<pre style="white-space:pre-wrap;margin-top:12px;background:#111;padding:12px;border-radius:8px;color:#ddd">API status: ${esc(apiStatus)}\nAPI body: ${esc(apiBody)}</pre>` : "");
       return res.status(403).send(renderLayout(user, body, false));
     }
-
     if (apiStatus === 404) {
       const body = `<div class="card"><h2>Not found</h2><p>Ticket not found for guild ${esc(guildId)} and uuid ${esc(uuid)}.</p></div>` +
         (debug ? `<pre style="white-space:pre-wrap;margin-top:12px;background:#111;padding:12px;border-radius:8px;color:#ddd">API status: ${esc(apiStatus)}\nAPI body: ${esc(apiBody)}</pre>` : "");
       return res.status(404).send(renderLayout(user, body, false));
     }
-
-    // generic error
     const body = `<div class="card"><h2>Error</h2><p>Unable to fetch ticket (status: ${esc(apiStatus)}).</p></div>` +
       (debug ? `<pre style="white-space:pre-wrap;margin-top:12px;background:#111;padding:12px;border-radius:8px;color:#ddd">API status: ${esc(apiStatus)}\nAPI body: ${esc(apiBody)}</pre>` : "");
     return res.status(apiStatus || 500).send(renderLayout(user, body, false));
   }
 
-  // Normalize messages
+  // Normalize messages: use ticketData.messages, else parse transcript_json, else []
   let parsedMessages = [];
   if (Array.isArray(ticketData.messages)) {
     parsedMessages = ticketData.messages;
@@ -3129,12 +3121,12 @@ app.get("/dashboard/tickets/:guild_id/:uuid", async (req, res) => {
     parsedMessages = [];
   }
 
-  // If no structured messages but transcript_text exists, show nice preformatted transcript
+  // If no structured messages but transcript_text exists -> show pretty pre
   if (parsedMessages.length === 0 && ticketData.transcript_text) {
     const bodyHtml = `
       <div class="card">
         <h2>Ticket ${esc(ticketData.uuid || uuid)}</h2>
-        <div style="margin-top:8px;">
+        <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
           <div class="pill pill-strong">Category: ${esc(ticketData.category_name || "Unknown")}</div>
           <div class="pill">Guild: ${esc(ticketData.guild_name || ticketData.guild_id || guildId)}</div>
           <div class="pill">Channel: ${esc(ticketData.channel_name || ticketData.channel_id || "")}</div>
@@ -3146,195 +3138,286 @@ app.get("/dashboard/tickets/:guild_id/:uuid", async (req, res) => {
     return res.send(renderLayout(user, bodyHtml, true, guildId));
   }
 
-  // Prepare payload for client
+  // Build payload for safe client embedding (prevent </script> injection)
   const ticketForClient = Object.assign({}, ticketData, { messages: parsedMessages });
   const payloadJsonSafe = JSON.stringify(ticketForClient).replace(/</g, "\\u003c");
 
-  // Build body HTML using your existing client renderer structure
+  // Client HTML body (Discord-like, polished)
   const bodyHtml = `
-    <div class="app-shell">
-      <section class="header-card">
-        <div class="header-title">Ticket transcript</div>
-        <div class="header-meta">
-          <div><span class="label">Ticket</span> · <span class="value" id="meta-uuid"></span></div>
-          <div><span class="label">Guild</span> · <span class="value" id="meta-guild"></span></div>
-          <div><span class="label">Channel</span> · <span class="value" id="meta-channel"></span></div>
-          <div><span class="label">Owner</span> · <span class="value" id="meta-owner"></span></div>
-          <div><span class="label">Closed at</span> · <span class="value" id="closed-at"></span></div>
-        </div>
-        <div class="header-pill-row" id="header-pills"></div>
-      </section>
+  <div class="app-shell transcript-page">
+    <section class="header-card">
+      <div class="header-title">Ticket transcript</div>
+      <div class="header-meta">
+        <div><span class="label">Ticket</span> · <span class="value" id="meta-uuid"></span></div>
+        <div><span class="label">Guild</span> · <span class="value" id="meta-guild"></span></div>
+        <div><span class="label">Channel</span> · <span class="value" id="meta-channel"></span></div>
+        <div><span class="label">Owner</span> · <span class="value" id="meta-owner"></span></div>
+        <div><span class="label">Closed at</span> · <span class="value" id="closed-at"></span></div>
+      </div>
+      <div class="header-pill-row" id="header-pills"></div>
+    </section>
 
-      <section class="transcript-shell">
-        <div class="chat-pane">
-          <div class="chat-header">
-            <div class="chat-header-main">
-              <span class="chat-header-name">#ticket</span>
-              <span class="chat-header-tag" id="meta-channel-tag"></span>
-            </div>
-            <div class="chat-header-meta" id="message-count"></div>
+    <section class="transcript-shell" aria-label="ticket transcript">
+      <div class="chat-pane">
+        <div class="chat-header">
+          <div class="chat-header-main">
+            <span class="chat-header-name">#ticket</span>
+            <span class="chat-header-tag" id="meta-channel-tag"></span>
           </div>
-          <div id="chat-scroll" class="chat-scroll">
-            <div id="messages-container"></div>
-            <div id="lazy-sentinel" class="lazy-sentinel"></div>
-          </div>
+          <div class="chat-header-meta" id="message-count"></div>
         </div>
-      </section>
-    </div>
 
-    <style>
-      /* craft a compact CSS snippet so the transcript fits your layout inside renderLayout */
-      :root { color-scheme: dark; --bg:#0f172a; --border:#1e293b; --accent:#6366f1; --accent-soft:rgba(99,102,241,0.25); --text:#e5e7eb; --text-soft:#9ca3af; }
-      .app-shell{max-width:1200px;margin:0 auto;padding:16px 10px 32px;display:flex;flex-direction:column;gap:10px;color:var(--text);}
-      .header-card{background:rgba(15,23,42,0.95);border-radius:16px;border:1px solid var(--border);padding:14px 18px;display:flex;flex-direction:column;gap:6px;box-shadow:0 18px 60px rgba(0,0,0,0.7);}
-      .header-title{font-size:16px;font-weight:600}.header-meta{display:flex;flex-wrap:wrap;gap:10px 18px;font-size:12px;color:var(--text-soft);margin-top:4px}
-      .pill{padding:2px 8px;border-radius:999px;background:rgba(15,23,42,0.85);border:1px solid var(--border);font-size:11px;color:var(--text-soft)}.pill-strong{border-color:var(--accent-soft);color:var(--accent)}
-      .transcript-shell{background:rgba(15,23,42,0.98);border-radius:16px;border:1px solid var(--border);box-shadow:0 18px 60px rgba(0,0,0,0.9);display:flex;flex-direction:column;overflow:hidden}
-      .chat-pane{flex:1;display:flex;flex-direction:column;max-height:calc(100vh - 130px)}.chat-header{padding:8px 12px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);background:rgba(15,23,42,0.95)}
-      .chat-scroll{padding:10px 12px 14px;overflow-y:auto;scroll-behavior:smooth}.message{display:flex;gap:10px;padding:3px 2px;margin-bottom:4px}.message-avatar img{width:40px;height:40px;border-radius:999px;object-fit:cover;background:#020617}.message-body{flex:1}.message-header{display:flex;align-items:center;gap:6px;font-size:13px}.message-author{font-weight:600}.message-author.bot{color:#57F287}.message-bot-pill{font-size:10px;text-transform:uppercase;letter-spacing:0.12em;border-radius:3px;padding:1px 4px;background:#5865F2;color:white;font-weight:600}.message-timestamp{font-size:11px;color:var(--text-soft)}.message-content{font-size:14px;margin-top:1px;white-space:pre-wrap;word-wrap:break-word}.message-embed{margin-top:4px;border-left:3px solid var(--accent-soft);background:rgba(15,23,42,0.9);border-radius:4px;padding:6px 8px;font-size:13px}.embed-title{font-weight:600;margin-bottom:3px}.embed-description{color:var(--text-soft)}.lazy-sentinel{height:24px}.empty-state{font-size:13px;color:var(--text-soft);padding:10px 12px 14px}
-      @media (max-width:720px){.app-shell{padding:10px 6px 22px}.transcript-shell{border-radius:12px}.chat-pane{max-height:none}}
-    </style>
+        <div id="chat-scroll" class="chat-scroll" role="log" aria-live="polite">
+          <div id="messages-container" class="messages"></div>
+          <div id="lazy-sentinel" class="lazy-sentinel"></div>
+        </div>
+      </div>
+    </section>
+  </div>
 
-    <script>
-      window.__TICKET__ = ${payloadJsonSafe};
+  <style>
+    /* Polished Discord-like tweaks */
+    :root {
+      --accent: #5865F2;
+      --bg: #0b1220;
+      --muted: #9ca3af;
+      --card: rgba(15,23,42,0.95);
+      --border: #1e293b;
+      --accent-soft: rgba(88,101,242,0.12);
+      --text: #e5e7eb;
+    }
+    .transcript-page .app-shell { max-width:1100px; margin:18px auto; padding:18px; }
+    .header-card { padding:16px; }
+    .header-title { font-size:18px; font-weight:700; letter-spacing:0.2px; }
+    .header-meta { margin-top:8px; gap:8px 18px; color:var(--muted); }
+    .header-pill-row { margin-top:10px; }
 
-      (function(){
-        const data = window.__TICKET__ || {};
-        const messages = Array.isArray(data.messages) ? data.messages : [];
-        const META = {
-          uuid: data.uuid, guild_id: data.guild_id, guild_name: data.guild_name, channel_id: data.channel_id, channel_name: data.channel_name,
-          owner_id: data.owner_id, owner_name: data.owner_name, category_name: data.category_name, reason: data.reason, closed_at: data.closed_at,
-          closed_by: data.closed_by, message_count: data.message_count || messages.length,
-          unique_authors: Array.from(new Set(messages.map(m=>m.author_id))).length
-        };
-        const PAYLOAD = { messages };
+    .transcript-shell { margin-top:10px; }
+    .chat-header { padding:12px; }
+    .chat-scroll { height:calc(80vh); padding:12px; overflow:auto; background: linear-gradient(180deg, rgba(255,255,255,0.01), transparent 10%); border-radius:10px; }
 
-        // header
-        document.getElementById("meta-uuid").textContent = META.uuid || "";
-        document.getElementById("meta-guild").textContent = META.guild_name || META.guild_id || "";
-        document.getElementById("meta-channel").textContent = META.channel_name || META.channel_id || "";
-        document.getElementById("meta-owner").textContent = META.owner_name || META.owner_id || "";
-        document.getElementById("meta-channel-tag").textContent = META.channel_name || META.channel_id || "";
-        document.getElementById("message-count").textContent = (PAYLOAD.messages.length || 0) + " messages in this ticket";
-        const closedEl = document.getElementById("closed-at");
-        if (META.closed_at) { const d = new Date(META.closed_at); closedEl.textContent = isNaN(d.getTime())? META.closed_at : d.toLocaleString(); }
+    .message { display:flex; gap:12px; padding:8px; border-radius:8px; align-items:flex-start; }
+    .message:hover { background: rgba(255,255,255,0.01); }
+    .message-avatar { width:48px; flex-shrink:0; }
+    .message-avatar img { width:48px; height:48px; border-radius:999px; object-fit:cover; background:#010115; display:block; }
+    .message-body { flex:1; min-width:0; }
+    .message-header { display:flex; gap:8px; align-items:center; font-size:14px; }
+    .message-author { font-weight:700; color:var(--text); }
+    .message-author.bot { color:#6ee7b7; } /* bot tint */
+    .message-bot-pill { font-size:10px; padding:2px 6px; border-radius:6px; background:var(--accent); color:white; font-weight:700; margin-left:6px; }
+    .message-timestamp { font-size:12px; color:var(--muted); margin-left:6px; }
 
-        function escapeHtml(str){ if (str===null || str===undefined) return ""; return String(str).replace(/[&<>"']/g, function(ch){ switch(ch){ case "&": return "&amp;"; case "<": return "&lt;"; case ">": return "&gt;"; case '"': return "&quot;"; case "'": return "&#39;"; default: return ch; } }); }
+    .message-content { margin-top:6px; font-size:15px; color:var(--text); white-space:pre-wrap; word-break:break-word; }
+    .message-embed { margin-top:8px; border-left:4px solid var(--accent-soft); background:rgba(10,12,20,0.4); padding:10px; border-radius:6px; }
+    .embed-title { font-weight:700; margin-bottom:6px; }
+    .embed-description { color:var(--muted); white-space:pre-wrap; }
+    .embed-field { margin-top:8px; display:flex; gap:8px; }
+    .embed-field-name { font-weight:700; width:160px; color:var(--muted); }
+    .embed-field-value { color:var(--muted); flex:1; }
 
-        function renderEmbed(embed){
-          if(!embed || typeof embed !== "object") return "";
-          const title = embed.title ? '<div class="embed-title">' + escapeHtml(embed.title) + '</div>' : '';
-          const desc  = embed.description ? '<div class="embed-description">' + escapeHtml(embed.description) + '</div>' : '';
-          let fieldsHtml = '';
-          if(Array.isArray(embed.fields)){
-            fieldsHtml = embed.fields.map(f => {
-              const n = f.name ? escapeHtml(f.name) : '';
-              const v = f.value ? escapeHtml(f.value) : '';
-              if (!n && !v) return '';
-              return '<div class="embed-field"><div class="embed-field-name">' + n + '</div><div class="embed-field-value">' + v + '</div></div>';
-            }).join('');
+    .pill { padding:4px 10px; border-radius:999px; background:rgba(15,23,42,0.85); border:1px solid var(--border); color:var(--muted); font-size:12px; }
+    .pill-strong { color:var(--accent); border-color:var(--accent); background:linear-gradient(90deg, rgba(88,101,242,0.06), rgba(88,101,242,0.02)); }
+
+    @media (max-width:820px) {
+      .message-avatar img { width:40px; height:40px; } .message-avatar { width:40px; }
+      .chat-scroll { height:calc(70vh); padding:10px; }
+    }
+  </style>
+
+  <script>
+    // server-embedded safe payload
+    window.__TICKET__ = ${payloadJsonSafe};
+
+    (function() {
+      const data = window.__TICKET__ || {};
+      const messages = Array.isArray(data.messages) ? data.messages : [];
+      const META = {
+        uuid: data.uuid,
+        guild_id: data.guild_id,
+        guild_name: data.guild_name,
+        channel_id: data.channel_id,
+        channel_name: data.channel_name,
+        owner_id: data.owner_id,
+        owner_name: data.owner_name,
+        category_name: data.category_name,
+        reason: data.reason,
+        closed_at: data.closed_at,
+        closed_by: data.closed_by,
+        message_count: data.message_count || messages.length,
+        unique_authors: Array.from(new Set(messages.map(m => m.author_id))).length
+      };
+
+      // Fill header
+      document.getElementById('meta-uuid').textContent = META.uuid || '';
+      document.getElementById('meta-guild').textContent = META.guild_name || META.guild_id || '';
+      document.getElementById('meta-channel').textContent = META.channel_name || META.channel_id || '';
+      document.getElementById('meta-owner').textContent = META.owner_name || META.owner_id || '';
+      document.getElementById('meta-channel-tag').textContent = META.channel_name || META.channel_id || '';
+      document.getElementById('message-count').textContent = (messages.length || 0) + ' messages in this ticket';
+      if (META.closed_at) {
+        const closedEl = document.getElementById('closed-at');
+        const d = new Date(META.closed_at);
+        closedEl.textContent = isNaN(d.getTime()) ? META.closed_at : d.toLocaleString();
+      }
+      const pills = document.getElementById('header-pills');
+      pills.innerHTML = `
+        <div class="pill pill-strong">Category: ${escapeHtml(META.category_name || 'Unknown')}</div>
+        <div class="pill">Closed by: ${escapeHtml(META.closed_by || 'Unknown')}</div>
+        <div class="pill">Reason: ${escapeHtml(META.reason || 'n/a')}</div>
+        <div class="pill">Messages: ${escapeHtml(String(META.message_count || messages.length))}</div>
+        <div class="pill">Users: ${escapeHtml(String(META.unique_authors || 0))}</div>
+      `;
+
+      // helpers
+      function escapeHtml(str) {
+        if (str === null || str === undefined) return '';
+        return String(str).replace(/[&<>"']/g, ch => {
+          switch (ch) {
+            case '&': return '&amp;';
+            case '<': return '&lt;';
+            case '>': return '&gt;';
+            case '"': return '&quot;';
+            case "'": return '&#39;';
+            default: return ch;
           }
-          const footerTxt = embed.footer && embed.footer.text ? escapeHtml(embed.footer.text) : '';
-          const footerHtml = footerTxt ? '<div class="embed-footer">' + footerTxt + '</div>' : '';
-          if (!title && !desc && !fieldsHtml && !footerHtml) return '';
-          return '<div class="message-embed">' + title + desc + fieldsHtml + footerHtml + '</div>';
+        });
+      }
+
+      function isBotMessage(msg) {
+        // common signals for bot/webhook messages
+        return !!(msg.is_bot || msg.is_webhook || msg.webhook_id || msg.author_is_bot);
+      }
+
+      function avatarFor(msg) {
+        // prefer canonical author_avatar_url; fallback to constructed CDN or embed avatar
+        const def = 'https://cdn.discordapp.com/embed/avatars/0.png';
+        if (msg.author_avatar_url) return msg.author_avatar_url;
+        // try author_avatar or author discriminator? best effort: construct possible URL if we had hash
+        // but without hash we must fallback to default
+        return def;
+      }
+
+      function renderEmbed(embed) {
+        if (!embed || typeof embed !== 'object') return '';
+        const title = embed.title ? '<div class="embed-title">' + escapeHtml(embed.title) + '</div>' : '';
+        const desc  = embed.description ? '<div class="embed-description">' + escapeHtml(embed.description) + '</div>' : '';
+        let fieldsHtml = '';
+        if (Array.isArray(embed.fields) && embed.fields.length) {
+          fieldsHtml = embed.fields.map(f => (
+            '<div class="embed-field"><div class="embed-field-name">' + escapeHtml(f.name || '') + '</div>' +
+            '<div class="embed-field-value">' + escapeHtml(f.value || '') + '</div></div>'
+          )).join('');
+        }
+        const footer = embed.footer && embed.footer.text ? '<div class="embed-footer">' + escapeHtml(embed.footer.text) + '</div>' : '';
+        return '<div class="message-embed">' + title + desc + fieldsHtml + footer + '</div>';
+      }
+
+      // Lazy renderer
+      const container = document.getElementById('messages-container');
+      const sentinel = document.getElementById('lazy-sentinel');
+      const BATCH = 30;
+      let idx = 0;
+
+      function renderBatch() {
+        const end = Math.min(idx + BATCH, messages.length);
+        const frag = document.createDocumentFragment();
+
+        for (let i = idx; i < end; i++) {
+          const msg = messages[i] || {};
+          const authorName = msg.author_name || msg.author || 'Unknown';
+          const avatarUrl = avatarFor(msg);
+          const ts = msg.created_at || msg.timestamp || msg.created_at || '';
+          const bot = isBotMessage(msg);
+
+          const wrapper = document.createElement('div');
+          wrapper.className = 'message';
+          // avatar
+          const avatarWrap = document.createElement('div');
+          avatarWrap.className = 'message-avatar';
+          const im = document.createElement('img');
+          im.src = avatarUrl;
+          im.alt = authorName + ' avatar';
+          // robust fallback if CDN blocks or 404s
+          im.onerror = function() { this.onerror = null; this.src = 'https://cdn.discordapp.com/embed/avatars/0.png'; };
+          avatarWrap.appendChild(im);
+          wrapper.appendChild(avatarWrap);
+
+          // body
+          const body = document.createElement('div');
+          body.className = 'message-body';
+
+          const header = document.createElement('div');
+          header.className = 'message-header';
+
+          const authorEl = document.createElement('span');
+          authorEl.className = 'message-author' + (bot ? ' bot' : '');
+          authorEl.textContent = authorName;
+          header.appendChild(authorEl);
+
+          if (bot) {
+            const pill = document.createElement('span');
+            pill.className = 'message-bot-pill';
+            pill.textContent = 'BOT';
+            header.appendChild(pill);
+          }
+
+          if (ts) {
+            const tspan = document.createElement('span');
+            tspan.className = 'message-timestamp';
+            const d = new Date(ts);
+            tspan.textContent = isNaN(d.getTime()) ? (' ' + ts) : (' ' + d.toLocaleString());
+            header.appendChild(tspan);
+          }
+
+          body.appendChild(header);
+
+          // content
+          const contentTxt = (msg.content || msg.text || '') + '';
+          if (contentTxt) {
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+            contentDiv.innerHTML = escapeHtml(contentTxt);
+            body.appendChild(contentDiv);
+          }
+
+          // embeds
+          const embeds = Array.isArray(msg.embeds) ? msg.embeds : [];
+          embeds.forEach(e => {
+            const html = renderEmbed(e);
+            if (html) {
+              const tmp = document.createElement('div');
+              tmp.innerHTML = html;
+              body.appendChild(tmp.firstChild);
+            }
+          });
+
+          wrapper.appendChild(body);
+          frag.appendChild(wrapper);
         }
 
-        const container = document.getElementById("messages-container");
-        const sentinel = document.getElementById("lazy-sentinel");
-        const BATCH_SIZE = 40;
-        let index = 0;
+        container.appendChild(frag);
+        idx = end;
 
-        function renderBatch(){
-          const end = Math.min(index + BATCH_SIZE, PAYLOAD.messages.length);
-          const frag = document.createDocumentFragment();
-          for(let i = index; i < end; i++){
-            const msg = PAYLOAD.messages[i] || {};
-            const authorName = msg.author_name || msg.author || "Unknown";
-            const avatarUrl = msg.author_avatar_url || msg.author_avatar || 'https://cdn.discordapp.com/embed/avatars/0.png';
-            const timestamp = msg.created_at || msg.timestamp || msg.created_at;
-            const isBot = !!msg.is_webhook || !!msg.is_bot || false;
-
-            const wrapper = document.createElement('div');
-            wrapper.className = 'message';
-
-            const avatar = document.createElement('div');
-            avatar.className = 'message-avatar';
-            avatar.innerHTML = '<img src="' + escapeHtml(avatarUrl) + '" alt="avatar">';
-            wrapper.appendChild(avatar);
-
-            const body = document.createElement('div');
-            body.className = 'message-body';
-
-            const header = document.createElement('div');
-            header.className = 'message-header';
-
-            const authorEl = document.createElement('span');
-            authorEl.className = 'message-author' + (isBot ? ' bot' : '');
-            authorEl.textContent = authorName;
-            header.appendChild(authorEl);
-
-            if(isBot){
-              const botPill = document.createElement('span');
-              botPill.className = 'message-bot-pill';
-              botPill.textContent = 'BOT';
-              header.appendChild(botPill);
-            }
-
-            if(timestamp){
-              const timeEl = document.createElement('span');
-              timeEl.className = 'message-timestamp';
-              const d = new Date(timestamp);
-              timeEl.textContent = isNaN(d.getTime())? (' ' + timestamp) : (' ' + d.toLocaleString());
-              header.appendChild(timeEl);
-            }
-
-            body.appendChild(header);
-
-            const content = (msg.content || msg.text || '') + '';
-            if(content){
-              const contentEl = document.createElement('div');
-              contentEl.className = 'message-content';
-              contentEl.innerHTML = escapeHtml(content);
-              body.appendChild(contentEl);
-            }
-
-            (Array.isArray(msg.embeds) ? msg.embeds : []).forEach(e => {
-              const html = renderEmbed(e);
-              if(html){
-                const div = document.createElement('div');
-                div.innerHTML = html;
-                body.appendChild(div.firstChild);
-              }
-            });
-
-            wrapper.appendChild(body);
-            frag.appendChild(wrapper);
-          }
-          container.appendChild(frag);
-          index = end;
-          if(index >= PAYLOAD.messages.length){
-            if(sentinel && sentinel.parentNode) sentinel.parentNode.removeChild(sentinel);
-            observer.disconnect();
-          }
+        if (idx >= messages.length) {
+          if (sentinel && sentinel.parentNode) sentinel.parentNode.removeChild(sentinel);
+          observer.disconnect();
         }
+      }
 
-        const observer = new IntersectionObserver(entries => {
-          for(const entry of entries){
-            if(entry.isIntersecting) renderBatch();
-          }
-        }, { root: document.getElementById('chat-scroll'), rootMargin: '0px 0px 180px 0px', threshold: 0.1 });
+      const observer = new IntersectionObserver(entries => {
+        for (const ent of entries) if (ent.isIntersecting) renderBatch();
+      }, { root: document.getElementById('chat-scroll'), rootMargin: '0px 0px 200px 0px', threshold: 0.1 });
 
-        observer.observe(sentinel);
-        renderBatch();
-      })();
-    </script>
+      observer.observe(sentinel);
+      // initial render
+      renderBatch();
+    })();
+  </script>
   `;
 
+  // send page wrapped in your site's layout to keep header/nav (so it fits)
   return res.send(renderLayout(user, bodyHtml, true, guildId));
 });
-
-
 
 
 
