@@ -3012,6 +3012,453 @@ app.post("/dashboard/:id/shop/:item_id/delete", async (req, res) => {
   }
 });
 
+// Ticket view route - paste this below your existing app.get handlers
+app.get("/t/:uuid", async (req, res) => {
+  // require login
+  if (!req.session || !req.session.user) {
+    req.session.returnTo = req.originalUrl;
+    return res.redirect("/login");
+  }
+
+  const user = req.session.user;
+  const uuid = req.params.uuid;
+  if (!uuid) return res.status(400).send("Missing ticket uuid");
+
+  // build guild list same as dashboard
+  let guilds = req.session.guilds || [];
+  let botGuildIds = [];
+  try {
+    const botGuildsPath = path.join(__dirname, "bot_guilds.json");
+    if (fs.existsSync(botGuildsPath)) {
+      botGuildIds = JSON.parse(fs.readFileSync(botGuildsPath)).guild_ids || [];
+    }
+  } catch (err) {
+    console.error("Failed to load bot_guilds.json:", err);
+    botGuildIds = [];
+  }
+  const botGuildSet = new Set(botGuildIds);
+  const candidateGuilds = guilds.filter((g) => botGuildSet.has(String(g.id)));
+  const perms = req.session.perms || {};
+  const allowedGuilds = candidateGuilds.filter((g) => perms[g.id]?.allowed);
+  const tryGuilds = (allowedGuilds.length ? allowedGuilds : (candidateGuilds.length ? candidateGuilds : guilds));
+
+  // require server-side JWT
+  const jwt = req.session.jwt;
+  if (!jwt) {
+    req.session.returnTo = req.originalUrl;
+    return res.redirect("/login");
+  }
+
+  // try each candidate guild until API returns 200
+  let ticketData = null;
+  let lastStatus = null;
+  for (const g of tryGuilds) {
+    const gid = String(g.id);
+    try {
+      const apiRes = await fetch(`${API_BASE}/dashboard/ticket/${gid}/${uuid}`, {
+        headers: { Authorization: `Bearer ${jwt}` },
+      });
+      lastStatus = apiRes.status;
+
+      if (apiRes.status === 200) {
+        ticketData = await apiRes.json();
+        break;
+      }
+
+      if (apiRes.status === 401) {
+        // jwt invalid/expired -> force re-login
+        req.session.jwt = null;
+        req.session.returnTo = req.originalUrl;
+        return res.redirect("/login");
+      }
+
+      // 403 -> user lacks permission for that guild; keep trying
+      // 404 -> keep trying
+    } catch (err) {
+      console.error("Error fetching ticket for guild", gid, err);
+      lastStatus = 500;
+    }
+  }
+
+  if (!ticketData) {
+    if (lastStatus === 403) {
+      const html = `<div class="card"><h2>Forbidden</h2><p>You do not have permission to view this ticket.</p></div>`;
+      return res.status(403).send(renderLayout(user, html, false));
+    }
+    const html = `<div class="card"><h2>Not found</h2><p>Ticket not found in your guilds.</p></div>`;
+    return res.status(404).send(renderLayout(user, html, false));
+  }
+
+  // If API gave transcript_json (string), parse it into messages for client
+  let parsedMessages = [];
+  if (Array.isArray(ticketData.messages)) {
+    parsedMessages = ticketData.messages;
+  } else if (ticketData.transcript_json) {
+    try {
+      parsedMessages = JSON.parse(ticketData.transcript_json);
+    } catch (err) {
+      parsedMessages = [];
+    }
+  }
+
+  // Build ticket object to send to client (ensure messages field exists)
+  const ticketForClient = Object.assign({}, ticketData, { messages: parsedMessages });
+
+  // Safely stringify for embedding into HTML: escape '<' to prevent </script> injection
+  const payloadJsonSafe = JSON.stringify(ticketForClient).replace(/</g, "\\u003c");
+
+  // Full HTML page (transcript-only). It uses the same client rendering logic you had.
+  // Paste the HTML/CSS/JS below. If you prefer, you can move CSS to a static file later.
+  const html = `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Ticket transcript - ${escapeHtml(ticketForClient.uuid || "")}</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+:root {
+  color-scheme: dark;
+  --bg:#0f172a;
+  --bg-alt:#020617;
+  --surface:#020617;
+  --surface-alt:#020617;
+  --border:#1e293b;
+  --accent:#6366f1;
+  --accent-soft:rgba(99,102,241,0.25);
+  --text:#e5e7eb;
+  --text-soft:#9ca3af;
+  --danger:#ef4444;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+*,
+*::before,
+*::after { box-sizing:border-box; }
+body {
+  margin:0;
+  min-height:100vh;
+  background:radial-gradient(circle at top,#1e293b 0,#020617 55%) fixed;
+  color:var(--text);
+}
+.app-shell {
+  max-width:1200px;
+  margin:0 auto;
+  padding:16px 10px 32px;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+.header-card {
+  background:rgba(15,23,42,0.95);
+  border-radius:16px;
+  border:1px solid var(--border);
+  padding:14px 18px;
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  box-shadow:0 18px 60px rgba(0,0,0,0.7);
+}
+.header-title { font-size:16px; font-weight:600; }
+.header-meta {
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px 18px;
+  font-size:12px;
+  color:var(--text-soft);
+  margin-top:4px;
+}
+.header-meta span.label {
+  text-transform:uppercase;
+  font-size:11px;
+  letter-spacing:0.04em;
+  color:var(--text-soft);
+}
+.header-meta span.value { color:var(--text); }
+.header-pill-row { display:flex; flex-wrap:wrap; gap:6px; margin-top:4px; }
+.pill {
+  padding:2px 8px;
+  border-radius:999px;
+  background:rgba(15,23,42,0.85);
+  border:1px solid var(--border);
+  font-size:11px;
+  color:var(--text-soft);
+}
+.pill-strong { border-color:var(--accent-soft); color:var(--accent); }
+
+.transcript-shell {
+  background:rgba(15,23,42,0.98);
+  border-radius:16px;
+  border:1px solid var(--border);
+  box-shadow:0 18px 60px rgba(0,0,0,0.9);
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+}
+.chat-pane { flex:1; display:flex; flex-direction:column; max-height:calc(100vh - 130px); }
+.chat-header {
+  padding:8px 12px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  border-bottom:1px solid var(--border);
+  background:rgba(15,23,42,0.95);
+}
+.chat-header-main { display:flex; align-items:center; gap:6px; font-size:14px; }
+.chat-header-name { font-weight:600; }
+.chat-header-tag { font-size:11px; color:var(--text-soft); }
+.chat-header-meta { font-size:11px; color:var(--text-soft); }
+.chat-scroll { padding:10px 12px 14px; overflow-y:auto; scroll-behavior:smooth; }
+
+.message { display:flex; gap:10px; padding:3px 2px; margin-bottom:4px; }
+.message:hover { background:rgba(15,23,42,0.9); }
+.message-avatar { width:40px; flex-shrink:0; }
+.message-avatar img { width:40px; height:40px; border-radius:999px; object-fit:cover; background:#020617; }
+.message-body { flex:1; }
+.message-header { display:flex; align-items:center; gap:6px; font-size:13px; }
+.message-author { font-weight:600; }
+.message-author.bot { color:#57F287; }
+.message-bot-pill {
+  font-size:10px; text-transform:uppercase; letter-spacing:0.12em;
+  border-radius:3px; padding:1px 4px; background:#5865F2; color:white; font-weight:600;
+}
+.message-timestamp { font-size:11px; color:var(--text-soft); }
+.message-content { font-size:14px; margin-top:1px; white-space:pre-wrap; word-wrap:break-word; }
+.message-embed {
+  margin-top:4px; border-left:3px solid var(--accent-soft);
+  background:rgba(15,23,42,0.9); border-radius:4px; padding:6px 8px; font-size:13px;
+}
+.embed-title { font-weight:600; margin-bottom:3px; }
+.embed-description { color:var(--text-soft); white-space:pre-wrap; word-wrap:break-word; }
+.embed-footer { margin-top:4px; font-size:11px; color:var(--text-soft); }
+.embed-field { margin-top:4px; }
+.embed-field-name { font-size:12px; font-weight:600; }
+.embed-field-value { font-size:12px; color:var(--text-soft); white-space:pre-wrap; }
+
+.lazy-sentinel { height:24px; }
+.empty-state { font-size:13px; color:var(--text-soft); padding:10px 12px 14px; }
+
+@media (max-width:720px) {
+  .app-shell { padding:10px 6px 22px; }
+  .transcript-shell { border-radius:12px; }
+  .chat-pane { max-height:none; }
+}
+</style>
+</head>
+<body>
+<div class="app-shell">
+
+  <section class="header-card">
+    <div class="header-title">Ticket transcript</div>
+    <div class="header-meta">
+      <div><span class="label">Ticket</span> · <span class="value" id="meta-uuid"></span></div>
+      <div><span class="label">Guild</span> · <span class="value" id="meta-guild"></span></div>
+      <div><span class="label">Channel</span> · <span class="value" id="meta-channel"></span></div>
+      <div><span class="label">Owner</span> · <span class="value" id="meta-owner"></span></div>
+      <div><span class="label">Closed at</span> · <span class="value" id="closed-at"></span></div>
+    </div>
+    <div class="header-pill-row" id="header-pills"></div>
+  </section>
+
+  <section class="transcript-shell">
+    <div class="chat-pane">
+      <div class="chat-header">
+        <div class="chat-header-main">
+          <span class="chat-header-name">#ticket</span>
+          <span class="chat-header-tag" id="meta-channel-tag"></span>
+        </div>
+        <div class="chat-header-meta" id="message-count"></div>
+      </div>
+      <div id="chat-scroll" class="chat-scroll">
+        <div id="messages-container"></div>
+        <div id="lazy-sentinel" class="lazy-sentinel"></div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<script>
+  // server-injected ticket JSON
+  window.__TICKET__ = ${payloadJsonSafe};
+
+  (function() {
+    const data = window.__TICKET__ || {};
+    // ensure messages is an array
+    const messages = Array.isArray(data.messages) ? data.messages : [];
+    const META = {
+      uuid: data.uuid,
+      guild_id: data.guild_id,
+      guild_name: data.guild_name,
+      channel_id: data.channel_id,
+      channel_name: data.channel_name,
+      owner_id: data.owner_id,
+      owner_name: data.owner_name,
+      category_name: data.category_name,
+      reason: data.reason,
+      closed_at: data.closed_at,
+      closed_by: data.closed_by,
+      message_count: data.message_count || messages.length,
+      unique_authors: Array.from(new Set(messages.map(m => m.author_id))).length
+    };
+    const PAYLOAD = { messages };
+
+    // Fill header
+    document.getElementById("meta-uuid").textContent = META.uuid || "";
+    document.getElementById("meta-guild").textContent = META.guild_name || META.guild_id || "";
+    document.getElementById("meta-channel").textContent = META.channel_name || META.channel_id || "";
+    document.getElementById("meta-owner").textContent = META.owner_name || META.owner_id || "";
+    document.getElementById("meta-channel-tag").textContent = META.channel_name || META.channel_id || "";
+    document.getElementById("message-count").textContent = (PAYLOAD.messages.length || 0) + " messages in this ticket";
+    const closedEl = document.getElementById("closed-at");
+    if (META.closed_at) {
+      const d = new Date(META.closed_at);
+      closedEl.textContent = isNaN(d.getTime()) ? META.closed_at : d.toLocaleString();
+    }
+
+    // rendering helpers (escape + embed rendering)
+    function escapeHtml(str) {
+      if (str === null || str === undefined) return "";
+      return String(str).replace(/[&<>"']/g, function(ch) {
+        switch (ch) {
+          case "&": return "&amp;";
+          case "<": return "&lt;";
+          case ">": return "&gt;";
+          case '"': return "&quot;";
+          case "'": return "&#39;";
+          default: return ch;
+        }
+      });
+    }
+
+    function renderEmbed(embed) {
+      if (!embed || typeof embed !== "object") return "";
+      const title = embed.title ? '<div class="embed-title">' + escapeHtml(embed.title) + '</div>' : '';
+      const desc = embed.description ? '<div class="embed-description">' + escapeHtml(embed.description) + '</div>' : '';
+      let fieldsHtml = '';
+      if (Array.isArray(embed.fields)) {
+        fieldsHtml = embed.fields.map(f => {
+          const n = f.name ? escapeHtml(f.name) : '';
+          const v = f.value ? escapeHtml(f.value) : '';
+          if (!n && !v) return '';
+          return '<div class="embed-field"><div class="embed-field-name">' + n + '</div><div class="embed-field-value">' + v + '</div></div>';
+        }).join('');
+      }
+      const footerText = embed.footer && embed.footer.text ? escapeHtml(embed.footer.text) : '';
+      const footerHtml = footerText ? '<div class="embed-footer">' + footerText + '</div>' : '';
+      if (!title && !desc && !fieldsHtml && !footerHtml) return '';
+      return '<div class="message-embed">' + title + desc + fieldsHtml + footerHtml + '</div>';
+    }
+
+    // Lazy render messages in batches
+    const container = document.getElementById("messages-container");
+    const sentinel = document.getElementById("lazy-sentinel");
+    const BATCH_SIZE = 40;
+    let index = 0;
+
+    function renderBatch() {
+      const end = Math.min(index + BATCH_SIZE, PAYLOAD.messages.length);
+      const frag = document.createDocumentFragment();
+
+      for (let i = index; i < end; i++) {
+        const msg = PAYLOAD.messages[i] || {};
+        const authorName = msg.author_name || msg.author || "Unknown";
+        const avatarUrl = msg.author_avatar_url || msg.author_avatar || 'https://cdn.discordapp.com/embed/avatars/0.png';
+        const timestamp = msg.created_at || msg.timestamp || msg.created_at;
+        const isBot = !!msg.is_webhook || !!msg.is_bot || false;
+
+        const wrapper = document.createElement('div');
+        wrapper.className = 'message';
+
+        const avatar = document.createElement('div');
+        avatar.className = 'message-avatar';
+        avatar.innerHTML = '<img src="' + escapeHtml(avatarUrl) + '" alt="avatar">';
+        wrapper.appendChild(avatar);
+
+        const body = document.createElement('div');
+        body.className = 'message-body';
+
+        const header = document.createElement('div');
+        header.className = 'message-header';
+
+        const authorEl = document.createElement('span');
+        authorEl.className = 'message-author' + (isBot ? ' bot' : '');
+        authorEl.textContent = authorName;
+        header.appendChild(authorEl);
+
+        if (isBot) {
+          const botPill = document.createElement('span');
+          botPill.className = 'message-bot-pill';
+          botPill.textContent = 'BOT';
+          header.appendChild(botPill);
+        }
+
+        if (timestamp) {
+          const timeEl = document.createElement('span');
+          timeEl.className = 'message-timestamp';
+          const d = new Date(timestamp);
+          timeEl.textContent = isNaN(d.getTime()) ? (' ' + timestamp) : (' ' + d.toLocaleString());
+          header.appendChild(timeEl);
+        }
+
+        body.appendChild(header);
+
+        const content = (msg.content || msg.text || '') + '';
+        if (content) {
+          const contentEl = document.createElement('div');
+          contentEl.className = 'message-content';
+          contentEl.innerHTML = escapeHtml(content);
+          body.appendChild(contentEl);
+        }
+
+        const embeds = Array.isArray(msg.embeds) ? msg.embeds : [];
+        embeds.forEach(e => {
+          const html = renderEmbed(e);
+          if (html) {
+            const div = document.createElement('div');
+            div.innerHTML = html;
+            body.appendChild(div.firstChild);
+          }
+        });
+
+        wrapper.appendChild(body);
+        frag.appendChild(wrapper);
+      }
+
+      container.appendChild(frag);
+      index = end;
+
+      if (index >= PAYLOAD.messages.length) {
+        if (sentinel && sentinel.parentNode) sentinel.parentNode.removeChild(sentinel);
+        observer.disconnect();
+      }
+    }
+
+    const observer = new IntersectionObserver(entries => {
+      for (const entry of entries) {
+        if (entry.isIntersecting) {
+          renderBatch();
+        }
+      }
+    }, {
+      root: document.getElementById('chat-scroll'),
+      rootMargin: '0px 0px 180px 0px',
+      threshold: 0.1
+    });
+
+    observer.observe(sentinel);
+    // initial batch render
+    renderBatch();
+
+  })();
+</script>
+</body>
+</html>`;
+
+  // send the page
+  return res.send(html);
+});
+
+
+
 /* ---------------- Misc ---------------- */
 app.get("/logout", (req, res) => req.session.destroy(() => res.redirect("/")));
 app.get("/", (req, res) => res.redirect("/dashboard"));
