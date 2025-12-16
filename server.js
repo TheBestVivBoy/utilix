@@ -3011,10 +3011,24 @@ app.post("/dashboard/:id/shop/:item_id/delete", async (req, res) => {
     res.status(500).send("Internal error");
   }
 });
+// Ticket view (primary route) + redirect alias for /transcript/:uuid
+app.get("/transcript/:uuid", (req, res) => {
+  return res.redirect(302, `/t/${req.params.uuid}`);
+});
 
-// Ticket view route - paste this below your existing app.get handlers
 app.get("/t/:uuid", async (req, res) => {
-  // require login
+  // helper: escape for tiny server-side bits
+  function escapeHtmlServer(s) {
+    if (s === undefined || s === null) return "";
+    return String(s)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  // Require login
   if (!req.session || !req.session.user) {
     req.session.returnTo = req.originalUrl;
     return res.redirect("/login");
@@ -3024,7 +3038,7 @@ app.get("/t/:uuid", async (req, res) => {
   const uuid = req.params.uuid;
   if (!uuid) return res.status(400).send("Missing ticket uuid");
 
-  // build guild list same as dashboard
+  // Build guild list like dashboard
   let guilds = req.session.guilds || [];
   let botGuildIds = [];
   try {
@@ -3042,54 +3056,79 @@ app.get("/t/:uuid", async (req, res) => {
   const allowedGuilds = candidateGuilds.filter((g) => perms[g.id]?.allowed);
   const tryGuilds = (allowedGuilds.length ? allowedGuilds : (candidateGuilds.length ? candidateGuilds : guilds));
 
-  // require server-side JWT
+  // Ensure server-side JWT exists
   const jwt = req.session.jwt;
   if (!jwt) {
     req.session.returnTo = req.originalUrl;
     return res.redirect("/login");
   }
 
-  // try each candidate guild until API returns 200
+  // Try each guild until API returns 200
   let ticketData = null;
+  let seen403 = false;
   let lastStatus = null;
+  let lastText = null;
+
   for (const g of tryGuilds) {
     const gid = String(g.id);
     try {
       const apiRes = await fetch(`${API_BASE}/dashboard/ticket/${gid}/${uuid}`, {
-        headers: { Authorization: `Bearer ${jwt}` },
+        headers: {
+          Authorization: `Bearer ${jwt}`,
+          Accept: "application/json"
+        },
       });
+
       lastStatus = apiRes.status;
+      lastText = await apiRes.text().catch(() => "");
 
       if (apiRes.status === 200) {
-        ticketData = await apiRes.json();
+        // parse JSON safely (some APIs return text)
+        try {
+          ticketData = JSON.parse(lastText);
+        } catch (err) {
+          // fallback to apiRes.json()
+          ticketData = await apiRes.json().catch(() => null);
+        }
         break;
       }
 
       if (apiRes.status === 401) {
-        // jwt invalid/expired -> force re-login
+        // token invalid -> force relogin
+        console.warn("API returned 401, forcing re-login");
         req.session.jwt = null;
         req.session.returnTo = req.originalUrl;
         return res.redirect("/login");
       }
 
-      // 403 -> user lacks permission for that guild; keep trying
-      // 404 -> keep trying
+      if (apiRes.status === 403) {
+        seen403 = true;
+        // keep trying other guilds
+      }
+
+      // otherwise (404 etc) keep trying
     } catch (err) {
       console.error("Error fetching ticket for guild", gid, err);
       lastStatus = 500;
+      lastText = String(err);
     }
   }
 
+  // If not found, show useful page (with debug if ?debug=1)
   if (!ticketData) {
-    if (lastStatus === 403) {
-      const html = `<div class="card"><h2>Forbidden</h2><p>You do not have permission to view this ticket.</p></div>`;
-      return res.status(403).send(renderLayout(user, html, false));
+    const debug = req.query.debug === "1";
+    if (seen403) {
+      const msg = `<div class="card"><h2>Forbidden</h2><p>You do not have permission to view this ticket.</p></div>`;
+      const dbg = debug ? `<pre style="white-space:pre-wrap;margin-top:12px;background:#111;padding:12px;border-radius:8px;color:#ddd">Last status: ${escapeHtmlServer(lastStatus)}\nLast body: ${escapeHtmlServer(lastText)}</pre>` : "";
+      return res.status(403).send(renderLayout(user, msg + dbg, false));
     }
-    const html = `<div class="card"><h2>Not found</h2><p>Ticket not found in your guilds.</p></div>`;
-    return res.status(404).send(renderLayout(user, html, false));
+    // not found in user's guilds
+    const msg = `<div class="card"><h2>Not found</h2><p>Ticket not found in your guilds.</p></div>`;
+    const dbg = debug ? `<pre style="white-space:pre-wrap;margin-top:12px;background:#111;padding:12px;border-radius:8px;color:#ddd">Tried guild count: ${tryGuilds.length}\nLast status: ${escapeHtmlServer(lastStatus)}\nLast body: ${escapeHtmlServer(lastText)}</pre>` : "";
+    return res.status(404).send(renderLayout(user, msg + dbg, false));
   }
 
-  // If API gave transcript_json (string), parse it into messages for client
+  // Normalize messages: prefer ticketData.messages, else try parse transcript_json, else [].
   let parsedMessages = [];
   if (Array.isArray(ticketData.messages)) {
     parsedMessages = ticketData.messages;
@@ -3099,21 +3138,40 @@ app.get("/t/:uuid", async (req, res) => {
     } catch (err) {
       parsedMessages = [];
     }
+  } else {
+    parsedMessages = [];
   }
 
-  // Build ticket object to send to client (ensure messages field exists)
+  // If no structured messages but transcript_text exists, render a simple preformatted page (human readable)
+  if (parsedMessages.length === 0 && ticketData.transcript_text) {
+    const safeText = escapeHtmlServer(ticketData.transcript_text);
+    const contentHtml = `
+      <div class="card">
+        <h2>Ticket ${escapeHtmlServer(ticketData.uuid || "")}</h2>
+        <div style="margin-top:8px;">
+          <div class="pill pill-strong">Category: ${escapeHtmlServer(ticketData.category_name || "Unknown")}</div>
+          <div class="pill">Guild: ${escapeHtmlServer(ticketData.guild_name || ticketData.guild_id || "")}</div>
+          <div class="pill">Channel: ${escapeHtmlServer(ticketData.channel_name || ticketData.channel_id || "")}</div>
+        </div>
+        <pre style="white-space:pre-wrap;word-wrap:break-word;background:rgba(0,0,0,0.45);padding:12px;border-radius:8px;margin-top:12px;">${safeText}</pre>
+      </div>
+    `;
+    return res.send(renderLayout(user, contentHtml, false));
+  }
+
+  // Prepare object for client
   const ticketForClient = Object.assign({}, ticketData, { messages: parsedMessages });
 
-  // Safely stringify for embedding into HTML: escape '<' to prevent </script> injection
+  // Safely stringify the payload for embedding (< prevention)
   const payloadJsonSafe = JSON.stringify(ticketForClient).replace(/</g, "\\u003c");
 
-  // Full HTML page (transcript-only). It uses the same client rendering logic you had.
-  // Paste the HTML/CSS/JS below. If you prefer, you can move CSS to a static file later.
+  // Build the full transcript page (Discord-like client renderer)
+  const title = `Ticket transcript - ${escapeHtmlServer(ticketForClient.uuid || "")}`;
   const html = `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Ticket transcript - ${escapeHtml(ticketForClient.uuid || "")}</title>
+<title>${title}</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
 :root {
@@ -3166,42 +3224,15 @@ body {
   color:var(--text-soft);
   margin-top:4px;
 }
-.header-meta span.label {
-  text-transform:uppercase;
-  font-size:11px;
-  letter-spacing:0.04em;
-  color:var(--text-soft);
-}
+.header-meta span.label { text-transform:uppercase; font-size:11px; letter-spacing:0.04em; color:var(--text-soft); }
 .header-meta span.value { color:var(--text); }
 .header-pill-row { display:flex; flex-wrap:wrap; gap:6px; margin-top:4px; }
-.pill {
-  padding:2px 8px;
-  border-radius:999px;
-  background:rgba(15,23,42,0.85);
-  border:1px solid var(--border);
-  font-size:11px;
-  color:var(--text-soft);
-}
+.pill { padding:2px 8px; border-radius:999px; background:rgba(15,23,42,0.85); border:1px solid var(--border); font-size:11px; color:var(--text-soft); }
 .pill-strong { border-color:var(--accent-soft); color:var(--accent); }
 
-.transcript-shell {
-  background:rgba(15,23,42,0.98);
-  border-radius:16px;
-  border:1px solid var(--border);
-  box-shadow:0 18px 60px rgba(0,0,0,0.9);
-  display:flex;
-  flex-direction:column;
-  overflow:hidden;
-}
+.transcript-shell { background:rgba(15,23,42,0.98); border-radius:16px; border:1px solid var(--border); box-shadow:0 18px 60px rgba(0,0,0,0.9); display:flex; flex-direction:column; overflow:hidden; }
 .chat-pane { flex:1; display:flex; flex-direction:column; max-height:calc(100vh - 130px); }
-.chat-header {
-  padding:8px 12px;
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  border-bottom:1px solid var(--border);
-  background:rgba(15,23,42,0.95);
-}
+.chat-header { padding:8px 12px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--border); background:rgba(15,23,42,0.95); }
 .chat-header-main { display:flex; align-items:center; gap:6px; font-size:14px; }
 .chat-header-name { font-weight:600; }
 .chat-header-tag { font-size:11px; color:var(--text-soft); }
@@ -3216,16 +3247,10 @@ body {
 .message-header { display:flex; align-items:center; gap:6px; font-size:13px; }
 .message-author { font-weight:600; }
 .message-author.bot { color:#57F287; }
-.message-bot-pill {
-  font-size:10px; text-transform:uppercase; letter-spacing:0.12em;
-  border-radius:3px; padding:1px 4px; background:#5865F2; color:white; font-weight:600;
-}
+.message-bot-pill { font-size:10px; text-transform:uppercase; letter-spacing:0.12em; border-radius:3px; padding:1px 4px; background:#5865F2; color:white; font-weight:600; }
 .message-timestamp { font-size:11px; color:var(--text-soft); }
 .message-content { font-size:14px; margin-top:1px; white-space:pre-wrap; word-wrap:break-word; }
-.message-embed {
-  margin-top:4px; border-left:3px solid var(--accent-soft);
-  background:rgba(15,23,42,0.9); border-radius:4px; padding:6px 8px; font-size:13px;
-}
+.message-embed { margin-top:4px; border-left:3px solid var(--accent-soft); background:rgba(15,23,42,0.9); border-radius:4px; padding:6px 8px; font-size:13px; }
 .embed-title { font-weight:600; margin-bottom:3px; }
 .embed-description { color:var(--text-soft); white-space:pre-wrap; word-wrap:break-word; }
 .embed-footer { margin-top:4px; font-size:11px; color:var(--text-soft); }
@@ -3277,12 +3302,10 @@ body {
 </div>
 
 <script>
-  // server-injected ticket JSON
   window.__TICKET__ = ${payloadJsonSafe};
 
   (function() {
     const data = window.__TICKET__ || {};
-    // ensure messages is an array
     const messages = Array.isArray(data.messages) ? data.messages : [];
     const META = {
       uuid: data.uuid,
@@ -3301,7 +3324,6 @@ body {
     };
     const PAYLOAD = { messages };
 
-    // Fill header
     document.getElementById("meta-uuid").textContent = META.uuid || "";
     document.getElementById("meta-guild").textContent = META.guild_name || META.guild_id || "";
     document.getElementById("meta-channel").textContent = META.channel_name || META.channel_id || "";
@@ -3314,7 +3336,6 @@ body {
       closedEl.textContent = isNaN(d.getTime()) ? META.closed_at : d.toLocaleString();
     }
 
-    // rendering helpers (escape + embed rendering)
     function escapeHtml(str) {
       if (str === null || str === undefined) return "";
       return String(str).replace(/[&<>"']/g, function(ch) {
@@ -3348,7 +3369,6 @@ body {
       return '<div class="message-embed">' + title + desc + fieldsHtml + footerHtml + '</div>';
     }
 
-    // Lazy render messages in batches
     const container = document.getElementById("messages-container");
     const sentinel = document.getElementById("lazy-sentinel");
     const BATCH_SIZE = 40;
@@ -3456,6 +3476,7 @@ body {
   // send the page
   return res.send(html);
 });
+
 
 
 
