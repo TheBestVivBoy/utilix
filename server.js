@@ -3015,111 +3015,397 @@ app.post("/dashboard/:id/shop/:item_id/delete", async (req, res) => {
 
 
 
-
-// DEBUG transcript route — barebones with live logs
-app.get("/t/:guild_id/:uuid", async (req, res) => {
-  const logs = [];
-  function log(msg) {
-    console.log(msg);
-    logs.push(msg);
+// Transcript route with client-side renderer (safe / minimal server work)
+app.get("/t/:guild_id/:uuid", async function (req, res) {
+  // small HTML escape helper for server-side strings
+  function esc(s) {
+    if (s === undefined || s === null) return "";
+    return String(s)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
   }
 
-  const esc = (s) => s ? String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;") : "";
-
+  // require login
   if (!req.session || !req.session.user) {
-    log("No session or user. Redirecting to /login.");
     req.session.returnTo = req.originalUrl;
     return res.redirect("/login");
   }
 
-  const user = req.session.user;
-  const guildId = req.params.guild_id;
-  const uuid = req.params.uuid;
-  if (!guildId || !uuid) {
-    log("Missing guild id or uuid");
-    return res.send(`<pre>${logs.join("\n")}</pre>`);
-  }
+  var user = req.session.user;
+  var guildId = req.params.guild_id;
+  var uuid = req.params.uuid;
+  if (!guildId || !uuid) return res.status(400).send("Missing guild id or ticket uuid");
 
-  log(`User: ${user.id || user.username}, Guild: ${guildId}, Ticket UUID: ${uuid}`);
-
-  const perms = req.session.perms || {};
-  const guild = (req.session.guilds || []).find((g) => g.id === guildId);
+  // quick guild membership + perms check
+  var perms = req.session.perms || {};
+  var guild = (req.session.guilds || []).find(function (g) { return g.id === guildId; });
   if (!guild) {
-    log("User not in guild.");
-    return res.send(`<pre>${logs.join("\n")}</pre>`);
+    return res.send(renderLayout(user, '<div class="card"><h2>No access</h2><p>You are not in that server.</p></div>', false));
   }
-  if (!perms[guildId]?.allowed) {
-    log("User has no permission in guild.");
-    return res.send(`<pre>${logs.join("\n")}</pre>`);
+  if (!perms[guildId] || !perms[guildId].allowed) {
+    return res.send(renderLayout(user, '<div class="card"><h2>' + esc(guild.name || "") + '</h2><p>No permission</p></div>', false));
   }
 
-  const jwt = req.session.jwt;
+  // ensure server JWT to call API
+  var jwt = req.session.jwt;
   if (!jwt) {
-    log("No JWT in session. Redirecting to /login.");
     req.session.returnTo = req.originalUrl;
     return res.redirect("/login");
   }
 
-  log("Calling backend API...");
-  let apiStatus = null;
-  let apiBody = null;
-  let ticketData = null;
+  // call backend API with Authorization: Bearer <jwt>
+  var apiStatus = null;
+  var apiBodyText = null;
+  var ticketData = null;
   try {
-    const apiRes = await fetch(`${API_BASE}/dashboard/tickets/${encodeURIComponent(guildId)}/${encodeURIComponent(uuid)}`, {
+    var apiRes = await fetch(API_BASE + "/dashboard/tickets/" + encodeURIComponent(guildId) + "/" + encodeURIComponent(uuid), {
       method: "GET",
       headers: {
-        Authorization: `Bearer ${jwt}`,
-        Accept: "application/json",
-      },
+        Authorization: "Bearer " + jwt,
+        Accept: "application/json"
+      }
     });
 
     apiStatus = apiRes.status;
-    apiBody = await apiRes.text().catch(() => "");
-    log(`API responded with status ${apiStatus}`);
-    log(`API body: ${apiBody}`);
+    apiBodyText = await apiRes.text().catch(function () { return ""; });
 
     if (apiRes.status === 200) {
       try {
-        ticketData = JSON.parse(apiBody);
-        log("Parsed ticket JSON successfully.");
+        ticketData = JSON.parse(apiBodyText);
       } catch (err) {
-        log("Error parsing ticket JSON: " + err);
+        // fallback to parsed json via fetch.json()
+        try {
+          ticketData = await apiRes.json();
+        } catch (err2) {
+          ticketData = null;
+        }
       }
     } else if (apiRes.status === 401) {
-      log("Unauthorized, clearing JWT.");
+      // token invalid or expired -> force re-login
       req.session.jwt = null;
       req.session.returnTo = req.originalUrl;
       return res.redirect("/login");
     }
   } catch (err) {
-    log("Error fetching ticket API: " + err);
+    console.error("Error fetching ticket API:", err);
+    apiStatus = 500;
+    apiBodyText = String(err);
   }
+
+  var debug = req.query.debug === "1";
 
   if (!ticketData) {
-    log(`No ticket data. API status: ${apiStatus}`);
-    return res.send(`<pre>${logs.join("\n")}</pre>`);
+    // show helpful error page inside the site's layout
+    var body = "";
+    if (apiStatus === 403) {
+      body = '<div class="card"><h2>Forbidden</h2><p>You do not have permission to view this ticket.</p></div>';
+    } else if (apiStatus === 404) {
+      body = '<div class="card"><h2>Not found</h2><p>Ticket not found for guild ' + esc(guildId) + ' and uuid ' + esc(uuid) + '.</p></div>';
+    } else {
+      body = '<div class="card"><h2>Error</h2><p>Unable to fetch ticket (status: ' + esc(apiStatus) + ').</p></div>';
+    }
+    if (debug) {
+      body += '<pre style="white-space:pre-wrap;margin-top:12px;background:#111;padding:12px;border-radius:8px;color:#ddd">API status: ' + esc(apiStatus) + '\nAPI body: ' + esc(apiBodyText) + '</pre>';
+    }
+    return res.status(apiStatus || 500).send(renderLayout(user, body, false));
   }
 
-  // Show transcript text if available
-  let transcript = ticketData.transcript_text || "";
-  if (!transcript && ticketData.transcript_json) {
+  // Normalize messages (the client will render them)
+  var parsedMessages = [];
+  if (Array.isArray(ticketData.messages)) {
+    parsedMessages = ticketData.messages;
+  } else if (ticketData.transcript_json) {
     try {
-      const messages = JSON.parse(ticketData.transcript_json);
-      transcript = messages.map(m => `[${m.created_at || m.timestamp}] ${m.author_name || m.author}: ${m.content || m.text}`).join("\n");
-      log(`Parsed ${messages.length} messages from transcript_json.`);
+      parsedMessages = JSON.parse(ticketData.transcript_json);
     } catch (err) {
-      log("Error parsing transcript_json: " + err);
+      parsedMessages = [];
     }
   }
 
-  res.send(`
-    <h1>Barebones Ticket Viewer</h1>
-    <h2>Logs</h2>
-    <pre>${logs.join("\n")}</pre>
-    <h2>Transcript</h2>
-    <pre>${esc(transcript)}</pre>
-  `);
+  // build a safe payload for embedding in HTML (escape '<' to avoid script injection)
+  var ticketForClient = Object.assign({}, ticketData, { messages: parsedMessages });
+  var payloadJsonSafe = JSON.stringify(ticketForClient).replace(/</g, "\\u003c");
+
+  // Minimal server work — deliver client renderer that does everything in browser
+  var html = '' +
+`<div class="app-shell transcript-page">
+  <section class="header-card">
+    <div class="header-title">Ticket transcript</div>
+    <div class="header-meta">
+      <div><span class="label">Ticket</span> · <span class="value" id="meta-uuid"></span></div>
+      <div><span class="label">Guild</span> · <span class="value" id="meta-guild"></span></div>
+      <div><span class="label">Channel</span> · <span class="value" id="meta-channel"></span></div>
+      <div><span class="label">Owner</span> · <span class="value" id="meta-owner"></span></div>
+      <div><span class="label">Closed at</span> · <span class="value" id="closed-at"></span></div>
+    </div>
+    <div class="header-pill-row" id="header-pills"></div>
+  </section>
+
+  <section class="transcript-shell" aria-label="ticket transcript">
+    <div class="chat-pane">
+      <div class="chat-header">
+        <div class="chat-header-main">
+          <span class="chat-header-name">#ticket</span>
+          <span class="chat-header-tag" id="meta-channel-tag"></span>
+        </div>
+        <div class="chat-header-meta" id="message-count"></div>
+      </div>
+
+      <div id="chat-scroll" class="chat-scroll" role="log" aria-live="polite">
+        <div id="messages-container" class="messages"></div>
+        <div id="lazy-sentinel" class="lazy-sentinel"></div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<style>
+:root{--accent:#5865F2;--muted:#9ca3af;--border:#1e293b;--text:#e5e7eb;--accent-soft:rgba(88,101,242,0.12)}
+.transcript-page .app-shell{max-width:1100px;margin:18px auto;padding:18px;color:var(--text)}
+.header-card{background:rgba(15,23,42,0.95);border-radius:12px;border:1px solid var(--border);padding:12px}
+.header-title{font-size:18px;font-weight:700}
+.header-meta{margin-top:8px;color:var(--muted);display:flex;flex-wrap:wrap;gap:8px 18px}
+.header-pill-row{margin-top:10px;display:flex;gap:8px;flex-wrap:wrap}
+.transcript-shell{margin-top:10px}
+.chat-header{padding:12px}
+.chat-scroll{height:calc(80vh);padding:12px;overflow:auto;border-radius:10px;background:linear-gradient(180deg, rgba(255,255,255,0.01), transparent 10%)}
+.message{display:flex;gap:12px;padding:8px;border-radius:8px;align-items:flex-start}
+.message:hover{background:rgba(255,255,255,0.01)}
+.message-avatar{width:48px;flex-shrink:0}
+.message-avatar img{width:48px;height:48px;border-radius:999px;object-fit:cover;background:#010115;display:block}
+.message-body{flex:1;min-width:0}
+.message-header{display:flex;gap:8px;align-items:center;font-size:14px}
+.message-author{font-weight:700;color:var(--text)}
+.message-author.bot{color:#6ee7b7}
+.message-bot-pill{font-size:10px;padding:2px 6px;border-radius:6px;background:var(--accent);color:white;font-weight:700;margin-left:6px}
+.message-timestamp{font-size:12px;color:var(--muted);margin-left:6px}
+.message-content{margin-top:6px;font-size:15px;color:var(--text);white-space:pre-wrap;word-break:break-word}
+.message-embed{margin-top:8px;border-left:4px solid var(--accent-soft);background:rgba(10,12,20,0.4);padding:10px;border-radius:6px}
+.embed-title{font-weight:700;margin-bottom:6px}
+.embed-description{color:var(--muted);white-space:pre-wrap}
+.pill{padding:4px 10px;border-radius:999px;background:rgba(15,23,42,0.85);border:1px solid var(--border);color:var(--muted);font-size:12px}
+.pill-strong{color:var(--accent);border-color:var(--accent);background:linear-gradient(90deg, rgba(88,101,242,0.06), rgba(88,101,242,0.02))}
+.lazy-sentinel{height:24px}
+.empty-state{font-size:13px;color:var(--muted);padding:10px 12px 14px}
+@media (max-width:820px){.message-avatar img{width:40px;height:40px}.chat-scroll{height:70vh;padding:10px}}
+</style>
+
+<script>
+/* Client-side renderer — defensive and lazy-loaded */
+(function(){
+  try {
+    window.__TICKET__ = ${payloadJsonSafe};
+
+    var data = window.__TICKET__ || {};
+    var messages = Array.isArray(data.messages) ? data.messages : [];
+    var META = {
+      uuid: data.uuid,
+      guild_id: data.guild_id,
+      guild_name: data.guild_name,
+      channel_id: data.channel_id,
+      channel_name: data.channel_name,
+      owner_id: data.owner_id,
+      owner_name: data.owner_name,
+      category_name: data.category_name,
+      reason: data.reason,
+      closed_at: data.closed_at,
+      closed_by: data.closed_by,
+      message_count: data.message_count || messages.length,
+      unique_authors: (function(arr){ var s = {}; for (var i=0;i<arr.length;i++){ s[arr[i].author_id] = true; } var c=0; for (var k in s) c++; return c; })(messages)
+    };
+
+    function escapeHtml(str){
+      if (str === null || str === undefined) return '';
+      return String(str).replace(/[&<>"']/g, function(ch){
+        switch(ch){
+          case '&': return '&amp;';
+          case '<': return '&lt;';
+          case '>': return '&gt;';
+          case '"': return '&quot;';
+          case "'": return '&#39;';
+          default: return ch;
+        }
+      });
+    }
+
+    function isBotMessage(msg){
+      return !!(msg.is_bot || msg.is_webhook || msg.webhook_id || msg.author_is_bot);
+    }
+
+    function avatarFor(msg){
+      if (msg.author_avatar_url) return msg.author_avatar_url;
+      if (msg.author_avatar) return msg.author_avatar;
+      return 'https://cdn.discordapp.com/embed/avatars/0.png';
+    }
+
+    function renderEmbed(embed){
+      if (!embed || typeof embed !== 'object') return '';
+      var title = embed.title ? '<div class="embed-title">'+escapeHtml(embed.title)+'</div>' : '';
+      var desc = embed.description ? '<div class="embed-description">'+escapeHtml(embed.description)+'</div>' : '';
+      var fieldsHtml = '';
+      if (Array.isArray(embed.fields) && embed.fields.length){
+        for (var i=0;i<embed.fields.length;i++){
+          var f = embed.fields[i];
+          fieldsHtml += '<div class="embed-field"><div class="embed-field-name">'+escapeHtml(f.name||'')+'</div><div class="embed-field-value">'+escapeHtml(f.value||'')+'</div></div>';
+        }
+      }
+      var footer = (embed.footer && embed.footer.text) ? '<div class="embed-footer">'+escapeHtml(embed.footer.text)+'</div>' : '';
+      return '<div class="message-embed">' + title + desc + fieldsHtml + footer + '</div>';
+    }
+
+    // populate header metadata
+    try {
+      document.getElementById('meta-uuid').textContent = META.uuid || '';
+      document.getElementById('meta-guild').textContent = META.guild_name || META.guild_id || '';
+      document.getElementById('meta-channel').textContent = META.channel_name || META.channel_id || '';
+      document.getElementById('meta-owner').textContent = META.owner_name || META.owner_id || '';
+      document.getElementById('meta-channel-tag').textContent = META.channel_name || META.channel_id || '';
+      document.getElementById('message-count').textContent = (messages.length || 0) + ' messages in this ticket';
+      if (META.closed_at) {
+        var closedEl = document.getElementById('closed-at');
+        var d = new Date(META.closed_at);
+        closedEl.textContent = isNaN(d.getTime()) ? META.closed_at : d.toLocaleString();
+      }
+      var pills = document.getElementById('header-pills');
+      pills.innerHTML = ''
+        + '<div class="pill pill-strong">Category: ' + escapeHtml(META.category_name || 'Unknown') + '</div>'
+        + '<div class="pill">Closed by: ' + escapeHtml(META.closed_by || 'Unknown') + '</div>'
+        + '<div class="pill">Reason: ' + escapeHtml(META.reason || 'n/a') + '</div>'
+        + '<div class="pill">Messages: ' + escapeHtml(String(META.message_count || messages.length)) + '</div>'
+        + '<div class="pill">Users: ' + escapeHtml(String(META.unique_authors || 0)) + '</div>';
+    } catch (err) {
+      console.error("Header render error:", err);
+    }
+
+    // message rendering (lazy batches)
+    var container = document.getElementById('messages-container');
+    var sentinel = document.getElementById('lazy-sentinel');
+    var BATCH = 40;
+    var index = 0;
+
+    function renderMessage(msg){
+      var authorName = msg.author_name || msg.author || 'Unknown';
+      var avatarUrl = avatarFor(msg);
+      var ts = msg.created_at || msg.timestamp || '';
+
+      var wrapper = document.createElement('div');
+      wrapper.className = 'message';
+
+      var avatarWrap = document.createElement('div');
+      avatarWrap.className = 'message-avatar';
+      var im = document.createElement('img');
+      im.src = avatarUrl;
+      im.alt = authorName + ' avatar';
+      im.onerror = function(){ this.onerror=null; this.src='https://cdn.discordapp.com/embed/avatars/0.png'; };
+      avatarWrap.appendChild(im);
+      wrapper.appendChild(avatarWrap);
+
+      var body = document.createElement('div');
+      body.className = 'message-body';
+
+      var header = document.createElement('div');
+      header.className = 'message-header';
+
+      var authorEl = document.createElement('span');
+      authorEl.className = 'message-author' + (isBotMessage(msg) ? ' bot' : '');
+      authorEl.textContent = authorName;
+      header.appendChild(authorEl);
+
+      if (isBotMessage(msg)){
+        var pill = document.createElement('span');
+        pill.className = 'message-bot-pill';
+        pill.textContent = 'BOT';
+        header.appendChild(pill);
+      }
+
+      if (ts){
+        var tspan = document.createElement('span');
+        tspan.className = 'message-timestamp';
+        var d = new Date(ts);
+        tspan.textContent = isNaN(d.getTime()) ? (' ' + ts) : (' ' + d.toLocaleString());
+        header.appendChild(tspan);
+      }
+
+      body.appendChild(header);
+
+      var contentTxt = (msg.content || msg.text || '') + '';
+      if (contentTxt){
+        var contentDiv = document.createElement('div');
+        contentDiv.className = 'message-content';
+        contentDiv.innerHTML = escapeHtml(contentTxt);
+        body.appendChild(contentDiv);
+      }
+
+      var embeds = Array.isArray(msg.embeds) ? msg.embeds : [];
+      for (var eidx=0;eidx<embeds.length;eidx++){
+        var h = renderEmbed(embeds[eidx]);
+        if (h){
+          var tmp = document.createElement('div');
+          tmp.innerHTML = h;
+          body.appendChild(tmp.firstChild);
+        }
+      }
+
+      wrapper.appendChild(body);
+      return wrapper;
+    }
+
+    function renderBatch(){
+      if (!container) return;
+      var end = Math.min(index + BATCH, messages.length);
+      var frag = document.createDocumentFragment();
+      for (var i = index; i < end; i++){
+        try {
+          frag.appendChild(renderMessage(messages[i] || {}));
+        } catch (err) {
+          console.error("renderMessage error at index", i, err);
+        }
+      }
+      container.appendChild(frag);
+      index = end;
+      if (index >= messages.length){
+        if (sentinel && sentinel.parentNode) sentinel.parentNode.removeChild(sentinel);
+        if (observer && observer.disconnect) observer.disconnect();
+      }
+    }
+
+    var observer = new IntersectionObserver(function(entries){
+      for (var i=0;i<entries.length;i++){
+        if (entries[i].isIntersecting) renderBatch();
+      }
+    }, { root: document.getElementById('chat-scroll'), rootMargin: '0px 0px 200px 0px', threshold: 0.1 });
+
+    // if no messages, show empty state
+    if (!messages || messages.length === 0){
+      container.innerHTML = '<div class="empty-state">No messages were stored for this ticket.</div>';
+      if (sentinel && sentinel.parentNode) sentinel.parentNode.removeChild(sentinel);
+    } else {
+      observer.observe(sentinel);
+      // initial batch render
+      renderBatch();
+    }
+
+    // accessibility: focus top of chat on load
+    try { document.getElementById('chat-scroll').focus(); } catch (e){}
+
+  } catch (err) {
+    // show a simple error fallback in-page to avoid blank 502s
+    try {
+      var container = document.getElementById('messages-container');
+      if (container) container.innerHTML = '<div class="empty-state">An error occurred while rendering. Check console for details.</div>';
+    } catch (e) {}
+    console.error("Ticket renderer error:", err);
+  }
+})();
+</script>`;
+
+  // send the page wrapped in the site's layout (so header/nav remain)
+  return res.send(renderLayout(user, html, true, guildId));
 });
+
 
 
 
