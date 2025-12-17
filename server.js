@@ -3012,21 +3012,22 @@ app.post("/dashboard/:id/shop/:item_id/delete", async (req, res) => {
   }
 });
 
-// COMPLETE transcript route — frontend-friendly path
+
+
+
+
+// DEBUG transcript route — barebones with live logs
 app.get("/t/:guild_id/:uuid", async (req, res) => {
-  // small HTML escape helper for server-side strings
-  function esc(s) {
-    if (s === undefined || s === null) return "";
-    return String(s)
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#39;");
+  const logs = [];
+  function log(msg) {
+    console.log(msg);
+    logs.push(msg);
   }
 
-  // require login
+  const esc = (s) => s ? String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;") : "";
+
   if (!req.session || !req.session.user) {
+    log("No session or user. Redirecting to /login.");
     req.session.returnTo = req.originalUrl;
     return res.redirect("/login");
   }
@@ -3034,26 +3035,32 @@ app.get("/t/:guild_id/:uuid", async (req, res) => {
   const user = req.session.user;
   const guildId = req.params.guild_id;
   const uuid = req.params.uuid;
-  if (!guildId || !uuid) return res.status(400).send("Missing guild id or ticket uuid");
+  if (!guildId || !uuid) {
+    log("Missing guild id or uuid");
+    return res.send(`<pre>${logs.join("\n")}</pre>`);
+  }
 
-  // quick guild membership + perms check
+  log(`User: ${user.id || user.username}, Guild: ${guildId}, Ticket UUID: ${uuid}`);
+
   const perms = req.session.perms || {};
   const guild = (req.session.guilds || []).find((g) => g.id === guildId);
   if (!guild) {
-    return res.send(renderLayout(user, `<div class="card"><h2>No access</h2><p>You are not in that server.</p></div>`, false));
+    log("User not in guild.");
+    return res.send(`<pre>${logs.join("\n")}</pre>`);
   }
   if (!perms[guildId]?.allowed) {
-    return res.send(renderLayout(user, `<div class="card"><h2>${esc(guild.name || "")}</h2><p>No permission</p></div>`, false));
+    log("User has no permission in guild.");
+    return res.send(`<pre>${logs.join("\n")}</pre>`);
   }
 
-  // ensure server JWT to call API
   const jwt = req.session.jwt;
   if (!jwt) {
+    log("No JWT in session. Redirecting to /login.");
     req.session.returnTo = req.originalUrl;
     return res.redirect("/login");
   }
 
-  // call backend API with Authorization: Bearer <jwt>
+  log("Calling backend API...");
   let apiStatus = null;
   let apiBody = null;
   let ticketData = null;
@@ -3068,285 +3075,50 @@ app.get("/t/:guild_id/:uuid", async (req, res) => {
 
     apiStatus = apiRes.status;
     apiBody = await apiRes.text().catch(() => "");
+    log(`API responded with status ${apiStatus}`);
+    log(`API body: ${apiBody}`);
 
     if (apiRes.status === 200) {
       try {
         ticketData = JSON.parse(apiBody);
+        log("Parsed ticket JSON successfully.");
       } catch (err) {
-        ticketData = await apiRes.json().catch(() => null);
+        log("Error parsing ticket JSON: " + err);
       }
     } else if (apiRes.status === 401) {
+      log("Unauthorized, clearing JWT.");
       req.session.jwt = null;
       req.session.returnTo = req.originalUrl;
       return res.redirect("/login");
     }
   } catch (err) {
-    console.error("Error fetching ticket API:", err);
-    apiStatus = 500;
-    apiBody = String(err);
+    log("Error fetching ticket API: " + err);
   }
-
-  const debug = req.query.debug === "1";
 
   if (!ticketData) {
-    if (apiStatus === 403) {
-      const body = `<div class="card"><h2>Forbidden</h2><p>You do not have permission to view this ticket.</p></div>` +
-        (debug ? `<pre style="white-space:pre-wrap;margin-top:12px;background:#111;padding:12px;border-radius:8px;color:#ddd">API status: ${esc(apiStatus)}\nAPI body: ${esc(apiBody)}</pre>` : "");
-      return res.status(403).send(renderLayout(user, body, false));
-    }
-    if (apiStatus === 404) {
-      const body = `<div class="card"><h2>Not found</h2><p>Ticket not found for guild ${esc(guildId)} and uuid ${esc(uuid)}.</p></div>` +
-        (debug ? `<pre style="white-space:pre-wrap;margin-top:12px;background:#111;padding:12px;border-radius:8px;color:#ddd">API status: ${esc(apiStatus)}\nAPI body: ${esc(apiBody)}</pre>` : "");
-      return res.status(404).send(renderLayout(user, body, false));
-    }
-    const body = `<div class="card"><h2>Error</h2><p>Unable to fetch ticket (status: ${esc(apiStatus)}).</p></div>` +
-      (debug ? `<pre style="white-space:pre-wrap;margin-top:12px;background:#111;padding:12px;border-radius:8px;color:#ddd">API status: ${esc(apiStatus)}\nAPI body: ${esc(apiBody)}</pre>` : "");
-    return res.status(apiStatus || 500).send(renderLayout(user, body, false));
+    log(`No ticket data. API status: ${apiStatus}`);
+    return res.send(`<pre>${logs.join("\n")}</pre>`);
   }
 
-  // Normalize messages
-  let parsedMessages = [];
-  if (Array.isArray(ticketData.messages)) {
-    parsedMessages = ticketData.messages;
-  } else if (ticketData.transcript_json) {
+  // Show transcript text if available
+  let transcript = ticketData.transcript_text || "";
+  if (!transcript && ticketData.transcript_json) {
     try {
-      parsedMessages = JSON.parse(ticketData.transcript_json);
+      const messages = JSON.parse(ticketData.transcript_json);
+      transcript = messages.map(m => `[${m.created_at || m.timestamp}] ${m.author_name || m.author}: ${m.content || m.text}`).join("\n");
+      log(`Parsed ${messages.length} messages from transcript_json.`);
     } catch (err) {
-      parsedMessages = [];
+      log("Error parsing transcript_json: " + err);
     }
   }
 
-  if (parsedMessages.length === 0 && ticketData.transcript_text) {
-    const bodyHtml = `
-      <div class="card">
-        <h2>Ticket ${esc(ticketData.uuid || uuid)}</h2>
-        <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
-          <div class="pill pill-strong">Category: ${esc(ticketData.category_name || "Unknown")}</div>
-          <div class="pill">Guild: ${esc(ticketData.guild_name || ticketData.guild_id || guildId)}</div>
-          <div class="pill">Channel: ${esc(ticketData.channel_name || ticketData.channel_id || "")}</div>
-          <div class="pill">Owner: ${esc(ticketData.owner_name || ticketData.owner_id || "")}</div>
-        </div>
-        <pre style="white-space:pre-wrap;word-wrap:break-word;background:rgba(0,0,0,0.45);padding:12px;border-radius:8px;margin-top:12px;">${esc(ticketData.transcript_text)}</pre>
-      </div>
-    `;
-    return res.send(renderLayout(user, bodyHtml, true, guildId));
-  }
-
-  const ticketForClient = Object.assign({}, ticketData, { messages: parsedMessages });
-  const payloadJsonSafe = JSON.stringify(ticketForClient).replace(/</g, "\\u003c");
-
-  const bodyHtml = `
-  <div class="app-shell transcript-page">
-    <section class="header-card">
-      <div class="header-title">Ticket transcript</div>
-      <div class="header-meta">
-        <div><span class="label">Ticket</span> · <span class="value" id="meta-uuid"></span></div>
-        <div><span class="label">Guild</span> · <span class="value" id="meta-guild"></span></div>
-        <div><span class="label">Channel</span> · <span class="value" id="meta-channel"></span></div>
-        <div><span class="label">Owner</span> · <span class="value" id="meta-owner"></span></div>
-        <div><span class="label">Closed at</span> · <span class="value" id="closed-at"></span></div>
-      </div>
-      <div class="header-pill-row" id="header-pills"></div>
-    </section>
-
-    <section class="transcript-shell" aria-label="ticket transcript">
-      <div class="chat-pane">
-        <div class="chat-header">
-          <div class="chat-header-main">
-            <span class="chat-header-name">#ticket</span>
-            <span class="chat-header-tag" id="meta-channel-tag"></span>
-          </div>
-          <div class="chat-header-meta" id="message-count"></div>
-        </div>
-
-        <div id="chat-scroll" class="chat-scroll" role="log" aria-live="polite">
-          <div id="messages-container" class="messages"></div>
-          <div id="lazy-sentinel" class="lazy-sentinel"></div>
-        </div>
-      </div>
-    </section>
-  </div>
-
-  <style>
-    /* Polished Discord-like CSS omitted for brevity, include all from your original route */
-  </style>
-
-  <script>
-    window.__TICKET__ = ${payloadJsonSafe};
-    (function() {
-      const data = window.__TICKET__ || {};
-      const messages = Array.isArray(data.messages) ? data.messages : [];
-      const META = {
-        uuid: data.uuid,
-        guild_id: data.guild_id,
-        guild_name: data.guild_name,
-        channel_id: data.channel_id,
-        channel_name: data.channel_name,
-        owner_id: data.owner_id,
-        owner_name: data.owner_name,
-        category_name: data.category_name,
-        reason: data.reason,
-        closed_at: data.closed_at,
-        closed_by: data.closed_by,
-        message_count: data.message_count || messages.length,
-        unique_authors: Array.from(new Set(messages.map(m => m.author_id))).length
-      };
-
-      document.getElementById('meta-uuid').textContent = META.uuid || '';
-      document.getElementById('meta-guild').textContent = META.guild_name || META.guild_id || '';
-      document.getElementById('meta-channel').textContent = META.channel_name || META.channel_id || '';
-      document.getElementById('meta-owner').textContent = META.owner_name || META.owner_id || '';
-      document.getElementById('meta-channel-tag').textContent = META.channel_name || META.channel_id || '';
-      document.getElementById('message-count').textContent = (messages.length || 0) + ' messages in this ticket';
-      if (META.closed_at) {
-        const closedEl = document.getElementById('closed-at');
-        const d = new Date(META.closed_at);
-        closedEl.textContent = isNaN(d.getTime()) ? META.closed_at : d.toLocaleString();
-      }
-      const pills = document.getElementById('header-pills');
-      pills.innerHTML = `
-        <div class="pill pill-strong">Category: ${escapeHtml(META.category_name || 'Unknown')}</div>
-        <div class="pill">Closed by: ${escapeHtml(META.closed_by || 'Unknown')}</div>
-        <div class="pill">Reason: ${escapeHtml(META.reason || 'n/a')}</div>
-        <div class="pill">Messages: ${escapeHtml(String(META.message_count || messages.length))}</div>
-        <div class="pill">Users: ${escapeHtml(String(META.unique_authors || 0))}</div>
-      `;
-
-      function escapeHtml(str) {
-        if (str === null || str === undefined) return '';
-        return String(str).replace(/[&<>"']/g, ch => {
-          switch (ch) {
-            case '&': return '&amp;';
-            case '<': return '&lt;';
-            case '>': return '&gt;';
-            case '"': return '&quot;';
-            case "'": return '&#39;';
-            default: return ch;
-          }
-        });
-      }
-
-      function isBotMessage(msg) {
-        return !!(msg.is_bot || msg.is_webhook || msg.webhook_id || msg.author_is_bot);
-      }
-
-      function avatarFor(msg) {
-        return msg.author_avatar_url || 'https://cdn.discordapp.com/embed/avatars/0.png';
-      }
-
-      function renderEmbed(embed) {
-        if (!embed || typeof embed !== 'object') return '';
-        const title = embed.title ? '<div class="embed-title">' + escapeHtml(embed.title) + '</div>' : '';
-        const desc  = embed.description ? '<div class="embed-description">' + escapeHtml(embed.description) + '</div>' : '';
-        let fieldsHtml = '';
-        if (Array.isArray(embed.fields) && embed.fields.length) {
-          fieldsHtml = embed.fields.map(f => (
-            '<div class="embed-field"><div class="embed-field-name">' + escapeHtml(f.name || '') + '</div>' +
-            '<div class="embed-field-value">' + escapeHtml(f.value || '') + '</div></div>'
-          )).join('');
-        }
-        const footer = embed.footer && embed.footer.text ? '<div class="embed-footer">' + escapeHtml(embed.footer.text) + '</div>' : '';
-        return '<div class="message-embed">' + title + desc + fieldsHtml + footer + '</div>';
-      }
-
-      const container = document.getElementById('messages-container');
-      const sentinel = document.getElementById('lazy-sentinel');
-      const BATCH = 30;
-      let idx = 0;
-
-      function renderBatch() {
-        const end = Math.min(idx + BATCH, messages.length);
-        const frag = document.createDocumentFragment();
-
-        for (let i = idx; i < end; i++) {
-          const msg = messages[i] || {};
-          const authorName = msg.author_name || msg.author || 'Unknown';
-          const avatarUrl = avatarFor(msg);
-          const ts = msg.created_at || msg.timestamp || '';
-          const bot = isBotMessage(msg);
-
-          const wrapper = document.createElement('div');
-          wrapper.className = 'message';
-
-          const avatarWrap = document.createElement('div');
-          avatarWrap.className = 'message-avatar';
-          const im = document.createElement('img');
-          im.src = avatarUrl;
-          im.alt = authorName + ' avatar';
-          im.onerror = function() { this.onerror = null; this.src = 'https://cdn.discordapp.com/embed/avatars/0.png'; };
-          avatarWrap.appendChild(im);
-          wrapper.appendChild(avatarWrap);
-
-          const body = document.createElement('div');
-          body.className = 'message-body';
-
-          const header = document.createElement('div');
-          header.className = 'message-header';
-
-          const authorEl = document.createElement('span');
-          authorEl.className = 'message-author' + (bot ? ' bot' : '');
-          authorEl.textContent = authorName;
-          header.appendChild(authorEl);
-
-          if (bot) {
-            const pill = document.createElement('span');
-            pill.className = 'message-bot-pill';
-            pill.textContent = 'BOT';
-            header.appendChild(pill);
-          }
-
-          if (ts) {
-            const tspan = document.createElement('span');
-            tspan.className = 'message-timestamp';
-            const d = new Date(ts);
-            tspan.textContent = isNaN(d.getTime()) ? (' ' + ts) : (' ' + d.toLocaleString());
-            header.appendChild(tspan);
-          }
-
-          body.appendChild(header);
-
-          const contentTxt = (msg.content || msg.text || '') + '';
-          if (contentTxt) {
-            const contentDiv = document.createElement('div');
-            contentDiv.className = 'message-content';
-            contentDiv.innerHTML = escapeHtml(contentTxt);
-            body.appendChild(contentDiv);
-          }
-
-          const embeds = Array.isArray(msg.embeds) ? msg.embeds : [];
-          embeds.forEach(e => {
-            const html = renderEmbed(e);
-            if (html) {
-              const tmp = document.createElement('div');
-              tmp.innerHTML = html;
-              body.appendChild(tmp.firstChild);
-            }
-          });
-
-          wrapper.appendChild(body);
-          frag.appendChild(wrapper);
-        }
-
-        container.appendChild(frag);
-        idx = end;
-
-        if (idx >= messages.length) {
-          if (sentinel && sentinel.parentNode) sentinel.parentNode.removeChild(sentinel);
-          observer.disconnect();
-        }
-      }
-
-      const observer = new IntersectionObserver(entries => {
-        for (const ent of entries) if (ent.isIntersecting) renderBatch();
-      }, { root: document.getElementById('chat-scroll'), rootMargin: '0px 0px 200px 0px', threshold: 0.1 });
-
-      observer.observe(sentinel);
-      renderBatch();
-    })();
-  </script>
-`;
-
-  return res.send(renderLayout(user, bodyHtml, true, guildId));
+  res.send(`
+    <h1>Barebones Ticket Viewer</h1>
+    <h2>Logs</h2>
+    <pre>${logs.join("\n")}</pre>
+    <h2>Transcript</h2>
+    <pre>${esc(transcript)}</pre>
+  `);
 });
 
 
