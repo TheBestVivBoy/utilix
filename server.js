@@ -21,6 +21,13 @@ const DASHBOARD_LOCKED_TO = process.env.DASHBOARD_LOCKED_TO
   || [];
 //block end here
 
+// -- Permission checker for env file 
+function userHasDashboardAccess(user) {
+  if (!user) return false;
+  const id = String(user.id || "");
+  return DASHBOARD_LOCKED_TO.includes(id);
+}
+// -- Permission checker for env file.
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(
@@ -1729,15 +1736,23 @@ input:checked + .slider:before { transform: translateX(24px); }
         </ul>
       </nav>
     </div>
-    <div class="header-right">
-      <a class="discord-btn discord-btn--ghost" href="/dashboard">Servers</a>
-      <a class="discord-btn" href="${escapeHtml(addBotUrl)}" target="_blank" rel="noopener">Add Bot</a>
-      <div class="auth-wrapper">
-        <img src="${av}" alt="User avatar"/>
-        <span class="user-display">${userDisplay}</span>
-        <a href="/logout" class="logout-btn">Logout</a>
-      </div>
-    </div>
+<div class="header-right">
+  <a class="discord-btn discord-btn--ghost" href="/dashboard">Servers</a>
+
+  ${
+    userHasDashboardAccess(user)
+      ? `<a class="discord-btn discord-btn--ghost" href="https://example.com" target="_blank" rel="noopener">Edit Website</a>`
+      : ""
+  }
+
+  <a class="discord-btn" href="${escapeHtml(addBotUrl)}" target="_blank" rel="noopener">Add Bot</a>
+
+  <div class="auth-wrapper">
+    <img src="${av}" alt="User avatar"/>
+    <span class="user-display">${userDisplay}</span>
+    <a href="/logout" class="logout-btn">Logout</a>
+  </div>
+</div>
   </header>
   <div class="canvas-wrap"><canvas id="starfield"></canvas></div>
 <main class="${pageClass}"${guildAttr}>
