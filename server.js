@@ -30,6 +30,20 @@ app.use(
     saveUninitialized: false,
   })
 );
+// --- Lock 3 ---
+app.use("/dashboard", (req, res, next) => {
+  if (!req.session.user) return res.redirect("/login");
+
+  const userId = String(req.session.user.id || "");
+
+  if (DASHBOARD_LOCKED_TO.length > 0 &&
+      !DASHBOARD_LOCKED_TO.includes(userId)) {
+    return res.redirect("/");
+  }
+
+  next();
+});
+// Lock 3
 
 const CLIENT_ID = process.env.DISCORD_CLIENT_ID;
 const CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET;
