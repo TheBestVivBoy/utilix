@@ -38,7 +38,7 @@ app.use("/dashboard", (req, res, next) => {
 
   if (DASHBOARD_LOCKED_TO.length > 0 &&
       !DASHBOARD_LOCKED_TO.includes(userId)) {
-    return res.redirect("/");
+    return res.redirect("/wip");
   }
 
   next();
