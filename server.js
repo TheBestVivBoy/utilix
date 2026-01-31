@@ -1755,7 +1755,7 @@ input:checked + .slider:before { transform: translateX(24px); }
 
   ${
     userHasDashboardAccess(user)
-      ? `<a class="discord-btn discord-btn--ghost" href="https://example.com" target="_blank" rel="noopener">Edit</a>`
+      ? `<a class="discord-btn discord-btn--ghost" href="/redirect">Edit</a>`
       : ""
   }
 
