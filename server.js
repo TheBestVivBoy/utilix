@@ -51,7 +51,21 @@ app.use("/dashboard", (req, res, next) => {
   next();
 });
 // Lock 3
+// -- Redirect Page
+app.get("/redirect", (req, res) => {
+  if (!req.session.user) {
+    return res.redirect("/");
+  }
 
+  const userId = String(req.session.user.id || "");
+
+  if (DASHBOARD_LOCKED_TO.includes(userId)) {
+    return res.redirect("https://github.com/TheBestVivBoy/utilix");
+  }
+
+  return res.redirect("/");
+});
+//-- Redirect Page
 const CLIENT_ID = process.env.DISCORD_CLIENT_ID;
 const CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET;
 const REDIRECT_URI = process.env.DISCORD_REDIRECT_URI;
@@ -1741,7 +1755,7 @@ input:checked + .slider:before { transform: translateX(24px); }
 
   ${
     userHasDashboardAccess(user)
-      ? `<a class="discord-btn discord-btn--ghost" href="https://example.com" target="_blank" rel="noopener">Edit Website</a>`
+      ? `<a class="discord-btn discord-btn--ghost" href="https://example.com" target="_blank" rel="noopener">Edit</a>`
       : ""
   }
 
