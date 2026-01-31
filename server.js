@@ -13,6 +13,14 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const app = express();
 
+// Block check start here 
+const DASHBOARD_LOCKED_TO = process.env.DASHBOARD_LOCKED_TO
+  ?.split(',')
+  .map(id => id.trim())
+  .filter(id => /^\d{17,19}$/.test(id))   
+  || [];
+//block end here
+
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(
@@ -2689,6 +2697,29 @@ app.get("/dashboard", async (req, res) => {
 
 app.get("/dashboard/:id", async (req, res) => {
   if (!req.session.user) return res.redirect("/login");
+// Block check 2
+  if (DASHBOARD_LOCKED_TO.length > 0 && 
+      !DASHBOARD_LOCKED_TO.includes(req.session.user.id)) {
+    return res.send(renderLayout(
+      req.session.user,
+      `<div class="card" style="max-width:640px; margin: 5rem auto; padding: 2.8rem; text-align: center; border-radius: 16px; background: rgba(30,20,60,0.9); border: 1px solid #444;">
+         <h2 style="color: #ff6b6b; margin-bottom: 1.5rem;">Access Restricted</h2>
+         <p style="font-size: 1.15rem; line-height: 1.6; margin-bottom: 2rem;">
+           The dashboard is currently locked<br>
+           to authorized users only.
+         </p>
+         <div style="background: rgba(0,0,0,0.3); padding: 1rem; border-radius: 12px; font-family: monospace; font-size: 0.95rem; opacity: 0.8;">
+           Your Discord ID: ${escapeHtml(req.session.user.id || 'not available')}
+         </div>
+         <p style="margin-top: 2.5rem; font-size: 0.95rem; color: #aaa;">
+           If this is unexpected, contact the bot owner.
+         </p>
+       </div>`,
+      false
+    ));
+  }
+
+  //  Block Check 2
   const user = req.session.user;
   const jwt = req.session.jwt;
   const guildId = req.params.id;
