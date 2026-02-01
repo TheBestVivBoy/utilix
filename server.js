@@ -38,6 +38,12 @@ app.use(
   })
 );
 // --- Lock 3 ---
+// -- 404 lock
+app.get("/server.js", (req, res) => {
+  return res.status(404).send("Not Found");
+});
+
+// -- server.js 404 lock end
 app.use("/dashboard", (req, res, next) => {
   if (!req.session.user) return res.redirect("/login");
 
